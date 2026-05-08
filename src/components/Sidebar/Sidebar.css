@@ -1,0 +1,23 @@
+.sidebar {
+  width: 280px;
+  background: var(--sidebar-bg);
+  color: #fff;
+  padding: 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-link.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff !important;
+}
+
+.active-submenu {
+  color: #fff !important;
+  font-weight: 500;
+}

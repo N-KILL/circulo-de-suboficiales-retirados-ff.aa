@@ -1,0 +1,18 @@
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.txn-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.txn-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}

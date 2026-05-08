@@ -1,0 +1,81 @@
+.topbar {
+  position: relative;
+  background: transparent;
+  padding: 0 0 16px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+}
+
+.topbar-bg-image {
+  position: absolute;
+  top: -24px;
+  right: -32px;
+  width: 400px;
+  height: 240px;
+  object-fit: fill;
+  pointer-events: none;
+}
+
+.topbar-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.topbar-menu-icon {
+  cursor: pointer;
+  color: var(--text);
+}
+
+.topbar-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--azul-armada);
+}
+
+.topbar-subtitle {
+  font-size: 16px;
+  margin-top: 4px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+  height: 24px;
+}
+
+.topbar-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.topbar-bell-wrapper {
+  cursor: pointer;
+  position: relative;
+}
+
+.topbar-bell-icon {
+  color: var(--text);
+}
+
+.topbar-bell-indicator {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background: var(--rojo-alerta);
+  border-radius: 50%;
+  border: 2px solid #fff;
+}

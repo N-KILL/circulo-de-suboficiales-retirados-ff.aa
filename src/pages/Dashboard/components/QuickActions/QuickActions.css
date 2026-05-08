@@ -1,0 +1,10 @@
+.quick-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.qa-btn:hover .qa-icon-box {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}

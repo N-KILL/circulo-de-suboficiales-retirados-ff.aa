@@ -1,0 +1,21 @@
+:root {
+  /* Palette */
+  --azul-armada: #11223A;
+  --azul-institucional: #1b3a6b;
+  --celeste-argentino: #a7d6f2;
+  --gris-claro: #f8fafc;
+  --gris-medio: #e2e8f0;
+  --dorado-suave: #d4af37;
+  --verde-exito: #16a34a;
+  --rojo-alerta: #dc2626;
+
+  /* Semantic */
+  --bg: #f3f6f9;
+  --sidebar-bg: var(--azul-armada);
+  --card-bg: #ffffff;
+  --text: #334155;
+  --muted: #64748b;
+  --border: #f1f5f9;
+  
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
