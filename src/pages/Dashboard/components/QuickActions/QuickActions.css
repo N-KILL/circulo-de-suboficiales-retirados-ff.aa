@@ -1,10 +1,91 @@
+/* Card container fills the column */
+.qa-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.qa-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+/* Vertical list of actions */
 .quick-actions {
   display: flex;
-  gap: 12px;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+/* Each action is a full-width button with its own border */
+.qa-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e4e7);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: 
+  background 0.18s ease, border-color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+  flex: 1;
+  min-height: 0;
+}
+
+.qa-btn:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.qa-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Colored icon box */
+.qa-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.qa-icon-box.verde {
+  background: #e6f4ea;
+  color: #2e7d32;
+}
+
+.qa-icon-box.azul {
+  background: #eef2fb;
+  color: #1b3a6b;
+}
+
+.qa-icon-box.naranja {
+  background: #fef3e5;
+  color: #b97b37;
 }
 
 .qa-btn:hover .qa-icon-box {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transform: scale(1.06);
+}
+
+/* Label text */
+.qa-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.1px;
 }

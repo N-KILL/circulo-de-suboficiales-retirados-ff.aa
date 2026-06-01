@@ -17,5 +17,21 @@
   --muted: #64748b;
   --border: #f1f5f9;
   
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  /* Typography System */
+  --fs-sidebar: 16px;
+  --fw-sidebar: 600;
+
+  --fs-title: 24px;
+  --fw-title: 700;
+
+  --fs-money: 40px;
+  --fw-money: 700;
+
+  --fs-form: 15px;
+  --fw-form: 500;
+
+  --fs-table: 14px;
+  --fw-table: 400;
 }

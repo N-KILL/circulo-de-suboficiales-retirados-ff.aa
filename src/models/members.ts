@@ -1,0 +1,56 @@
+export type Person = { id: string; nombre: string; apellido: string; documento: string };
+
+export type MemberForm = {
+    nro: string;
+    nombre: string;
+    sexo: string;
+    residencia: string;
+    nroFamilia: string;
+    nroFamAFall: string;
+    tipoDoc: string;
+    documento: string;
+    cuil: string;
+    tipoSocio: string;
+    fechaNac: string;
+    codPostal: string;
+    localidad: string;
+    domicilio: string;
+    telefono: string;
+    asistencial: boolean;
+    planSalud: string;
+    militar: boolean;
+    fuerza: string;
+    grado: string;
+    estado: string;
+    fechaIngreso: string;
+    cobraIAF: string;
+    pagaPor: string;
+    depositarEn: string;
+    cementerio: string;
+};
+
+export type MembersState = {
+    memberNumber: string;
+    form: MemberForm;
+    albacea: Person | null;
+    apoderado1: Person | null;
+    apoderado2: Person | null;
+    albSearch: string;
+    albVisible: boolean;
+    ap1Search: string;
+    ap1Visible: boolean;
+    ap2Search: string;
+    ap2Visible: boolean;
+    setField: (key: keyof MemberForm, value: any) => void;
+    setAlbacea: (p: Person | null) => void;
+    setApoderado1: (p: Person | null) => void;
+    setApoderado2: (p: Person | null) => void;
+    setAlbSearch: (s: string) => void;
+    setAlbVisible: (v: boolean) => void;
+    setAp1Search: (s: string) => void;
+    setAp1Visible: (v: boolean) => void;
+    setAp2Search: (s: string) => void;
+    setAp2Visible: (v: boolean) => void;
+    save: () => void;
+    reset: () => void;
+};

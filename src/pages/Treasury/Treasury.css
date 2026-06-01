@@ -1,0 +1,192 @@
+/* ── Treasury Hub ─────────────────────────────────────────── */
+.treasury-hub {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 32px;
+}
+
+.treasury-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: 900px;
+}
+
+/* ── Nav Card base ────────────────────────────────────────── */
+.treasury-nav-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 36px 32px;
+  border-radius: 20px;
+  border: 1.5px solid transparent;
+  background: var(--card-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.treasury-nav-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: inherit;
+}
+
+.treasury-nav-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+.treasury-nav-card:hover::before {
+  opacity: 1;
+}
+
+.treasury-nav-card:active {
+  transform: translateY(-1px);
+}
+
+/* ── Icon container ───────────────────────────────────────── */
+.treasury-nav-card__icon {
+  flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  transition: background 0.2s;
+}
+
+/* ── Body text ────────────────────────────────────────────── */
+.treasury-nav-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.treasury-nav-card__label {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.treasury-nav-card__desc {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── Arrow ────────────────────────────────────────────────── */
+.treasury-nav-card__arrow {
+  font-size: 24px;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.treasury-nav-card:hover .treasury-nav-card__arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ── Color variants ───────────────────────────────────────── */
+
+/* Azul – Movimientos */
+.treasury-nav-card--azul {
+  border-color: rgba(27, 58, 107, 0.12);
+}
+.treasury-nav-card--azul::before {
+  background: linear-gradient(135deg, rgba(27, 58, 107, 0.04) 0%, rgba(167, 214, 242, 0.06) 100%);
+}
+.treasury-nav-card--azul .treasury-nav-card__icon {
+  background: rgba(27, 58, 107, 0.08);
+  color: var(--azul-institucional);
+}
+.treasury-nav-card--azul:hover {
+  border-color: var(--azul-institucional);
+}
+.treasury-nav-card--azul .treasury-nav-card__arrow {
+  color: var(--azul-institucional);
+}
+
+/* Verde – Ingresos */
+.treasury-nav-card--verde {
+  border-color: rgba(22, 163, 74, 0.12);
+}
+.treasury-nav-card--verde::before {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.04) 0%, rgba(220, 252, 231, 0.1) 100%);
+}
+.treasury-nav-card--verde .treasury-nav-card__icon {
+  background: rgba(22, 163, 74, 0.09);
+  color: var(--verde-exito);
+}
+.treasury-nav-card--verde:hover {
+  border-color: var(--verde-exito);
+}
+.treasury-nav-card--verde .treasury-nav-card__arrow {
+  color: var(--verde-exito);
+}
+
+/* Naranja – Egresos (mismo palette que QuickActions) */
+.treasury-nav-card--naranja {
+  border-color: rgba(185, 123, 55, 0.15);
+}
+.treasury-nav-card--naranja::before {
+  background: linear-gradient(135deg, rgba(254, 243, 229, 0.6) 0%, rgba(254, 243, 229, 0.2) 100%);
+}
+.treasury-nav-card--naranja .treasury-nav-card__icon {
+  background: #fef3e5;
+  color: #b97b37;
+}
+.treasury-nav-card--naranja:hover {
+  border-color: #b97b37;
+}
+.treasury-nav-card--naranja .treasury-nav-card__arrow {
+  color: #b97b37;
+}
+
+/* Acento dorado – Nuevo Pago */
+.treasury-nav-card--acento {
+  border-color: rgba(212, 175, 55, 0.18);
+}
+.treasury-nav-card--acento::before {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.06) 0%, rgba(212, 175, 55, 0.02) 100%);
+}
+.treasury-nav-card--acento .treasury-nav-card__icon {
+  background: rgba(212, 175, 55, 0.1);
+  color: var(--dorado-suave);
+}
+.treasury-nav-card--acento:hover {
+  border-color: var(--dorado-suave);
+}
+.treasury-nav-card--acento .treasury-nav-card__arrow {
+  color: var(--dorado-suave);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .treasury-hub-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .treasury-nav-card {
+    padding: 22px 20px;
+  }
+}

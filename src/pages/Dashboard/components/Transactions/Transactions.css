@@ -1,18 +1,109 @@
+.transactions-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.transactions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.transactions-title {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.transactions-ver-todos {
+  font-size: 16px;
+  text-decoration: none;
+}
+
 .transactions-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
+/* Transaction row */
 .txn-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding-bottom: 12px;
+  padding-right: 12px;
   border-bottom: 1px solid var(--border);
 }
 
 .txn-item:last-child {
   border-bottom: none;
   padding-bottom: 0;
+}
+
+/* Left side */
+.txn-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.txn-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.txn-ingreso .txn-icon {
+  background: #e6f4ea;
+  color: var(--verde-exito);
+}
+
+.txn-egreso .txn-icon {
+  background: #fef3e5;
+  color: #b97b37;
+}
+
+.txn-title {
+  font-weight: var(--fw-table);
+  font-size: var(--fs-table);
+}
+
+.txn-subtitle {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* Right side */
+.txn-right {
+  text-align: right;
+}
+
+.txn-date {
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.txn-amount {
+  font-weight: var(--fw-table);
+  font-size: var(--fs-table);
+}
+
+.txn-ingreso .txn-amount {
+  color: var(--verde-exito);
+}
+
+.txn-egreso .txn-amount {
+  color: var(--rojo-alerta);
 }

@@ -7,9 +7,32 @@
 
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 360px;
   gap: 20px;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main-grid-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.dashboard-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  color: var(--muted);
 }
 
 .card {
@@ -26,4 +49,31 @@
 
 .muted {
   color: var(--muted);
+}
+
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: auto;
+    overflow: visible;
+  }
+  
+  .dashboard-root {
+    height: auto;
+    min-height: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }

@@ -1,9 +1,31 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, Landmark, Users, BarChart2, FileText, Settings, ChevronDown, Shield, User } from "lucide-react";
+import {
+  Home,
+  Landmark,
+  Users,
+  BarChart2,
+  FileText,
+  Settings,
+  ChevronDown,
+  User,
+} from "lucide-react";
+import logo from "../../assets/logo_ffaa-bg.png";
 import "./Sidebar.css";
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  collapsed?: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
+  const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
+
+  const toggleSubmenu = (key: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpenSubmenus((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const links = [
     { to: "/", label: "Inicio", icon: Home },
     { to: "/tesoreria", label: "Tesorería", icon: Landmark, hasSubmenu: true },
@@ -15,46 +37,58 @@ const Sidebar: React.FC = () => {
 
   const submenuLinks = [
     { to: "/tesoreria/movimientos", label: "Movimientos" },
-    { to: "/tesoreria/ingresos", label: "Ingresos" },
-    { to: "/tesoreria/egresos", label: "Egresos" },
+    { to: "/tesoreria/ingresos/nuevo-pago", label: "Nuevo Ingreso" },
+    { to: "/tesoreria/egresos/nuevo-egreso", label: "Nuevo Egreso" },
     { to: "/tesoreria/transferencias", label: "Transferencias" },
   ];
 
   return (
-    <aside className="sidebar">
-      <div className="brand" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", paddingBottom: "24px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-        <div style={{ padding: "16px", borderRadius: "50%", background: "linear-gradient(145deg, #1f3f77, #12284c)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
-          <Shield size={48} color="#eab308" strokeWidth={1.5} />
-        </div>
-        <div style={{ textAlign: "center", fontWeight: 700, fontSize: "11px", letterSpacing: "0.5px", lineHeight: "1.4", textTransform: "uppercase" }}>
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+      <div className="sidebar-brand">
+        <img src={logo} alt="Logo FF.AA" className="sidebar-logo-img" />
+        <div className="sidebar-brand-text">
           CLUB DE MIEMBROS<br />RETIRADOS DE LAS<br />FUERZAS ARMADAS<br />ARGENTINAS
         </div>
       </div>
 
-      <nav style={{ flexGrow: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px", marginTop: "16px" }}>
+      <nav className="sidebar-nav custom-scroll">
         {links.map((l) => (
           <React.Fragment key={l.to}>
-            <NavLink
-              to={l.to}
-              end={l.to === "/"}
-              className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: "8px", color: "rgba(255,255,255,0.85)", textDecoration: "none", fontSize: "14px", fontWeight: 500, transition: "all 0.2s" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <l.icon size={20} />
-                {l.label}
-              </div>
-              {l.hasSubmenu && <ChevronDown size={16} />}
-            </NavLink>
-            
+            <div className="sidebar-item">
+              <NavLink
+                to={l.to}
+                end={l.to === "/"}
+                className={({ isActive }) =>
+                  `sidebar-link ${isActive ? "active" : ""}`
+                }
+              >
+                <div className="sidebar-link-inner">
+                  <l.icon size={20} />
+                  {l.label}
+                </div>
+              </NavLink>
+              {l.hasSubmenu && (
+                <button
+                  className={`sidebar-chevron ${openSubmenus[l.to] ? "open" : ""}`}
+                  onClick={(e) => toggleSubmenu(l.to, e)}
+                  aria-label="Expandir submenú"
+                >
+                  <ChevronDown size={16} />
+                </button>
+              )}
+            </div>
+
             {l.hasSubmenu && (
-              <div style={{ display: "flex", flexDirection: "column", marginLeft: "16px", borderLeft: "1px solid rgba(255,255,255,0.1)", paddingLeft: "16px", marginTop: "4px", marginBottom: "8px", gap: "8px" }}>
-                {submenuLinks.map(sub => (
+              <div
+                className={`sidebar-submenu ${openSubmenus[l.to] ? "open" : ""}`}
+              >
+                {submenuLinks.map((sub) => (
                   <NavLink
                     key={sub.to}
                     to={sub.to}
-                    style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: "13px", padding: "4px 0", display: "block" }}
-                    className={({ isActive }) => isActive ? "active-submenu" : ""}
+                    className={({ isActive }) =>
+                      `sidebar-submenu-link ${isActive ? "active-submenu" : ""}`
+                    }
                   >
                     {sub.label}
                   </NavLink>
@@ -65,17 +99,16 @@ const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      <div style={{ marginTop: "auto", paddingTop: "24px", borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className="sidebar-footer">
+        <div className="sidebar-footer-inner">
+          <div className="sidebar-avatar">
             <User size={20} color="#fff" />
           </div>
           <div>
-            <div style={{ fontSize: "14px", fontWeight: 600 }}>Administrador</div>
-            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)" }}>Rol: Administrador</div>
+            <div className="sidebar-username">Administrador</div>
+            <div className="sidebar-role">Rol: Administrador</div>
           </div>
         </div>
-        <ChevronDown size={18} color="rgba(255,255,255,0.6)" />
       </div>
     </aside>
   );

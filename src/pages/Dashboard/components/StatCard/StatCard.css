@@ -1,5 +1,74 @@
+.stat-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+}
+
+.stat-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-icon-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-icon-container.verde {
+  background: #e6f4ea;
+  color: #2e7d32;
+}
+
+.stat-icon-container.azul {
+  background: #eef2fb;
+  color: #1b3a6b;
+}
+
+.stat-icon-container.naranja {
+  background: #fef3e5;
+  color: #b97b37;
+}
+
+.stat-card-title {
+  font-weight: 500;
+  font-size: 14px;
+}
+
 .stat-amount {
-  font-size: 26px;
-  font-weight: 700;
+  line-height: 1.2;
+  font-size: clamp(20px, 12cqw, 40px);
+  font-weight: var(--fw-money);
   color: var(--azul-armada);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.stat-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.stat-trend.positive {
+  color: var(--verde-exito);
+}
+
+.stat-trend.negative {
+  color: var(--rojo-alerta);
 }
