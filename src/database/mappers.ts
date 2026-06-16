@@ -1,6 +1,59 @@
 import type { Member, Person } from "../models/members";
 import type { MemberRow } from "./types";
 
+// ── Sexo ──────────────────────────────────────────────
+const sexoToDisplay: Record<string, string> = {
+    M: "Masculino", m: "Masculino",
+    F: "Femenino",  f: "Femenino",
+};
+
+const displayToSexo: Record<string, string> = {
+    Masculino: "M",
+    Femenino: "F",
+};
+
+// ── Tipo de socio ─────────────────────────────────────
+const tipoSocioToDisplay: Record<string, string> = {
+    ACT:   "Activo",
+    "ACT A": "Activo Tipo A",
+    ADH:   "Adherente",
+    HON:   "Honorario",
+    PART:  "Part",
+    VIT:   "Vitalicio",
+};
+
+const displayToTipoSocio: Record<string, string> = {
+    Activo:         "ACT",
+    "Activo Tipo A": "ACT A",
+    Adherente:      "ADH",
+    Honorario:      "HON",
+    Part:           "PART",
+    Vitalicio:      "VIT",
+};
+
+// ── Fechas (DD/MM/YYYY ↔ YYYY-MM-DD) ──────────────────
+function fechaToDisplay(value: string | null | undefined): string {
+    if (!value) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const m = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+        const [, d, mo, y] = m;
+        return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
+    return value;
+}
+
+function fechaToDb(value: string | null | undefined): string | null {
+    if (!value) return null;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value;
+    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) {
+        const [, y, mo, d] = m;
+        return `${d.padStart(2, "0")}/${mo.padStart(2, "0")}/${y}`;
+    }
+    return value;
+}
+
 function personFromRow(
     row: MemberRow,
     prefix: "albacea" | "apoderado1" | "apoderado2"
@@ -22,15 +75,15 @@ export function memberToRow(member: Member) {
         id: member.id,
         numero_de_socio: member.numeroDeSocio,
         nombre: member.nombre,
-        sexo: member.sexo || null,
+        sexo: displayToSexo[member.sexo] ?? (member.sexo || null),
         residencia: member.residencia || null,
         nro_familia: member.nroFamilia || null,
         nro_fam_a_fall: member.nroFamAFall || null,
         tipo_doc: member.tipoDoc || null,
         documento: member.documento || null,
         cuil: member.cuil || null,
-        tipo_socio: member.tipoSocio || null,
-        fecha_nac: member.fechaNac || null,
+        tipo_socio: displayToTipoSocio[member.tipoSocio] ?? (member.tipoSocio || null),
+        fecha_nac: fechaToDb(member.fechaNac),
         edad: member.edad || null,
         cod_postal: member.codPostal || null,
         localidad: member.localidad || null,
@@ -43,8 +96,8 @@ export function memberToRow(member: Member) {
         fuerza: member.fuerza || null,
         grado: member.grado || null,
         estado: member.estado || null,
-        fecha_ingreso: member.fechaIngreso || null,
-        fecha_baja: member.fechaBaja || null,
+        fecha_ingreso: fechaToDb(member.fechaIngreso),
+        fecha_baja: fechaToDb(member.fechaBaja),
         motivo_baja: member.motivoBaja || null,
         cobra_iaf: member.cobraIAF || null,
         paga_por: member.pagaPor || null,
@@ -74,15 +127,15 @@ export function rowToMember(row: MemberRow): Member {
         id: row.id,
         numeroDeSocio: row.numero_de_socio,
         nombre: row.nombre,
-        sexo: row.sexo ?? "",
+        sexo: sexoToDisplay[row.sexo ?? ""] ?? row.sexo ?? "",
         residencia: row.residencia ?? "",
         nroFamilia: row.nro_familia ?? "",
         nroFamAFall: row.nro_fam_a_fall ?? "",
         tipoDoc: row.tipo_doc ?? "",
         documento: row.documento ?? "",
         cuil: row.cuil ?? "",
-        tipoSocio: row.tipo_socio ?? "",
-        fechaNac: row.fecha_nac ?? "",
+        tipoSocio: tipoSocioToDisplay[row.tipo_socio ?? ""] ?? row.tipo_socio ?? "",
+        fechaNac: fechaToDisplay(row.fecha_nac),
         edad: row.edad ?? "",
         codPostal: row.cod_postal ?? "",
         localidad: row.localidad ?? "",
@@ -95,8 +148,8 @@ export function rowToMember(row: MemberRow): Member {
         fuerza: row.fuerza ?? "",
         grado: row.grado ?? "",
         estado: row.estado ?? "",
-        fechaIngreso: row.fecha_ingreso ?? "",
-        fechaBaja: row.fecha_baja ?? "",
+        fechaIngreso: fechaToDisplay(row.fecha_ingreso),
+        fechaBaja: fechaToDisplay(row.fecha_baja),
         motivoBaja: row.motivo_baja ?? "",
         cobraIAF: row.cobra_iaf ?? "",
         pagaPor: row.paga_por ?? "",

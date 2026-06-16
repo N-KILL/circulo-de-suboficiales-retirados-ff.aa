@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Person, Member, MembersFormState } from "../models/members";
+import { saveMember } from "../services/membersApi";
 
 const todayIso = () => new Date().toISOString().split('T')[0];
 
@@ -53,6 +54,21 @@ export const useMembersStore = create<MembersFormState>((set, get) => ({
 
     setField: (key: keyof Member, value: any) =>
         set((state) => ({ form: { ...state.form, [key as string]: value } as Member })),
+    setForm: (member: Member) => {
+        const cp = (p: Person | null): Person | null => p ? { ...p } : null;
+        set({
+            form: { ...member, albacea: cp(member.albacea), apoderado1: cp(member.apoderado1), apoderado2: cp(member.apoderado2) },
+            albacea: cp(member.albacea),
+            apoderado1: cp(member.apoderado1),
+            apoderado2: cp(member.apoderado2),
+            albSearch: '',
+            albVisible: false,
+            ap1Search: '',
+            ap1Visible: false,
+            ap2Search: '',
+            ap2Visible: false,
+        });
+    },
     setAlbacea: (p: Person | null) => set(() => ({ albacea: p })),
     setApoderado1: (p: Person | null) => set(() => ({ apoderado1: p })),
     setApoderado2: (p: Person | null) => set(() => ({ apoderado2: p })),
@@ -63,17 +79,15 @@ export const useMembersStore = create<MembersFormState>((set, get) => ({
     setAp2Search: (s: string) => set(() => ({ ap2Search: s })),
     setAp2Visible: (v: boolean) => set(() => ({ ap2Visible: v })),
 
-    save: () => {
+    save: async () => {
         const s = get();
         const payload = {
-            memberNumber: s.memberNumber,
             ...s.form,
             albacea: s.albacea,
             apoderado1: s.apoderado1,
             apoderado2: s.apoderado2,
         };
-        console.log('Guardar socio (store):', payload);
-        // TODO: llamar API
+        await saveMember(payload);
     },
 
     reset: () => set(() => ({

@@ -50,8 +50,9 @@ function upsertMemberQuery(
             ${row.apoderado2_tipo_doc}, ${row.apoderado2_documento},
             ${row.apoderado2_domicilio}, ${row.apoderado2_telefono}
         )
-        ON CONFLICT (numero_de_socio) DO UPDATE SET
+        ON CONFLICT (id) DO UPDATE SET
             nombre = EXCLUDED.nombre,
+            numero_de_socio = EXCLUDED.numero_de_socio,
             sexo = EXCLUDED.sexo,
             residencia = EXCLUDED.residencia,
             nro_familia = EXCLUDED.nro_familia,
@@ -121,6 +122,15 @@ export async function getMemberById(id: string): Promise<Member | null> {
     return row ? rowToMember(row) : null;
 }
 
+export async function getMemberByNumeroDeSocio(numero: string): Promise<Member | null> {
+    const sql = getSql();
+    const rows = (await sql`
+        SELECT * FROM members WHERE numero_de_socio = ${numero} LIMIT 1
+    `) as MemberRow[];
+    const row = rows[0];
+    return row ? rowToMember(row) : null;
+}
+
 function formatDbError(error: unknown): string {
     if (error instanceof Error) return error.message;
     return String(error);
@@ -129,6 +139,11 @@ function formatDbError(error: unknown): string {
 export async function upsertMember(member: Member): Promise<void> {
     const sql = getSql();
     await upsertMemberQuery(sql, memberToRow(member));
+}
+
+export async function deleteMemberById(id: string): Promise<void> {
+    const sql = getSql();
+    await sql`DELETE FROM members WHERE id = ${id}`;
 }
 
 export async function insertMembers(members: Member[]): Promise<InsertMembersResult> {

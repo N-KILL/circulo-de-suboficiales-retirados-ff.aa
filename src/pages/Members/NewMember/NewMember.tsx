@@ -1,8 +1,9 @@
-import React, { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, Save, User } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Search, Save, User, Loader, Trash2 } from "lucide-react";
 import "./NewMember.css";
 import { useMembersStore } from "../../../store/membersStore";
+import { fetchMemberById, deleteMember } from "../../../services/membersApi";
 import type { MembersState, Person } from "../../../models/members";
 
 const mockPeople: Person[] = [
@@ -13,10 +14,19 @@ const mockPeople: Person[] = [
 
 const NewMember: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditing = !!id;
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // store selectors
   const form = useMembersStore((s: MembersState) => s.form);
   const setField = useMembersStore((s: MembersState) => s.setField);
+  const setForm = useMembersStore((s: MembersState) => s.setForm);
   const albacea = useMembersStore((s: MembersState) => s.albacea);
   const apoderado1 = useMembersStore((s: MembersState) => s.apoderado1);
   const apoderado2 = useMembersStore((s: MembersState) => s.apoderado2);
@@ -38,6 +48,27 @@ const NewMember: React.FC = () => {
   const save = useMembersStore((s: MembersState) => s.save);
   const reset = useMembersStore((s: MembersState) => s.reset);
 
+  const loadMember = useCallback(async (memberId: string) => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const member = await fetchMemberById(memberId);
+      setForm(member);
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : "Error al cargar socio");
+    } finally {
+      setLoading(false);
+    }
+  }, [setForm]);
+
+  useEffect(() => {
+    if (id) {
+      loadMember(id);
+    } else {
+      reset();
+    }
+  }, [id]);
+
   const filteredPeople = useMemo(() => {
     const q = (albSearch || ap1Search || ap2Search).toLowerCase().trim();
     if (!q) return mockPeople;
@@ -50,14 +81,53 @@ const NewMember: React.FC = () => {
 
   const handleChange = (key: string, value: any) => setField(key as any, value);
 
-  const handleSave = (e?: React.FormEvent) => {
+  const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    save();
-    navigate(-1);
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await save();
+      navigate(-1);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    setDeleting(true);
+    setSaveError(null);
+    try {
+      await deleteMember(id);
+      setShowConfirmDelete(false);
+      navigate(-1);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Error al eliminar");
+      setShowConfirmDelete(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
     <div className="new-member-container">
+      <div className="treasury-header-row">
+        <h2>{isEditing ? "Editar socio" : "Nuevo socio"}</h2>
+      </div>
+      {loading && (
+        <div className="table-card" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 32 }}>
+          <Loader size={20} className="spin" />
+          <span style={{ color: "var(--muted)" }}>Cargando datos del socio...</span>
+        </div>
+      )}
+      {fetchError && (
+        <div className="table-card" style={{ padding: 20, color: "var(--danger, #dc3545)" }}>
+          {fetchError}
+        </div>
+      )}
+      {!loading && !fetchError && (
       <div className="new-member-layout">
         {/* Left: Form */}
         <div className="new-member-form-section">
@@ -79,7 +149,7 @@ const NewMember: React.FC = () => {
                 <input
                   className="form-control"
                   value={form.numeroDeSocio}
-                  onChange={(e) => handleChange("nro", e.target.value)}
+                  onChange={(e) => handleChange("numeroDeSocio", e.target.value)}
                 />
               </div>
 
@@ -158,7 +228,10 @@ const NewMember: React.FC = () => {
                 >
                   <option value="">-</option>
                   <option>Activo</option>
+                  <option>Activo Tipo A</option>
+                  <option>Adherente</option>
                   <option>Honorario</option>
+                  <option>Part</option>
                   <option>Vitalicio</option>
                 </select>
               </div>
@@ -197,6 +270,15 @@ const NewMember: React.FC = () => {
                   className="form-control"
                   value={form.domicilio}
                   onChange={(e) => handleChange("domicilio", e.target.value)}
+                />
+              </div>
+
+              <div className="form-group full-width">
+                <label>Residencia</label>
+                <input
+                  className="form-control"
+                  value={form.residencia}
+                  onChange={(e) => handleChange("residencia", e.target.value)}
                 />
               </div>
 
@@ -339,10 +421,24 @@ const NewMember: React.FC = () => {
 
       
 
+            {saveError && (
+              <div className="form-error">{saveError}</div>
+            )}
             <div className="form-actions-panel">
+              {isEditing && (
+                <button
+                  type="button"
+                  className="btn-delete"
+                  disabled={saving}
+                  onClick={() => setShowConfirmDelete(true)}
+                >
+                  <Trash2 size={16} /> Eliminar
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-cancel"
+                disabled={saving}
                 onClick={() => {
                   reset();
                   navigate(-1);
@@ -350,10 +446,48 @@ const NewMember: React.FC = () => {
               >
                 Cancelar
               </button>
-              <button type="submit" className="btn-save">
-                <Save size={16} /> Guardar
+              <button type="submit" className="btn-save" disabled={saving}>
+                {saving ? (
+                  <><Loader size={16} className="spin" /> Guardando...</>
+                ) : (
+                  <><Save size={16} /> {isEditing ? "Actualizar" : "Guardar"}</>
+                )}
               </button>
             </div>
+
+            {showConfirmDelete && (
+              <div className="confirm-overlay">
+                <div className="confirm-dialog">
+                  <h3>Eliminar socio</h3>
+                  <p>
+                    ¿Estás seguro de que querés eliminar al socio <strong>{form.nombre}</strong> (N° {form.numeroDeSocio})?
+                  </p>
+                  <p className="confirm-warning">Esta acción no se puede deshacer.</p>
+                  <div className="confirm-actions">
+                    <button
+                      type="button"
+                      className="btn-cancel"
+                      disabled={deleting}
+                      onClick={() => setShowConfirmDelete(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-delete confirm-btn"
+                      disabled={deleting}
+                      onClick={handleDelete}
+                    >
+                      {deleting ? (
+                        <><Loader size={16} className="spin" /> Eliminando...</>
+                      ) : (
+                        <>Eliminar</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </form>
         </div>
 
@@ -541,6 +675,7 @@ const NewMember: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

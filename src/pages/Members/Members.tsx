@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo } from "react";
 import { Search, UserPlus, Home } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import "../Treasury/TreasuryTables.css";
 import { useMembersListStore } from "../../store/membersListStore";
 
 const Members: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const searchText = useMembersListStore((s) => s.searchText);
   const showFallecidos = useMembersListStore((s) => s.showFallecidos);
@@ -22,10 +23,8 @@ const Members: React.FC = () => {
   const setRowsPerPage = useMembersListStore((s) => s.setRowsPerPage);
 
   useEffect(() => {
-    if (allMembers.length === 0 && !isLoading && !error) {
-      void loadMembers();
-    }
-  }, [allMembers.length, isLoading, error, loadMembers]);
+    void loadMembers();
+  }, [loadMembers, location.key]);
 
   const filtered = useMemo(() => {
     const s = searchText.toLowerCase().trim();
@@ -159,7 +158,7 @@ const Members: React.FC = () => {
                 paginated.map((m) => (
                   <tr
                     key={m.id}
-                    onClick={() => navigate(`/socios/${m.id}`)}
+                    onClick={() => navigate(`/socios/editar/${m.id}`, { state: { member: m } })}
                     style={{ cursor: "pointer" }}
                   >
                     <td>{m.numeroDeSocio}</td>

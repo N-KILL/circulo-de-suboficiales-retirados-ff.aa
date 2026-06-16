@@ -12,3 +12,44 @@ export async function fetchMembers(): Promise<Member[]> {
 
     return response.json() as Promise<Member[]>;
 }
+
+export async function fetchMemberById(id: string): Promise<Member> {
+    const response = await fetch(`/api/member?id=${encodeURIComponent(id)}`);
+
+    if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+            error?: string;
+        } | null;
+        throw new Error(body?.error ?? "No se pudo cargar el socio");
+    }
+
+    return response.json() as Promise<Member>;
+}
+
+export async function saveMember(member: Member): Promise<void> {
+    const response = await fetch("/api/member", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(member),
+    });
+
+    if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+            error?: string;
+        } | null;
+        throw new Error(body?.error ?? "Error al guardar el socio");
+    }
+}
+
+export async function deleteMember(id: string): Promise<void> {
+    const response = await fetch(`/api/member?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+    });
+
+    if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+            error?: string;
+        } | null;
+        throw new Error(body?.error ?? "Error al eliminar el socio");
+    }
+}

@@ -58,6 +58,7 @@ export type MembersFormState = {
     ap2Search: string;
     ap2Visible: boolean;
     setField: (key: keyof Member, value: any) => void;
+    setForm: (member: Member) => void;
     setAlbacea: (p: Person | null) => void;
     setApoderado1: (p: Person | null) => void;
     setApoderado2: (p: Person | null) => void;
@@ -67,7 +68,7 @@ export type MembersFormState = {
     setAp1Visible: (v: boolean) => void;
     setAp2Search: (s: string) => void;
     setAp2Visible: (v: boolean) => void;
-    save: () => void;
+    save: () => Promise<void>;
     reset: () => void;
 };
 

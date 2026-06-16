@@ -28,6 +28,7 @@ function App() {
           />
           <Route path="socios" element={<Members />} />
           <Route path="socios/nuevo" element={<NewMember />} />
+          <Route path="socios/editar/:id" element={<NewMember />} />
           <Route path="socios/:id" element={<MemberDetails />} />
         </Route>
       </Routes>
