@@ -1,7 +1,14 @@
-export type Person = { id: string; nombre: string; apellido: string; documento: string };
+export type Person = {
+    nombre: string;
+    tipoDoc: string;
+    documento: string;
+    domicilio: string;
+    telefono: string;
+};
 
-export type MemberForm = {
-    nro: string;
+export type Member = {
+    id: string; // UUID
+    numeroDeSocio: string;
     nombre: string;
     sexo: string;
     residencia: string;
@@ -12,26 +19,35 @@ export type MemberForm = {
     cuil: string;
     tipoSocio: string;
     fechaNac: string;
+    edad: string;
     codPostal: string;
     localidad: string;
     domicilio: string;
+    email: string;
     telefono: string;
     asistencial: boolean;
-    planSalud: string;
+    planSalud: boolean;
     militar: boolean;
     fuerza: string;
     grado: string;
     estado: string;
     fechaIngreso: string;
+    fechaBaja: string;
+    motivoBaja: string;
     cobraIAF: string;
     pagaPor: string;
-    depositarEn: string;
+    depositarEn?: string;
     cementerio: string;
+    fallecido: boolean;
+    albacea: Person | null;
+    apoderado1: Person | null;
+    apoderado2: Person | null;
 };
 
-export type MembersState = {
+// Estado del formulario de creación/edición de socio
+export type MembersFormState = {
     memberNumber: string;
-    form: MemberForm;
+    form: Member;
     albacea: Person | null;
     apoderado1: Person | null;
     apoderado2: Person | null;
@@ -41,7 +57,7 @@ export type MembersState = {
     ap1Visible: boolean;
     ap2Search: string;
     ap2Visible: boolean;
-    setField: (key: keyof MemberForm, value: any) => void;
+    setField: (key: keyof Member, value: any) => void;
     setAlbacea: (p: Person | null) => void;
     setApoderado1: (p: Person | null) => void;
     setApoderado2: (p: Person | null) => void;
@@ -54,3 +70,25 @@ export type MembersState = {
     save: () => void;
     reset: () => void;
 };
+
+// Estado de la lista/paginación de socios
+export type MembersListState = {
+    allMembers: Member[];
+    isLoading: boolean;
+    error: string | null;
+    searchText: string;
+    showFallecidos: boolean;
+    currentPage: number;
+    rowsPerPage: number;
+    loadMembers: () => Promise<void>;
+    setSearchText: (s: string) => void;
+    setShowFallecidos: (v: boolean) => void;
+    setCurrentPage: (p: number) => void;
+    setRowsPerPage: (r: number) => void;
+    getFiltered: () => Member[];
+    getPaginated: () => Member[];
+    getTotalPages: () => number;
+};
+
+// Alias de compatibilidad — el store de formulario se sigue llamando MembersState
+export type MembersState = MembersFormState;

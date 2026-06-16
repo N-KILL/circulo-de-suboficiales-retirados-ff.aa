@@ -183,6 +183,34 @@
   min-width: 900px;
 }
 
+.treasury-table .column-socio {
+  width: 7%;
+}
+
+.treasury-table .column-nombre {
+  width: 30%;
+}
+
+.treasury-table .column-telefono {
+  width: 15%;
+}
+
+.treasury-table .column-tipo {
+  width: 8%;
+}
+
+.treasury-table .column-documento {
+  width: 10%;
+}
+
+.treasury-table .column-localidad {
+  width: 10%;
+}
+
+.treasury-table .column-domicilio {
+  width: auto;
+}
+
 .treasury-table th {
   text-align: left;
   padding: 10px 12px;
@@ -229,6 +257,11 @@
   color: #dc2626;
 }
 
+.badge-transferencia {
+  background: #fef9c3;
+  color: #ca8a04;
+}
+
 /* Amounts */
 .amount-ingreso {
   color: var(--verde-exito);
@@ -237,6 +270,11 @@
 
 .amount-egreso {
   color: var(--rojo-alerta);
+  font-weight: 600;
+}
+
+.amount-transferencia {
+  color: #ca8a04;
   font-weight: 600;
 }
 

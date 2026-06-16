@@ -5,7 +5,7 @@ import {
   Landmark,
   Users,
   BarChart2,
-  FileText,
+  Calendar,
   Settings,
   ChevronDown,
   User,
@@ -31,7 +31,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
     { to: "/tesoreria", label: "Tesorería", icon: Landmark, hasSubmenu: true },
     { to: "/socios", label: "Socios", icon: Users },
     { to: "/reportes", label: "Reportes", icon: BarChart2 },
-    { to: "/documentos", label: "Documentos", icon: FileText },
+    { to: "/calendario", label: "Calendario", icon: Calendar },
     { to: "/configuracion", label: "Configuración", icon: Settings },
   ];
 

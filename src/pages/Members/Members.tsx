@@ -1,102 +1,54 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { Search, UserPlus } from "lucide-react";
+import React, { useEffect, useMemo } from "react";
+import { Search, UserPlus, Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import "../Treasury/TreasuryTables.css";
-
-type Member = {
-  id: string;
-  numero: string;
-  nombre: string;
-  cuota: "Paga" | "Debe";
-  fallecido: boolean;
-  telefono?: string;
-  email?: string;
-};
+import { useMembersListStore } from "../../store/membersListStore";
 
 const Members: React.FC = () => {
   const navigate = useNavigate();
 
-  const members: Member[] = [
-    {
-      id: "1",
-      numero: "0001",
-      nombre: "Pérez, Juan Carlos",
-      cuota: "Paga",
-      fallecido: false,
-      telefono: "11-1234-5678",
-      email: "juan.perez@example.com",
-    },
-    {
-      id: "2",
-      numero: "0002",
-      nombre: "González, Roberto",
-      cuota: "Debe",
-      fallecido: false,
-      telefono: "11-2222-3333",
-      email: "roberto.g@example.com",
-    },
-    {
-      id: "3",
-      numero: "0003",
-      nombre: "Ramirez, María",
-      cuota: "Paga",
-      fallecido: false,
-      telefono: "11-4444-5555",
-      email: "maria.ramirez@example.com",
-    },
-    {
-      id: "4",
-      numero: "0004",
-      nombre: "Ortega, Hugo",
-      cuota: "Debe",
-      fallecido: true,
-      telefono: "11-6666-7777",
-      email: "",
-    },
-    {
-      id: "5",
-      numero: "0005",
-      nombre: "Nuñez, Estela",
-      cuota: "Paga",
-      fallecido: false,
-      telefono: "11-8888-9999",
-      email: "estela.nu@example.com",
-    },
-  ];
+  const searchText = useMembersListStore((s) => s.searchText);
+  const showFallecidos = useMembersListStore((s) => s.showFallecidos);
+  const currentPage = useMembersListStore((s) => s.currentPage);
+  const rowsPerPage = useMembersListStore((s) => s.rowsPerPage);
+  const allMembers = useMembersListStore((s) => s.allMembers);
+  const isLoading = useMembersListStore((s) => s.isLoading);
+  const error = useMembersListStore((s) => s.error);
+  const loadMembers = useMembersListStore((s) => s.loadMembers);
+  const setSearchText = useMembersListStore((s) => s.setSearchText);
+  const setShowFallecidos = useMembersListStore((s) => s.setShowFallecidos);
+  const setCurrentPage = useMembersListStore((s) => s.setCurrentPage);
+  const setRowsPerPage = useMembersListStore((s) => s.setRowsPerPage);
 
-  const [searchText, setSearchText] = useState("");
-  const [estadoFilter, setEstadoFilter] = useState("Todos");
-  const [showFallecidos, setShowFallecidos] = useState(false);
-
-  // pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(15);
+  useEffect(() => {
+    if (allMembers.length === 0 && !isLoading && !error) {
+      void loadMembers();
+    }
+  }, [allMembers.length, isLoading, error, loadMembers]);
 
   const filtered = useMemo(() => {
     const s = searchText.toLowerCase().trim();
-    return members.filter((m) => {
+    const list = allMembers.filter((m) => {
       const matchSearch =
         !s ||
         m.nombre.toLowerCase().includes(s) ||
-        m.numero.toLowerCase().includes(s);
-      const matchEstado = estadoFilter === "Todos" || m.cuota === estadoFilter;
+        m.documento.includes(s) ||
+        m.numeroDeSocio.includes(s);
       const matchFallecido = showFallecidos ? true : !m.fallecido;
-      return matchSearch && matchEstado && matchFallecido;
+      return matchSearch && matchFallecido;
     });
-  }, [searchText, estadoFilter, showFallecidos]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchText, estadoFilter, showFallecidos]);
+    return list.sort((a, b) => {
+      const na = parseInt(a.numeroDeSocio.replace(/\D/g, ""), 10) || 0;
+      const nb = parseInt(b.numeroDeSocio.replace(/\D/g, ""), 10) || 0;
+      return na - nb;
+    });
+  }, [allMembers, searchText, showFallecidos]);
 
   const totalItems = filtered.length;
-  const totalPages = Math.ceil(totalItems / rowsPerPage);
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) setCurrentPage(totalPages);
-  }, [rowsPerPage, totalPages, currentPage]);
-
-  const startIndex = (currentPage - 1) * rowsPerPage;
+  const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * rowsPerPage;
   const paginated = filtered.slice(startIndex, startIndex + rowsPerPage);
 
   return (
@@ -124,18 +76,6 @@ const Members: React.FC = () => {
           />
         </div>
 
-        <div className="filter-item">
-          <select
-            className="filter-select"
-            value={estadoFilter}
-            onChange={(e) => setEstadoFilter(e.target.value)}
-          >
-            <option>Todos</option>
-            <option>Paga</option>
-            <option>Debe</option>
-          </select>
-        </div>
-
         <div
           className="filter-item"
           style={{ display: "flex", alignItems: "center", gap: 8 }}
@@ -155,20 +95,57 @@ const Members: React.FC = () => {
       <div className="table-card">
         <div className="table-wrapper">
           <table className="treasury-table">
+            <colgroup>
+              <col className="column-socio" />
+              <col className="column-nombre" />
+              <col className="column-telefono" />
+              <col className="column-tipo" />
+              <col className="column-documento" />
+              <col className="column-localidad" />
+              <col className="column-domicilio" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Nº Socio</th>
                 <th>Nombre</th>
-                <th>Estado cuota</th>
                 <th>Teléfono</th>
-                <th>Email</th>
+                <th>Tipo</th>
+                <th>Documento</th>
+                <th>Localidad</th>
+                <th>Dirección/Residencia</th>
               </tr>
             </thead>
             <tbody>
-              {paginated.length === 0 ? (
+              {isLoading ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={7}
+                    style={{
+                      textAlign: "center",
+                      padding: "32px",
+                      color: "var(--muted)",
+                    }}
+                  >
+                    Cargando socios...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    style={{
+                      textAlign: "center",
+                      padding: "32px",
+                      color: "var(--muted)",
+                    }}
+                  >
+                    {error}
+                  </td>
+                </tr>
+              ) : paginated.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={7}
                     style={{
                       textAlign: "center",
                       padding: "32px",
@@ -185,24 +162,44 @@ const Members: React.FC = () => {
                     onClick={() => navigate(`/socios/${m.id}`)}
                     style={{ cursor: "pointer" }}
                   >
-                    <td>{m.numero}</td>
+                    <td>{m.numeroDeSocio}</td>
                     <td>
-                      {m.nombre}{" "}
+                      {m.nombre}
                       {m.fallecido && (
                         <span style={{ color: "var(--muted)", marginLeft: 8 }}>
                           †
                         </span>
                       )}
                     </td>
-                    <td>
-                      <span
-                        className={`badge ${m.cuota === "Paga" ? "badge-ingreso" : "badge-egreso"}`}
-                      >
-                        {m.cuota}
-                      </span>
-                    </td>
                     <td>{m.telefono}</td>
-                    <td>{m.email}</td>
+                    <td>{m.tipoSocio}</td>
+                    <td>{m.documento}</td>
+                    <td>{m.localidad}</td>
+                    <td>
+                      {m.residencia ? (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          {m.domicilio || ""}
+                          <span
+                            title={m.residencia}
+                            style={{ cursor: "help", display: "inline-flex" }}
+                          >
+                            <Home
+                              size={14}
+                              strokeWidth={1.5}
+                              color="var(--muted)"
+                            />
+                          </span>
+                        </span>
+                      ) : (
+                        m.domicilio
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
@@ -211,15 +208,14 @@ const Members: React.FC = () => {
         </div>
 
         <TablePagination
-          currentPage={currentPage}
+          currentPage={safePage}
           totalItems={totalItems}
           rowsPerPage={rowsPerPage}
           itemLabel="socios"
-          onPageChange={setCurrentPage}
-          onRowsPerPageChange={(rows) => {
-            setRowsPerPage(rows);
-            setCurrentPage(1);
-          }}
+          onPageChange={(p) =>
+            setCurrentPage(Math.min(Math.max(1, p), totalPages))
+          }
+          onRowsPerPageChange={setRowsPerPage}
         />
       </div>
     </div>

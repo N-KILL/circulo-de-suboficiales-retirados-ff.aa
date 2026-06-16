@@ -28,34 +28,26 @@ const DashboardPage: React.FC = () => {
         <StatCard
           title="Saldo Disponible"
           amount={stats.saldo}
-          subtitle="Actualizado hoy 10:30"
           variant="verde"
           Icon={Banknote}
-          trend={{ value: stats.saldoTrend, isPositive: true }}
         />
         <StatCard
           title="Ingresos del Mes"
           amount={stats.ingresos}
-          subtitle="Mayo 2024"
           variant="azul"
           Icon={ArrowDown}
-          trend={{ value: stats.ingresosTrend, isPositive: true }}
         />
         <StatCard
           title="Egresos del Mes"
           amount={stats.egresos}
-          subtitle="Mayo 2024"
           variant="naranja"
           Icon={ArrowUp}
-          trend={{ value: stats.egresosTrend, isPositive: false }}
         />
         <StatCard
           title="Resultado del Mes"
           amount={stats.resultado}
-          subtitle="Mayo 2024"
           variant="azul"
           Icon={Scale}
-          trend={{ value: stats.resultadoTrend, isPositive: true }}
         />
       </section>
 

@@ -25,3 +25,8 @@ dist-ssr
 
 # Environment variables
 .env
+
+# Seed report (generado por npm run db:seed)
+database/seed-errors.json
+
+*.csv

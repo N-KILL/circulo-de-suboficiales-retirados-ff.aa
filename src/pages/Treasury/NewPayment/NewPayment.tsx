@@ -79,7 +79,7 @@ const NewPayment: React.FC = () => {
               <div className="form-group">
                 <label>Importe <span className="required">*</span></label>
                 <div className="input-with-icon">
-                  <input type="text" className="form-control" defaultValue="$ 15.000,00" />
+                  <input type="text" className="form-control" defaultValue="15.000,00" />
                   <DollarSign size={18} className="input-icon" />
                 </div>
               </div>

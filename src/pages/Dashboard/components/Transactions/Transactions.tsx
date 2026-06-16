@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowLeftRight } from "lucide-react";
 import { useDashboardStore } from "../../../../store/dashboardStore";
 import "./Transactions.css";
 
@@ -16,11 +16,18 @@ const Transactions: React.FC = () => {
       <div className="transactions-list custom-scroll">
         {items.map((it, i) => {
           const isIngreso = it.type === "ingreso";
+          const isEgreso = it.type === "egreso";
           return (
-            <div className={`txn-item ${isIngreso ? "txn-ingreso" : "txn-egreso"}`} key={i}>
+            <div className={`txn-item ${isIngreso ? "txn-ingreso" : isEgreso ? "txn-egreso" : "txn-transferencia"}`} key={i}>
               <div className="txn-left">
                 <div className="txn-icon">
-                  {isIngreso ? <ArrowDown size={18} /> : <ArrowUp size={18} />}
+                  {isIngreso ? (
+                    <ArrowDown size={18} />
+                  ) : isEgreso ? (
+                    <ArrowUp size={18} />
+                  ) : (
+                    <ArrowLeftRight size={18} />
+                  )}
                 </div>
                 <div className="txn-info">
                   <div className="txn-title">{it.title}</div>

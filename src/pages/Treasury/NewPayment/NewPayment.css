@@ -2,7 +2,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  min-height: 0;
+  height: 100%;
 }
 
 .new-payment-layout {
@@ -10,9 +11,20 @@
   grid-template-columns: 1fr 380px;
   gap: 24px;
   align-items: start;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.new-payment-form-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
   overflow-y: auto;
-  padding-right: 8px;
-  max-height: calc(100vh - 80px);
+  padding-right: 12px;
 }
 
 .card-custom {

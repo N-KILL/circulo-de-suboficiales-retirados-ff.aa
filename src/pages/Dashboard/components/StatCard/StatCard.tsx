@@ -11,7 +11,7 @@ type Props = {
   variant?: 'verde' | 'azul' | 'naranja';
 };
 
-const StatCard: React.FC<Props> = ({ title, amount, subtitle, Icon, trend, variant = 'azul' }) => {
+const StatCard: React.FC<Props> = ({ title, amount, Icon, trend, variant = 'azul' }) => {
   return (
     <div className="card stat-card-wrapper">
       <div className="stat-card-header">
@@ -24,7 +24,6 @@ const StatCard: React.FC<Props> = ({ title, amount, subtitle, Icon, trend, varia
         {amount}
       </div>
       <div className="stat-card-footer">
-        {subtitle && <div className="muted stat-card-subtitle">{subtitle}</div>}
         {trend && (
           <div className={`stat-trend ${trend.isPositive ? 'positive' : 'negative'}`}>
             {trend.isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}

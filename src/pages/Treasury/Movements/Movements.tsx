@@ -1,111 +1,153 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Search } from "lucide-react";
 import TablePagination from "../../../components/TablePagination/TablePagination";
+import { fetchMovements, type Movement } from "../../../services/movementsApi";
 import "../TreasuryTables.css";
 
 /* ── helpers ───────────────────────────────────────────────── */
 const toInputDate = (d: Date) => d.toISOString().split("T")[0]; // "YYYY-MM-DD"
 
-const parseRowDate = (dateStr: string): Date => {
-  const [day, month, year] = dateStr.split("/").map(Number);
-  return new Date(year, month - 1, day);
-};
+function formatCurrency(val: number): string {
+  const absVal = Math.abs(val);
+  const formatted = new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(absVal);
+  return `${val < 0 ? "- " : ""}$ ${formatted}`;
+}
 
 /* ── component ─────────────────────────────────────────────── */
 const Movements: React.FC = () => {
+  // ── Database states ────────────────────────────────────────
+  const [rawMovements, setRawMovements] = useState<Movement[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // ── Mock data – June 2026 ─────────────────────────────────
-  const movements = [
-    { fecha: "30/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "Pérez, Juan Carlos",         comprobante: "REC-000148", ingreso: "$ 5.000,00",    egreso: "-",           saldo: "$ 1.250.000,00" },
-    { fecha: "30/06/2026", tipo: "Egreso",   concepto: "Pago servicio de luz",              categoria: "Servicios",         socio: "Edenor S.A.",                comprobante: "FAC-000512", ingreso: "-",             egreso: "$ 48.600,00",  saldo: "$ 1.201.400,00" },
-    { fecha: "28/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "González, Roberto",          comprobante: "REC-000147", ingreso: "$ 5.000,00",    egreso: "-",            saldo: "$ 1.250.000,00" },
-    { fecha: "27/06/2026", tipo: "Egreso",   concepto: "Compra artículos limpieza",         categoria: "Mantenimiento",     socio: "Distribuidora del Sur",      comprobante: "FAC-000511", ingreso: "-",             egreso: "$ 21.300,00",  saldo: "$ 1.228.700,00" },
-    { fecha: "26/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "López, Miguel Ángel",        comprobante: "REC-000146", ingreso: "$ 5.000,00",    egreso: "-",            saldo: "$ 1.250.000,00" },
-    { fecha: "25/06/2026", tipo: "Egreso",   concepto: "Combustible movilidad",             categoria: "Transporte",        socio: "YPF S.A.",                   comprobante: "FAC-000510", ingreso: "-",             egreso: "$ 14.800,00",  saldo: "$ 1.235.200,00" },
-    { fecha: "24/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "Ramirez, María",             comprobante: "REC-000145", ingreso: "$ 5.000,00",    egreso: "-",            saldo: "$ 1.250.000,00" },
-    { fecha: "23/06/2026", tipo: "Egreso",   concepto: "Reparación PC Secretaría",          categoria: "Mantenimiento",     socio: "Sistemas Plus",              comprobante: "FAC-000509", ingreso: "-",             egreso: "$ 38.000,00",  saldo: "$ 1.212.000,00" },
-    { fecha: "21/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "Gomez, Pedro",               comprobante: "REC-000144", ingreso: "$ 5.000,00",    egreso: "-",            saldo: "$ 1.250.000,00" },
-    { fecha: "20/06/2026", tipo: "Egreso",   concepto: "Artículos de librería",             categoria: "Administración",    socio: "Librería del Centro",        comprobante: "FAC-000508", ingreso: "-",             egreso: "$ 9.200,00",   saldo: "$ 1.240.800,00" },
-    { fecha: "19/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "Fernandez, Lucía",           comprobante: "REC-000143", ingreso: "$ 5.000,00",    egreso: "-",            saldo: "$ 1.250.000,00" },
-    { fecha: "18/06/2026", tipo: "Egreso",   concepto: "Pago Internet Junio",               categoria: "Servicios",         socio: "Fibertel",                   comprobante: "FAC-000507", ingreso: "-",             egreso: "$ 13.500,00",  saldo: "$ 1.236.500,00" },
-    { fecha: "17/06/2026", tipo: "Ingreso",  concepto: "Alquiler cancha de fútbol",         categoria: "Alquileres",        socio: "Torneo Amistoso",            comprobante: "REC-000142", ingreso: "$ 22.000,00",   egreso: "-",            saldo: "$ 1.258.500,00" },
-    { fecha: "16/06/2026", tipo: "Egreso",   concepto: "Artículos de cafetería",            categoria: "Administración",    socio: "Supermercado Coto",          comprobante: "FAC-000506", ingreso: "-",             egreso: "$ 15.400,00",  saldo: "$ 1.236.500,00" },
-    { fecha: "14/06/2026", tipo: "Egreso",   concepto: "Mantenimiento jardín",              categoria: "Mantenimiento",     socio: "Paisajismo Verde",           comprobante: "FAC-000505", ingreso: "-",             egreso: "$ 24.000,00",  saldo: "$ 1.251.900,00" },
-    { fecha: "13/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "Ortega, Hugo",               comprobante: "REC-000141", ingreso: "$ 5.000,00",    egreso: "-",            saldo: "$ 1.275.900,00" },
-    { fecha: "12/06/2026", tipo: "Ingreso",  concepto: "Donación Anónima",                  categoria: "Donaciones",        socio: "Anónimo",                    comprobante: "REC-000140", ingreso: "$ 50.000,00",   egreso: "-",            saldo: "$ 1.270.900,00" },
-    { fecha: "12/06/2026", tipo: "Egreso",   concepto: "Repuesto bomba de agua",            categoria: "Mantenimiento",     socio: "Sanitarios Central",         comprobante: "FAC-000504", ingreso: "-",             egreso: "$ 41.000,00",  saldo: "$ 1.220.900,00" },
-    { fecha: "10/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "Nuñez, Estela",              comprobante: "REC-000139", ingreso: "$ 5.000,00",    egreso: "-",            saldo: "$ 1.261.900,00" },
-    { fecha: "10/06/2026", tipo: "Egreso",   concepto: "Servicio de Vigilancia",            categoria: "Seguridad",         socio: "SegurPlus S.A.",             comprobante: "FAC-000503", ingreso: "-",             egreso: "$ 125.000,00", saldo: "$ 1.256.900,00" },
-    { fecha: "08/06/2026", tipo: "Ingreso",  concepto: "Inscripción torneo tenis",          categoria: "Inscripciones",     socio: "Varios Participantes",       comprobante: "REC-000138", ingreso: "$ 35.000,00",   egreso: "-",            saldo: "$ 1.381.900,00" },
-    { fecha: "07/06/2026", tipo: "Egreso",   concepto: "Servicio telefónico e internet",    categoria: "Servicios",         socio: "Telecom Argentina",          comprobante: "FAC-000502", ingreso: "-",             egreso: "$ 31.200,00",  saldo: "$ 1.346.900,00" },
-    { fecha: "05/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "Molina, Roberto",            comprobante: "REC-000137", ingreso: "$ 5.000,00",    egreso: "-",            saldo: "$ 1.378.100,00" },
-    { fecha: "04/06/2026", tipo: "Egreso",   concepto: "Honorarios contador",               categoria: "Honorarios",        socio: "Estudio Contable SRL",       comprobante: "FAC-000501", ingreso: "-",             egreso: "$ 28.000,00",  saldo: "$ 1.373.100,00" },
-    { fecha: "02/06/2026", tipo: "Ingreso",  concepto: "Cuota social Junio 2026",          categoria: "Cuotas Sociales",   socio: "Gimenez, Pedro",             comprobante: "REC-000136", ingreso: "$ 5.000,00",    egreso: "-",            saldo: "$ 1.401.100,00" },
-  ];
-
-  // ── Default date range: current month ─────────────────────
-  const now = new Date();
-  const defaultFrom = toInputDate(new Date(now.getFullYear(), now.getMonth(), 1));
-  const defaultTo   = toInputDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-
-  // ── Filter state ───────────────────────────────────────────
-  const [searchText,      setSearchText]      = useState("");
-  const [dateFrom,        setDateFrom]        = useState(defaultFrom);
-  const [dateTo,          setDateTo]          = useState(defaultTo);
-  const [tipoFilter,      setTipoFilter]      = useState("Todos los tipos");
+  // ── Filter states ──────────────────────────────────────────
+  const [searchText, setSearchText] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [tipoFilter, setTipoFilter] = useState("Todos los tipos");
   const [categoriaFilter, setCategoriaFilter] = useState("Todas las categorías");
 
-  // ── Dynamic category list ──────────────────────────────────
-  const categorias = useMemo(() => {
-    const unique = Array.from(new Set(movements.map((m) => m.categoria))).sort();
-    return ["Todas las categorías", ...unique];
+  // ── Fetch data on mount ────────────────────────────────────
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    setError(null);
+    fetchMovements()
+      .then((data) => {
+        if (isMounted) {
+          setRawMovements(data);
+          if (data.length > 0) {
+            const latest = data[data.length - 1];
+            const latestDate = new Date(latest.date + "T12:00:00");
+            const firstDay = toInputDate(new Date(latestDate.getFullYear(), latestDate.getMonth(), 1));
+            const lastDay = toInputDate(new Date(latestDate.getFullYear(), latestDate.getMonth() + 1, 0));
+            setDateFrom(firstDay);
+            setDateTo(lastDay);
+          } else {
+            const now = new Date();
+            setDateFrom(toInputDate(new Date(now.getFullYear(), now.getMonth(), 1)));
+            setDateTo(toInputDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
+          }
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setError(err.message || "No se pudieron cargar los movimientos de caja.");
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // ── Filtered data ──────────────────────────────────────────
+  const INITIAL_BALANCE = 0;
+
+  // ── Calculate chronological running balance ─────────────────
+  const movementsWithSaldo = useMemo(() => {
+    let runningBalance = INITIAL_BALANCE;
+    return rawMovements.map((m) => {
+      if (m.type === "ingreso") {
+        runningBalance += m.amount;
+      } else if (m.type === "egreso") {
+        runningBalance -= m.amount;
+      }
+
+      const parts = m.date.split("-");
+      const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : m.date;
+
+      return {
+        id: m.id,
+        fecha: formattedDate,
+        tipo: m.type === "ingreso" ? "Ingreso" : m.type === "egreso" ? "Egreso" : "Transferencia",
+        concepto: m.detail,
+        ingreso: (m.type === "ingreso" || m.type === "transferencia") ? formatCurrency(m.amount) : "-",
+        egreso: (m.type === "egreso" || m.type === "transferencia") ? formatCurrency(m.amount) : "-",
+        saldo: formatCurrency(runningBalance),
+        dateObject: new Date(m.date + "T12:00:00"),
+      };
+    });
+  }, [rawMovements]);
+
+  // ── Filtered data (sorted descending: newest first) ──────────
   const filteredMovements = useMemo(() => {
-    const from   = new Date(dateFrom + "T00:00:00");
-    const to     = new Date(dateTo   + "T23:59:59");
+    if (!dateFrom || !dateTo) return [];
+    
+    const from = new Date(dateFrom + "T00:00:00");
+    const to = new Date(dateTo + "T23:59:59");
     const search = searchText.toLowerCase().trim();
 
-    return movements.filter((m) => {
-      const mDate = parseRowDate(m.fecha);
+    const list = movementsWithSaldo.filter((m) => {
+      const mDate = m.dateObject;
 
-      const matchDate   = mDate >= from && mDate <= to;
-      const matchSearch = !search ||
-        m.concepto.toLowerCase().includes(search) ||
-        m.socio.toLowerCase().includes(search)    ||
-        m.comprobante.toLowerCase().includes(search);
-      const matchTipo   = tipoFilter === "Todos los tipos" || m.tipo === tipoFilter;
-      const matchCat    = categoriaFilter === "Todas las categorías" || m.categoria === categoriaFilter;
+      const matchDate = mDate >= from && mDate <= to;
+      const matchSearch =
+        !search ||
+        m.concepto.toLowerCase().includes(search);
+      const matchTipo = tipoFilter === "Todos los tipos" || m.tipo === tipoFilter;
 
-      return matchDate && matchSearch && matchTipo && matchCat;
+      return matchDate && matchSearch && matchTipo;
     });
-  }, [searchText, dateFrom, dateTo, tipoFilter, categoriaFilter]);
+
+    return [...list].reverse();
+  }, [movementsWithSaldo, searchText, dateFrom, dateTo, tipoFilter, categoriaFilter]);
 
   // ── Pagination ─────────────────────────────────────────────
-  const [currentPage,  setCurrentPage]  = useState(1);
-  const [rowsPerPage,  setRowsPerPage]  = useState(15);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
-  const totalItems  = filteredMovements.length;
-  const totalPages  = Math.ceil(totalItems / rowsPerPage);
+  const totalItems = filteredMovements.length;
+  const totalPages = Math.ceil(totalItems / rowsPerPage);
 
   // Reset to page 1 whenever filters change
-  useEffect(() => { setCurrentPage(1); }, [searchText, dateFrom, dateTo, tipoFilter, categoriaFilter]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, dateFrom, dateTo, tipoFilter, categoriaFilter]);
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) setCurrentPage(totalPages);
   }, [rowsPerPage, totalPages, currentPage]);
 
-  const startIndex        = (currentPage - 1) * rowsPerPage;
+  const startIndex = (currentPage - 1) * rowsPerPage;
   const paginatedMovements = filteredMovements.slice(startIndex, startIndex + rowsPerPage);
 
-  // ── Render ─────────────────────────────────────────────────
+  // ── Render states ──────────────────────────────────────────
+  if (isLoading) {
+    return <div className="dashboard-loading">Cargando movimientos de caja...</div>;
+  }
+
+  if (error) {
+    return <div className="dashboard-loading" style={{ color: "var(--danger)" }}>Error: {error}</div>;
+  }
+
   return (
     <div className="treasury-container">
-
       {/* Filters Bar */}
       <div className="filters-bar">
-
         {/* Search */}
         <div className="search-wrapper">
           <Search size={16} className="search-icon" />
@@ -147,22 +189,9 @@ const Movements: React.FC = () => {
             <option>Todos los tipos</option>
             <option>Ingreso</option>
             <option>Egreso</option>
+            <option>Transferencia</option>
           </select>
         </div>
-
-        {/* Categoría */}
-        <div className="filter-item">
-          <select
-            className="filter-select"
-            value={categoriaFilter}
-            onChange={(e) => setCategoriaFilter(e.target.value)}
-          >
-            {categorias.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-
       </div>
 
       {/* Table Section */}
@@ -174,9 +203,6 @@ const Movements: React.FC = () => {
                 <th>Fecha</th>
                 <th>Tipo</th>
                 <th>Concepto</th>
-                <th>Categoría</th>
-                <th>Socio / Proveedor</th>
-                <th>Comprobante</th>
                 <th>Ingreso</th>
                 <th>Egreso</th>
                 <th>Saldo</th>
@@ -194,16 +220,13 @@ const Movements: React.FC = () => {
                   <tr key={idx}>
                     <td>{m.fecha}</td>
                     <td>
-                      <span className={`badge ${m.tipo === "Ingreso" ? "badge-ingreso" : "badge-egreso"}`}>
+                      <span className={`badge ${m.tipo === "Ingreso" ? "badge-ingreso" : m.tipo === "Egreso" ? "badge-egreso" : "badge-transferencia"}`}>
                         {m.tipo}
                       </span>
                     </td>
                     <td>{m.concepto}</td>
-                    <td>{m.categoria}</td>
-                    <td>{m.socio}</td>
-                    <td>{m.comprobante}</td>
-                    <td className="amount-ingreso">{m.ingreso}</td>
-                    <td className="amount-egreso">{m.egreso}</td>
+                    <td className={m.tipo === "Transferencia" ? "amount-transferencia" : "amount-ingreso"}>{m.ingreso}</td>
+                    <td className={m.tipo === "Transferencia" ? "amount-transferencia" : "amount-egreso"}>{m.egreso}</td>
                     <td className="amount-saldo">{m.saldo}</td>
                   </tr>
                 ))

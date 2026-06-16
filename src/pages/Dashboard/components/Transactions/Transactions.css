@@ -75,6 +75,11 @@
   color: #b97b37;
 }
 
+.txn-transferencia .txn-icon {
+  background: #fef9c3;
+  color: #ca8a04;
+}
+
 .txn-title {
   font-weight: var(--fw-table);
   font-size: var(--fs-table);
@@ -106,4 +111,8 @@
 
 .txn-egreso .txn-amount {
   color: var(--rojo-alerta);
+}
+
+.txn-transferencia .txn-amount {
+  color: #ca8a04;
 }

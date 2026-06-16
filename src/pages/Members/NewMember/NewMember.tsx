@@ -1,14 +1,14 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Save } from "lucide-react";
+import { Search, Save, User } from "lucide-react";
 import "./NewMember.css";
 import { useMembersStore } from "../../../store/membersStore";
 import type { MembersState, Person } from "../../../models/members";
 
 const mockPeople: Person[] = [
-  { id: "p1", nombre: "Juan", apellido: "Rodriguez", documento: "12345678" },
-  { id: "p2", nombre: "Lucia", apellido: "Fernandez", documento: "23456789" },
-  { id: "p3", nombre: "Miguel", apellido: "Lopez", documento: "34567890" },
+  { nombre: "Juan", tipoDoc: "", documento: "12345678", domicilio: "", telefono: "3581234567" },
+  { nombre: "Lucia", tipoDoc: "", documento: "23456789", domicilio: "", telefono: "3581234567" },
+  { nombre: "Miguel", tipoDoc: "", documento: "34567890", domicilio: "", telefono: "3581234567" },
 ];
 
 const NewMember: React.FC = () => {
@@ -44,7 +44,6 @@ const NewMember: React.FC = () => {
     return mockPeople.filter(
       (p) =>
         p.nombre.toLowerCase().includes(q) ||
-        p.apellido.toLowerCase().includes(q) ||
         p.documento.includes(q),
     );
   }, [albSearch, ap1Search, ap2Search]);
@@ -63,19 +62,28 @@ const NewMember: React.FC = () => {
         {/* Left: Form */}
         <div className="new-member-form-section">
           <form onSubmit={handleSave} className="card-custom">
-            <h3 className="card-title">Nuevo Socio</h3>
-
             <div className="form-grid">
-              <div className="form-group" style={{ width: 120 }}>
+              <div className="form-group full-width">
+                <label>Nombre y Apellido</label>
+                <input
+                  className="form-control"
+                  value={form.nombre}
+                  onChange={(e) => handleChange("nombre", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="form-grid form-grid-4">
+              <div className="form-group">
                 <label>N°</label>
                 <input
                   className="form-control"
-                  value={form.nro}
+                  value={form.numeroDeSocio}
                   onChange={(e) => handleChange("nro", e.target.value)}
                 />
               </div>
 
-              <div className="form-group" style={{ width: 140 }}>
+              <div className="form-group">
                 <label>Sexo</label>
                 <select
                   className="form-control"
@@ -89,7 +97,7 @@ const NewMember: React.FC = () => {
                 </select>
               </div>
 
-              <div className="form-group" style={{ width: 140 }}>
+              <div className="form-group">
                 <label>N° de familia</label>
                 <input
                   className="form-control"
@@ -98,7 +106,7 @@ const NewMember: React.FC = () => {
                 />
               </div>
 
-              <div className="form-group" style={{ width: 140 }}>
+              <div className="form-group">
                 <label>N° de Fam. A/Fall</label>
                 <input
                   className="form-control"
@@ -109,19 +117,8 @@ const NewMember: React.FC = () => {
             </div>
 
             <div className="form-grid">
-              <div className="form-group full-width">
-                <label>Nombre y Apellido</label>
-                <input
-                  className="form-control"
-                  value={form.nombre}
-                  onChange={(e) => handleChange("nombre", e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="form-grid">
               <div className="form-group">
-                <label>Tipo de Doc</label>
+                <label>Tipo de Documento</label>
                 <select
                   className="form-control"
                   value={form.tipoDoc}
@@ -167,7 +164,7 @@ const NewMember: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Fecha Nac.</label>
+                <label>Fecha Nacimiento</label>
                 <input
                   type="date"
                   className="form-control"
@@ -213,69 +210,7 @@ const NewMember: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ marginTop: 16, marginBottom: 12 }}>
-              <h4 className="section-title">Asistencial</h4>
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  className="form-control-checkbox"
-                  checked={form.asistencial}
-                  onChange={(e) =>
-                    handleChange("asistencial", e.target.checked)
-                  }
-                />
-                Plan Salud (INT)
-              </label>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  className="form-control-checkbox"
-                  checked={form.militar}
-                  onChange={(e) => handleChange("militar", e.target.checked)}
-                />
-                Solo para militares (habilita campos debajo)
-              </label>
-            </div>
-
-            {form.militar && (
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Fuerza</label>
-                  <input
-                    className="form-control"
-                    value={form.fuerza}
-                    onChange={(e) => handleChange("fuerza", e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Grado</label>
-                  <input
-                    className="form-control"
-                    value={form.grado}
-                    onChange={(e) => handleChange("grado", e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Estado</label>
-                  <select
-                    className="form-control"
-                    value={form.estado}
-                    onChange={(e) => handleChange("estado", e.target.value)}
-                  >
-                    <option value="">-</option>
-                    <option>En servicio</option>
-                    <option>Retirado</option>
-                  </select>
-                </div>
-              </div>
-            )}
-
-            <div className="form-grid">
+                  <div className="form-grid">
               <div className="form-group">
                 <label>Fecha de ingreso</label>
                 <input
@@ -325,6 +260,100 @@ const NewMember: React.FC = () => {
                 />
               </div>
             </div>
+
+            <div className="optional-section">
+              <h4 className="section-title">Opcionales</h4>
+              <div className="checkbox-row">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    className="form-control-checkbox"
+                    checked={form.planSalud}
+                    onChange={(e) =>
+                      handleChange("planSalud", e.target.checked)
+                    }
+                  />
+                  Plan Salud (INT)
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    className="form-control-checkbox"
+                    checked={form.asistencial}
+                    onChange={(e) =>
+                      handleChange("asistencial", e.target.checked)
+                    }
+                  />
+                  Asistencial
+                </label>
+              </div>
+            </div>
+
+            <div className="military-section-toggle">
+              <h4 className="section-title">Solo para militares</h4>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  className="form-control-checkbox"
+                  checked={form.militar}
+                  onChange={(e) => handleChange("militar", e.target.checked)}
+                />
+                Militar
+              </label>
+            </div>
+
+            {form.militar && (
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Fuerza</label>
+                  <input
+                    className="form-control"
+                    value={form.fuerza}
+                    onChange={(e) => handleChange("fuerza", e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Grado</label>
+                  <input
+                    className="form-control"
+                    value={form.grado}
+                    onChange={(e) => handleChange("grado", e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Estado</label>
+                  <select
+                    className="form-control"
+                    value={form.estado}
+                    onChange={(e) => handleChange("estado", e.target.value)}
+                  >
+                    <option value="">-</option>
+                    <option>En servicio</option>
+                    <option>Retirado</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+      
+
+            <div className="form-actions-panel">
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={() => {
+                  reset();
+                  navigate(-1);
+                }}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="btn-save">
+                <Save size={16} /> Guardar
+              </button>
+            </div>
           </form>
         </div>
 
@@ -335,20 +364,26 @@ const NewMember: React.FC = () => {
             <h4>Albacea</h4>
             {albacea ? (
               <div className="person-card">
-                <div>
-                  {albacea.nombre} {albacea.apellido}
+                <div className="person-card-header">
+                  <div className="person-avatar">
+                    <User size={20} />
+                  </div>
+                  <div className="person-info">
+                    <span className="person-name">
+                      {albacea.nombre}
+                    </span>
+                    <span className="person-doc">DNI: {albacea.documento}</span>
+                  </div>
                 </div>
-                <div>{albacea.documento}</div>
                 <button
-                  className="header-btn small"
+                  className="header-btn small btn-remove"
                   onClick={() => setAlbacea(null)}
-                  style={{ marginTop: 8 }}
                 >
                   Quitar
                 </button>
               </div>
             ) : (
-              <div style={{ position: "relative" }}>
+              <div className="search-wrapper">
                 <div className="input-with-icon">
                   <input
                     className="search-input"
@@ -363,7 +398,7 @@ const NewMember: React.FC = () => {
                   <div className="search-results">
                     {(albSearch ? filteredPeople : mockPeople).map((p) => (
                       <div
-                        key={p.id}
+                        key={p.documento}
                         className="search-result-item"
                         onClick={() => {
                           setAlbacea(p);
@@ -372,7 +407,7 @@ const NewMember: React.FC = () => {
                         }}
                       >
                         <div className="search-result-name">
-                          {p.nombre} {p.apellido}
+                          {p.nombre}
                         </div>
                         <div className="search-result-doc">{p.documento}</div>
                       </div>
@@ -388,20 +423,28 @@ const NewMember: React.FC = () => {
             <h4>Apoderado 1</h4>
             {apoderado1 ? (
               <div className="person-card">
-                <div>
-                  {apoderado1.nombre} {apoderado1.apellido}
+                <div className="person-card-header">
+                  <div className="person-avatar">
+                    <User size={20} />
+                  </div>
+                  <div className="person-info">
+                    <span className="person-name">
+                      {apoderado1.nombre}
+                    </span>
+                    <span className="person-doc">
+                      DNI: {apoderado1.documento}
+                    </span>
+                  </div>
                 </div>
-                <div>{apoderado1.documento}</div>
                 <button
-                  className="header-btn small"
+                  className="header-btn small btn-remove"
                   onClick={() => setApoderado1(null)}
-                  style={{ marginTop: 8 }}
                 >
                   Quitar
                 </button>
               </div>
             ) : (
-              <div style={{ position: "relative" }}>
+              <div className="search-wrapper">
                 <div className="input-with-icon">
                   <input
                     className="search-input"
@@ -416,7 +459,7 @@ const NewMember: React.FC = () => {
                   <div className="search-results">
                     {(ap1Search ? filteredPeople : mockPeople).map((p) => (
                       <div
-                        key={p.id}
+                        key={p.documento}
                         className="search-result-item"
                         onClick={() => {
                           setApoderado1(p);
@@ -425,7 +468,7 @@ const NewMember: React.FC = () => {
                         }}
                       >
                         <div className="search-result-name">
-                          {p.nombre} {p.apellido}
+                          {p.nombre}
                         </div>
                         <div className="search-result-doc">{p.documento}</div>
                       </div>
@@ -441,20 +484,28 @@ const NewMember: React.FC = () => {
             <h4>Apoderado 2</h4>
             {apoderado2 ? (
               <div className="person-card">
-                <div>
-                  {apoderado2.nombre} {apoderado2.apellido}
+                <div className="person-card-header">
+                  <div className="person-avatar">
+                    <User size={20} />
+                  </div>
+                  <div className="person-info">
+                    <span className="person-name">
+                      {apoderado2.nombre}
+                    </span>
+                    <span className="person-doc">
+                      DNI: {apoderado2.documento}
+                    </span>
+                  </div>
                 </div>
-                <div>{apoderado2.documento}</div>
                 <button
-                  className="header-btn small"
+                  className="header-btn small btn-remove"
                   onClick={() => setApoderado2(null)}
-                  style={{ marginTop: 8 }}
                 >
                   Quitar
                 </button>
               </div>
             ) : (
-              <div style={{ position: "relative" }}>
+              <div className="search-wrapper">
                 <div className="input-with-icon">
                   <input
                     className="search-input"
@@ -469,7 +520,7 @@ const NewMember: React.FC = () => {
                   <div className="search-results">
                     {(ap2Search ? filteredPeople : mockPeople).map((p) => (
                       <div
-                        key={p.id}
+                        key={p.documento}
                         className="search-result-item"
                         onClick={() => {
                           setApoderado2(p);
@@ -478,7 +529,7 @@ const NewMember: React.FC = () => {
                         }}
                       >
                         <div className="search-result-name">
-                          {p.nombre} {p.apellido}
+                          {p.nombre}
                         </div>
                         <div className="search-result-doc">{p.documento}</div>
                       </div>
@@ -489,23 +540,6 @@ const NewMember: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Action Panel - Bottom */}
-      <div className="form-actions-panel">
-        <button
-          type="button"
-          className="btn-cancel"
-          onClick={() => {
-            reset();
-            navigate(-1);
-          }}
-        >
-          Cancelar
-        </button>
-        <button type="button" className="btn-save" onClick={handleSave}>
-          <Save size={16} /> Guardar
-        </button>
       </div>
     </div>
   );
