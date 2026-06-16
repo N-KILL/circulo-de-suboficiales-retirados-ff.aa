@@ -12,14 +12,7 @@ const Layout: React.FC = () => {
   const location = useLocation();
 
   const getHeaderContent = (path: string) => {
-    // Definimos los títulos y subtítulos según la ruta
     switch (path) {
-      case "/tesoreria":
-        return {
-          title: "Tesorería",
-          subtitle: "Accedé a los módulos de gestión financiera del club.",
-          breadcrumbs: ["Tesorería"],
-        };
       case "/tesoreria/movimientos":
         return {
           title: "Movimientos",
@@ -31,19 +24,25 @@ const Layout: React.FC = () => {
         return {
           title: "Nuevo ingreso",
           subtitle: "Registrar un nuevo ingreso al club",
-          breadcrumbs: ["Tesorería", "Ingresos", "Nuevo ingreso"],
+          breadcrumbs: ["Tesorería", "Nuevo ingreso"],
         };
-      case "/tesoreria/ingresos/nuevo-egreso":
+      case "/tesoreria/nuevo-movimiento":
+        return {
+          title: "Nuevo movimiento",
+          subtitle: "Seleccioná el tipo de movimiento a registrar.",
+          breadcrumbs: ["Tesorería", "Nuevo movimiento"],
+        };
+      case "/tesoreria/egresos/nuevo-egreso":
         return {
           title: "Nuevo egreso",
           subtitle: "Registrar un nuevo egreso del club",
-          breadcrumbs: ["Tesorería", "Egresos", "Nuevo egreso"],
+          breadcrumbs: ["Tesorería", "Nuevo egreso"],
         };
-      case "/tesoreria/ingresos/nuevo-pago":
+      case "/tesoreria/dashboard":
         return {
-          title: "Nuevo Pago",
-          subtitle: "Registrar un nuevo ingreso al club",
-          breadcrumbs: ["Tesorería", "Ingresos", "Nuevo Pago"],
+          title: "Dashboard Tesorería",
+          subtitle: "Resumen general del estado financiero del club.",
+          breadcrumbs: ["Tesorería", "Dashboard"],
         };
       case "/socios":
         return {
@@ -58,17 +57,18 @@ const Layout: React.FC = () => {
         };
       case "/":
         return {
-          title: "¡Bienvenido, Administrador!",
-          subtitle: "Resumen general de la tesorería del club.",
+          title: " ",
+          subtitle: " ",
         };
       default:
         return {
-          title: "¡Bienvenido, Administrador!",
+          title: "Sistema de Gestión",
         };
     }
   };
 
   const { title, subtitle, breadcrumbs } = getHeaderContent(location.pathname);
+const isHome = location.pathname === "/";
 
   return (
     <div className="app-root">
@@ -88,17 +88,19 @@ const Layout: React.FC = () => {
         <main className="content">
           <Outlet />
         </main>
-        <footer className="layout-footer">
-          <div className="footer-left">
-            <img src={logo} alt="Logo" className="footer-logo-img" />
-            <span>
-              Club de Miembros Retirados de las Fuerzas Armadas Argentinas
-            </span>
-          </div>
-          <div className="footer-right">
-            <span>Sistema de Gestión - Versión 0.0.1</span>
-          </div>
-        </footer>
+        {!isHome && (
+          <footer className="layout-footer">
+            <div className="footer-left">
+              <img src={logo} alt="Logo" className="footer-logo-img" />
+              <span>
+                Club de Miembros Retirados de las Fuerzas Armadas Argentinas
+              </span>
+            </div>
+            <div className="footer-right">
+              <span>Sistema de Gestión - Versión 0.0.1</span>
+            </div>
+          </footer>
+        )}
       </div>
     </div>
   );

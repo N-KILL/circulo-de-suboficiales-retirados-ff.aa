@@ -28,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
 
   const links = [
     { to: "/", label: "Inicio", icon: Home },
-    { to: "/tesoreria", label: "Tesorería", icon: Landmark, hasSubmenu: true },
+    { to: "/tesoreria/dashboard", label: "Tesorería", icon: Landmark, hasSubmenu: true },
     { to: "/socios", label: "Socios", icon: Users },
     { to: "/reportes", label: "Reportes", icon: BarChart2 },
     { to: "/calendario", label: "Calendario", icon: Calendar },
@@ -37,9 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
 
   const submenuLinks = [
     { to: "/tesoreria/movimientos", label: "Movimientos" },
-    { to: "/tesoreria/ingresos/nuevo-pago", label: "Nuevo Ingreso" },
-    { to: "/tesoreria/egresos/nuevo-egreso", label: "Nuevo Egreso" },
-    { to: "/tesoreria/transferencias", label: "Transferencias" },
+    { to: "/tesoreria/nuevo-movimiento", label: "Nuevo movimiento" },
   ];
 
   return (

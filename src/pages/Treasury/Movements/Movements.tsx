@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Search, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw } from "lucide-react";
 import TablePagination from "../../../components/TablePagination/TablePagination";
 import { fetchMovements, type Movement } from "../../../services/movementsApi";
 import { fetchInitialBalances } from "../../../services/initialBalancesApi";
@@ -185,6 +185,17 @@ const Movements: React.FC = () => {
       prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
     );
 
+  const clearFilters = () => {
+    const now = new Date();
+    setSearchText("");
+    setSelectedMonths([now.getMonth()]);
+    setSelectedYears([now.getFullYear()]);
+    setCajaBanco(true);
+    setCajaChica(true);
+    setFiltroIngreso(true);
+    setFiltroEgreso(true);
+  };
+
   // ── Render ────────────────────────────────────────────
   if (isLoading) return <div className="dashboard-loading">Cargando movimientos...</div>;
   if (error) return <div className="dashboard-loading" style={{ color: "var(--danger)" }}>Error: {error}</div>;
@@ -217,6 +228,14 @@ const Movements: React.FC = () => {
             </div>
           </div>
           <div className="filter-toggle-buttons" style={{ alignSelf: "flex-end", paddingBottom: 2 }}>
+            <button
+              className="toolbar-btn"
+              onClick={clearFilters}
+              title="Limpiar filtros"
+            >
+              <RotateCcw size={16} />
+              Limpiar
+            </button>
             <button
               className="toolbar-btn"
               onClick={() => setShowSaldoColumns((v) => !v)}

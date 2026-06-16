@@ -82,6 +82,12 @@
   transform: scale(1.06);
 }
 
+.qa-btn--disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
 /* Label text */
 .qa-label {
   font-size: 14px;

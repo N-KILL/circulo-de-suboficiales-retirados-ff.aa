@@ -1,0 +1,28 @@
+.welcome-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  gap: 24px;
+}
+
+.welcome-logo {
+  width: 200px;
+  height: auto;
+  opacity: 0.9;
+}
+
+.welcome-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--azul-armada);
+  margin: 0;
+}
+
+.welcome-sub {
+  font-size: 15px;
+  color: var(--muted);
+  margin: 0;
+}
