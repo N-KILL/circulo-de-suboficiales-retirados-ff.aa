@@ -1,0 +1,106 @@
+.config-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0 24px;
+}
+
+.config-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    max-width: 480px;
+}
+
+.config-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--azul-armada);
+    margin: 0 0 8px 0;
+}
+
+.config-description {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 20px 0;
+    line-height: 1.4;
+}
+
+.config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.config-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.config-field label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.config-input {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    background: var(--gris-claro);
+    color: var(--azul-armada);
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.config-input:focus {
+    border-color: var(--azul-institucional);
+}
+
+.config-error {
+    background: #fff0f0;
+    border: 1px solid #dc3545;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #dc3545;
+}
+
+.config-success {
+    background: #f0fff4;
+    border: 1px solid #28a745;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #28a745;
+}
+
+.config-save-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    border-radius: 8px;
+    background: var(--azul-institucional);
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+    align-self: flex-start;
+}
+
+.config-save-btn:hover {
+    background: var(--azul-armada);
+}
+
+.config-save-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

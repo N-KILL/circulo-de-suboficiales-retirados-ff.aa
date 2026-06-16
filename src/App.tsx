@@ -11,6 +11,7 @@ import Expenses from "./pages/Treasury/Expenses/Expenses";
 import Members from "./pages/Members/Members";
 import MemberDetails from "./pages/Members/MemberDetails";
 import NewMember from "./pages/Members/NewMember/NewMember";
+import Config from "./pages/Config/Config";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="socios/nuevo" element={<NewMember />} />
           <Route path="socios/editar/:id" element={<NewMember />} />
           <Route path="socios/:id" element={<MemberDetails />} />
+          <Route path="configuracion" element={<Config />} />
         </Route>
       </Routes>
     </BrowserRouter>

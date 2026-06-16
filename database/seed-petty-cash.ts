@@ -3,12 +3,16 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { parseCSV } from "./parseCsv";
-import { clearAllMovements, insertMovementsBatch } from "../src/database/pettyCashRepository";
+import {
+    clearAllMovements,
+    insertMovementsBatch,
+    migratePettyCashSchema,
+} from "../src/database/pettyCashRepository";
 
 config();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const csvPath = join(__dirname, "csv", "MOVIMIENTOS_CAJA.csv");
+const csvPath = join(__dirname, "csv", "CAJA.csv");
 
 function parseAmount(val: string): number {
     if (!val) return 0;
@@ -31,31 +35,34 @@ function convertDate(dateStr: string): string {
 
 const months = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
 
+// CAJA.csv columns (0-indexed):
+//   0: FECHA    1: DETALLE    2: MODO    3: RECIBO    4: INGRESO    5: EGRESO
+//   6: SALDO TOTAL    7: SALDO CAJA CHICA
+const COL_DATE = 0;
+const COL_DETAIL = 1;
+const COL_MODO = 2;
+const COL_RECEIPT = 3;
+const COL_INGRESO = 4;
+const COL_EGRESO = 5;
+
 function isHeaderOrSummary(row: string[]): boolean {
-    const detail = (row[2] ?? "").trim().toUpperCase();
-    
-    // If it contains SALDO in row[6], it's a summary row
-    if ((row[6] ?? "").trim().toUpperCase().includes("SALDO")) {
-        return true;
-    }
-    
-    // Check if the detail is just a month name (e.g. "FEBRERO")
-    if (months.some(m => detail === m || detail.startsWith(m + " "))) {
-        return true;
-    }
+    const detail = (row[COL_DETAIL] ?? "").trim().toUpperCase();
 
-    // Check if it's the column headers row
-    const dateCol = (row[1] ?? "").trim().toUpperCase();
-    if (dateCol === "FECHA" && detail === "DETALLE") {
-        return true;
-    }
+    // Skip rows where SALDO TOTAL or SALDO CAJA CHICA header text appears
+    if ((row[6] ?? "").trim().toUpperCase().includes("SALDO")) return true;
+    if ((row[7] ?? "").trim().toUpperCase().includes("SALDO")) return true;
 
-    // If detail is empty and there are no amounts, skip
-    const ingreso = parseAmount(row[4] ?? "");
-    const egreso = parseAmount(row[5] ?? "");
-    if (!detail && ingreso === 0 && egreso === 0) {
-        return true;
-    }
+    // Skip month-name rows
+    if (months.some(m => detail === m || detail.startsWith(m + " "))) return true;
+
+    // Skip column headers row
+    const dateCol = (row[COL_DATE] ?? "").trim().toUpperCase();
+    if (dateCol === "FECHA" && detail === "DETALLE") return true;
+
+    // Skip rows with no detail and no amounts
+    const ingreso = parseAmount(row[COL_INGRESO] ?? "");
+    const egreso = parseAmount(row[COL_EGRESO] ?? "");
+    if (!detail && ingreso === 0 && egreso === 0) return true;
 
     return false;
 }
@@ -67,40 +74,48 @@ async function main() {
 
     console.log(`Filas totales leídas del CSV: ${rows.length}`);
 
-    const movementsToInsert: { date: string; detail: string; amount: number; type: "ingreso" | "egreso" | "transferencia" }[] = [];
+    // Run migration to ensure schema is up to date
+    console.log("Ejecutando migración de esquema...");
+    await migratePettyCashSchema();
+
+    const movementsToInsert: {
+        date: string;
+        detail: string;
+        amount: number;
+        type: "ingreso" | "egreso" | "transferencia";
+        mode: "efectivo" | "transferencia";
+    }[] = [];
     let lastValidDate = "";
 
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        
-        // Skip header or monthly summary rows
-        if (isHeaderOrSummary(row)) {
-            continue;
-        }
 
-        const dateStr = (row[1] ?? "").trim();
-        const detailStr = (row[2] ?? "").trim();
-        const receiptStr = (row[3] ?? "").trim();
-        const ingresoRaw = row[4] ?? "";
-        const egresoRaw = row[5] ?? "";
+        if (isHeaderOrSummary(row)) continue;
+
+        const dateStr = (row[COL_DATE] ?? "").trim();
+        const detailStr = (row[COL_DETAIL] ?? "").trim();
+        const modoStr = (row[COL_MODO] ?? "").trim();
+        const receiptStr = (row[COL_RECEIPT] ?? "").trim();
+        const ingresoRaw = row[COL_INGRESO] ?? "";
+        const egresoRaw = row[COL_EGRESO] ?? "";
 
         // Skip ANULADO rows
-        if (detailStr.toUpperCase() === "ANULADO" || detailStr.toUpperCase().includes("(ANULADO)")) {
-            continue;
-        }
+        if (detailStr.toUpperCase() === "ANULADO" || detailStr.toUpperCase().includes("(ANULADO)")) continue;
+
+        // Skip SALDO INICIAL rows (initial balances are set via config page)
+        if (detailStr.toUpperCase().includes("SALDO INICIAL")) continue;
+
+        // Determine mode
+        const mode: "efectivo" | "transferencia" =
+            modoStr.toUpperCase() === "TRANSFERENCIA" ? "transferencia" : "efectivo";
 
         // Update date if a new valid date is found
-        if (isValidDate(dateStr)) {
-            lastValidDate = dateStr;
-        }
+        if (isValidDate(dateStr)) lastValidDate = dateStr;
 
         const ingreso = parseAmount(ingresoRaw);
         const egreso = parseAmount(egresoRaw);
 
-        // We only care if there is an amount > 0
-        if (ingreso === 0 && egreso === 0) {
-            continue;
-        }
+        if (ingreso === 0 && egreso === 0) continue;
 
         if (!lastValidDate) {
             console.warn(`Advertencia: Fila ${i + 1} tiene montos pero no hay fecha previa válida. Se omitirá. Fila:`, row);
@@ -108,31 +123,31 @@ async function main() {
         }
 
         const dbDate = convertDate(lastValidDate);
-        // Concatenate receipt to the detail text to keep it readable and searchable
         const finalDetail = receiptStr ? `${detailStr} [Recibo: ${receiptStr}]` : detailStr;
 
         if (ingreso > 0 && egreso > 0) {
             if (ingreso === egreso) {
-                // Both columns filled and equal (e.g. transfer). Mark as transfer.
                 movementsToInsert.push({
                     date: dbDate,
                     detail: finalDetail,
                     amount: ingreso,
-                    type: "transferencia"
+                    type: "transferencia",
+                    mode,
                 });
             } else {
-                // Both columns filled but unequal. Insert both transactions to preserve exact balance impact.
                 movementsToInsert.push({
                     date: dbDate,
                     detail: finalDetail,
                     amount: ingreso,
-                    type: "ingreso"
+                    type: "ingreso",
+                    mode,
                 });
                 movementsToInsert.push({
                     date: dbDate,
                     detail: finalDetail,
                     amount: egreso,
-                    type: "egreso"
+                    type: "egreso",
+                    mode,
                 });
             }
         } else if (ingreso > 0) {
@@ -140,14 +155,16 @@ async function main() {
                 date: dbDate,
                 detail: finalDetail,
                 amount: ingreso,
-                type: "ingreso"
+                type: "ingreso",
+                mode,
             });
         } else if (egreso > 0) {
             movementsToInsert.push({
                 date: dbDate,
                 detail: finalDetail,
                 amount: egreso,
-                type: "egreso"
+                type: "egreso",
+                mode,
             });
         }
     }

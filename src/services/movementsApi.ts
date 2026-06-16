@@ -4,6 +4,7 @@ export interface Movement {
     detail: string;
     amount: number;
     type: "ingreso" | "egreso" | "transferencia";
+    mode: "efectivo" | "transferencia";
 }
 
 export async function fetchMovements(): Promise<Movement[]> {

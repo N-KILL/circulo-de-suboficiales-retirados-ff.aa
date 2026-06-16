@@ -7,14 +7,32 @@ export type PettyCashRow = {
     detail: string;
     amount: number;
     type: "ingreso" | "egreso" | "transferencia";
+    mode: "efectivo" | "transferencia";
 };
+
+export async function migratePettyCashSchema(): Promise<void> {
+    const sql = getSql();
+    await sql`
+        CREATE TABLE IF NOT EXISTS petty_cash (
+            id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+            date                DATE            NOT NULL,
+            detail              TEXT,
+            amount              NUMERIC(12,2)   NOT NULL DEFAULT 0,
+            type                VARCHAR(20)     NOT NULL,
+            mode                VARCHAR(20)     NOT NULL DEFAULT 'efectivo',
+            created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+        )
+    `;
+    await sql`
+        ALTER TABLE petty_cash ADD COLUMN IF NOT EXISTS mode VARCHAR(20) NOT NULL DEFAULT 'efectivo'
+    `;
+}
 
 export async function getAllMovements(): Promise<PettyCashRow[]> {
     const sql = getSql();
-    // Return sorted ascending so the frontend or store can compute running balance from the beginning.
     const rows = await sql`
-        SELECT id, date::text as date, detail, amount::float as amount, type 
-        FROM petty_cash 
+        SELECT id, date::text as date, detail, amount::float as amount, type, mode
+        FROM petty_cash
         ORDER BY date ASC, id ASC
     `;
     return rows as PettyCashRow[];
@@ -25,8 +43,28 @@ export async function clearAllMovements(): Promise<void> {
     await sql`TRUNCATE TABLE petty_cash`;
 }
 
+export async function insertMovement(movement: {
+    date: string;
+    detail: string;
+    amount: number;
+    type: "ingreso" | "egreso" | "transferencia";
+    mode: "efectivo" | "transferencia";
+}): Promise<void> {
+    const sql = getSql();
+    await sql`
+        INSERT INTO petty_cash (id, date, detail, amount, type, mode)
+        VALUES (${randomUUID()}, ${movement.date}, ${movement.detail}, ${movement.amount}, ${movement.type}, ${movement.mode})
+    `;
+}
+
 export async function insertMovementsBatch(
-    movements: { date: string; detail: string; amount: number; type: "ingreso" | "egreso" | "transferencia" }[]
+    movements: {
+        date: string;
+        detail: string;
+        amount: number;
+        type: "ingreso" | "egreso" | "transferencia";
+        mode: "efectivo" | "transferencia";
+    }[]
 ): Promise<number> {
     if (movements.length === 0) return 0;
 
@@ -36,26 +74,25 @@ export async function insertMovementsBatch(
 
     for (let i = 0; i < movements.length; i += batchSize) {
         const batch = movements.slice(i, i + batchSize);
-        
-        // Build parameterized query dynamically to be safe and fast
-        // VALUES ($1, $2, $3, $4, $5), ($6, $7, $8, $9, $10), ...
+
         const valueStrings: string[] = [];
         const values: any[] = [];
-        
+
         batch.forEach((m, idx) => {
-            const baseIndex = idx * 5;
-            valueStrings.push(`($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5})`);
-            // Explicitly generate uuid in code
+            const baseIndex = idx * 6;
+            valueStrings.push(
+                `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5}, $${baseIndex + 6})`
+            );
             values.push(randomUUID());
-            // Format date string to match Postgres DATE format, handle empty date as null
             values.push(m.date ? m.date : null);
             values.push(m.detail);
             values.push(m.amount);
             values.push(m.type);
+            values.push(m.mode);
         });
 
         const queryText = `
-            INSERT INTO petty_cash (id, date, detail, amount, type)
+            INSERT INTO petty_cash (id, date, detail, amount, type, mode)
             VALUES ${valueStrings.join(", ")}
         `;
 

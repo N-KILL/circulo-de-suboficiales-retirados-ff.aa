@@ -1,34 +1,224 @@
-import React from "react";
-import { 
-  Search, 
-  Calendar, 
-  DollarSign, 
-  CreditCard, 
-  FileText, 
-  CheckCircle, 
-  Save, 
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import {
+  Search,
+  Calendar,
+  DollarSign,
+  CreditCard,
+
+  CheckCircle,
+  Save,
   Info,
   User,
   History,
   FileSearch,
-  PlusCircle,
-  Trash2
+  MapPin,
+  Phone,
+  Mail,
+
+  X,
+  Loader
 } from "lucide-react";
+import { savePayment } from "../../../services/paymentsApi";
+import { fetchMembers } from "../../../services/membersApi";
+import type { Member } from "../../../models/members";
 import "./NewPayment.css";
 
+const MONTHS = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+function toCurrency(val: number): string {
+  return `$ ${new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(val)}`;
+}
+
+const periodosActuales = () => {
+  const now = new Date();
+  const m = now.getMonth();
+  const y = now.getFullYear();
+  const periods: { label: string; value: string }[] = [];
+  for (let i = 0; i < 6; i++) {
+    const month = (m - i + 12) % 12;
+    const year = m - i < 0 ? y - 1 : y;
+    periods.push({
+      label: `${MONTHS[month]} ${year}`,
+      value: `${year}-${String(month + 1).padStart(2, "0")}`,
+    });
+  }
+  return periods;
+};
+
 const NewPayment: React.FC = () => {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+
+  const [tipoIngreso, setTipoIngreso] = useState("Cuota Social");
+  const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
+  const [periodo, setPeriodo] = useState("");
+  const [importeStr, setImporteStr] = useState("");
+  const [formaPago, setFormaPago] = useState("Transferencia Bancaria");
+  const [descripcion, setDescripcion] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const memberSearchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (memberSearchRef.current && !memberSearchRef.current.contains(e.target as Node)) {
+        setShowMemberDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const periodos = useMemo(() => periodosActuales(), []);
+
+  useEffect(() => {
+    let mounted = true;
+    setMembersLoading(true);
+    fetchMembers()
+      .then((data) => {
+        if (mounted) {
+          setMembers(data);
+          setMembersLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setMembersLoading(false);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  const memberResults = useMemo(() => {
+    if (memberSearch.trim()) {
+      const q = memberSearch.toLowerCase();
+      return members
+        .filter(
+          (m) =>
+            m.nombre.toLowerCase().includes(q) ||
+            m.documento.includes(q) ||
+            m.numeroDeSocio.includes(q)
+        )
+        .slice(0, 10);
+    }
+    return members.slice(0, 10);
+  }, [members, memberSearch]);
+
+  const importeNum = useMemo(() => {
+    const cleaned = importeStr.replace(/[^0-9,]/g, "").replace(",", ".");
+    return parseFloat(cleaned) || 0;
+  }, [importeStr]);
+
+  const mode = formaPago === "Efectivo" ? "efectivo" : "transferencia";
+
+  const handleSelectMember = useCallback((m: Member) => {
+    setSelectedMember(m);
+    setMemberSearch(m.nombre);
+    setShowMemberDropdown(false);
+  }, []);
+
+  const handleClearMember = useCallback(() => {
+    setSelectedMember(null);
+    setMemberSearch("");
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedMember) {
+        setError("Seleccioná un socio");
+        return;
+      }
+      if (!importeNum || importeNum <= 0) {
+        setError("Ingresá un importe válido");
+        return;
+      }
+      if (!fecha) {
+        setError("Ingresá una fecha");
+        return;
+      }
+
+      setSaving(true);
+      setError(null);
+      setSuccess(false);
+
+      try {
+        const detail = `${
+          periodo
+            ? periodos.find((p) => p.value === periodo)?.label ?? periodo
+            : tipoIngreso
+        } - ${selectedMember.nombre}${descripcion ? `: ${descripcion}` : ""}`;
+
+        await savePayment({
+          date: fecha,
+          detail,
+          amount: importeNum,
+          type: "ingreso",
+          mode,
+        });
+
+        setSuccess(true);
+        setSelectedMember(null);
+        setMemberSearch("");
+        setImporteStr("");
+        setDescripcion("");
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error al guardar el pago");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [selectedMember, importeNum, fecha, periodo, tipoIngreso, descripcion, mode, periodos]
+  );
+
   return (
-    <div className="new-payment-container">
+    <form className="new-payment-container" onSubmit={handleSubmit}>
+      {success && (
+        <div className="success-banner">
+          <CheckCircle size={18} />
+          Pago registrado correctamente
+          <button type="button" className="success-close" onClick={() => setSuccess(false)}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      {error && (
+        <div className="error-banner">
+          <Info size={18} />
+          {error}
+          <button type="button" className="success-close" onClick={() => setError(null)}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="new-payment-layout">
-        {/* Columna Izquierda: Formulario */}
+        {/* Left: Form */}
         <div className="new-payment-form-section">
           <div className="card-custom">
             <h3 className="card-title">Datos del Pago</h3>
-            
+
             <div className="form-grid">
               <div className="form-group">
-                <label>Tipo de Ingreso <span className="required">*</span></label>
-                <select className="form-control">
+                <label>
+                  Tipo de Ingreso <span className="required">*</span>
+                </label>
+                <select
+                  className="form-control"
+                  value={tipoIngreso}
+                  onChange={(e) => setTipoIngreso(e.target.value)}
+                >
                   <option>Cuota Social</option>
                   <option>Donación</option>
                   <option>Otros</option>
@@ -36,119 +226,193 @@ const NewPayment: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Fecha del Pago <span className="required">*</span></label>
-                <div className="input-with-icon">
-                  <input type="text" className="form-control" defaultValue="19/05/2024" />
-                  <Calendar size={18} className="input-icon" />
+                <label>
+                  Fecha del Pago <span className="required">*</span>
+                </label>
+                <div className="input-with-icon date-input-wrap">
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={fecha}
+                    onChange={(e) => setFecha(e.target.value)}
+                    id="payment-date"
+                  />
+                  <button
+                    type="button"
+                    className="date-picker-btn"
+                    onClick={() => {
+                      const el = document.getElementById("payment-date") as HTMLInputElement | null;
+                      if (el) {
+                        el.focus();
+                        el.showPicker?.();
+                      }
+                    }}
+                  >
+                    <Calendar size={18} />
+                  </button>
                 </div>
               </div>
 
               <div className="form-group full-width">
-                <label>Socio <span className="required">*</span></label>
-                <div className="input-with-icon">
-                  <input type="text" className="form-control" placeholder="Buscar socio por nombre o DNI..." />
-                  <Search size={18} className="input-icon" />
-                </div>
-                
-                {/* Resultado de búsqueda seleccionado (Mock) */}
-                <div className="selected-user-card">
-                  <div className="user-info">
-                    <div className="user-avatar-small">
-                      <User size={20} />
+                <label>
+                  Socio <span className="required">*</span>
+                </label>
+                <div className="member-search-wrapper" ref={memberSearchRef}>
+                  <div className="input-with-icon">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder={
+                        membersLoading
+                          ? "Cargando socios..."
+                          : "Buscar socio por nombre o DNI..."
+                      }
+                      value={memberSearch}
+                      onChange={(e) => {
+                        setMemberSearch(e.target.value);
+                        setShowMemberDropdown(true);
+                        if (selectedMember && e.target.value !== selectedMember.nombre) {
+                          setSelectedMember(null);
+                        }
+                      }}
+                      onFocus={() => {
+                        setShowMemberDropdown(true);
+                      }}
+                      disabled={membersLoading}
+                    />
+                    <Search size={18} className="input-icon" />
+                  </div>
+
+                  {showMemberDropdown && memberResults.length > 0 && !selectedMember && (
+                    <div className="member-dropdown">
+                      {memberResults.map((m) => (
+                        <button
+                          type="button"
+                          key={m.id}
+                          className="member-dropdown-item"
+                          onClick={() => handleSelectMember(m)}
+                        >
+                          <User size={16} />
+                          <div className="member-dropdown-info">
+                            <span className="member-dropdown-name">{m.nombre}</span>
+                            <span className="member-dropdown-detail">
+                              DNI {m.documento} · Nº {m.numeroDeSocio}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                    <div className="user-details">
-                      <span className="user-name">Juan Carlos Rodriguez</span>
-                      <span className="user-dni">DNI 12.345.678</span>
+                  )}
+                </div>
+
+                {selectedMember && (
+                  <div className="selected-user-card">
+                    <div className="user-info">
+                      <div className="user-avatar-small">
+                        <User size={20} />
+                      </div>
+                      <div className="user-details">
+                        <span className="user-name">{selectedMember.nombre}</span>
+                        <span className="user-dni">DNI {selectedMember.documento}</span>
+                      </div>
+                    </div>
+                    <div className="user-status">
+                      <span className="user-number">Nº Socio {selectedMember.numeroDeSocio}</span>
+                      <button type="button" className="clear-member-btn" onClick={handleClearMember}>
+                        <X size={16} />
+                      </button>
                     </div>
                   </div>
-                  <div className="user-status">
-                    <span className="user-number">Nº Socio 2456</span>
-                    <CheckCircle size={18} className="status-icon" />
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="form-group">
-                <label>Período / Concepto <span className="required">*</span></label>
-                <select className="form-control">
-                  <option>Mayo 2024</option>
-                  <option>Junio 2024</option>
+                <label>Período / Concepto</label>
+                <select
+                  className="form-control"
+                  value={periodo}
+                  onChange={(e) => setPeriodo(e.target.value)}
+                >
+                  <option value="">Sin período</option>
+                  {periodos.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div className="form-group">
-                <label>Importe <span className="required">*</span></label>
+                <label>
+                  Importe <span className="required">*</span>
+                </label>
                 <div className="input-with-icon">
-                  <input type="text" className="form-control" defaultValue="15.000,00" />
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="0,00"
+                    value={importeStr}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const cleaned = raw.replace(/[^0-9,]/g, "");
+                      setImporteStr(cleaned);
+                    }}
+                  />
                   <DollarSign size={18} className="input-icon" />
                 </div>
               </div>
 
               <div className="form-group">
-                <label>Forma de Pago <span className="required">*</span></label>
-                <select className="form-control">
+                <label>
+                  Forma de Pago <span className="required">*</span>
+                </label>
+                <select
+                  className="form-control"
+                  value={formaPago}
+                  onChange={(e) => setFormaPago(e.target.value)}
+                >
                   <option>Transferencia Bancaria</option>
                   <option>Efectivo</option>
                 </select>
               </div>
 
               <div className="form-group full-width">
-                <label>Cuenta de Origen</label>
-                <select className="form-control">
-                  <option>Banco Nación - Cta. Cte. Nº 123456789</option>
-                </select>
-              </div>
-
-              <div className="form-group full-width">
                 <label>Descripción / Observaciones</label>
-                <textarea 
-                  className="form-control text-area" 
-                  placeholder="Pago de cuota social correspondiente al mes de mayo 2024."
+                <textarea
+                  className="form-control text-area"
+                  placeholder="Detalle del pago..."
                   rows={3}
-                ></textarea>
-                <span className="char-counter">62/200</span>
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                  maxLength={200}
+                />
+                <span className="char-counter">{descripcion.length}/200</span>
               </div>
 
-              <div className="form-group full-width">
-                <label>Comprobante</label>
-                <div className="file-upload-area">
-                  <div className="upload-placeholder">
-                    <FileText size={32} />
-                    <p>Arrastrar archivo aquí o <span className="link">seleccionar</span></p>
-                    <span className="file-info">Formatos permitidos: JPG, PNG, PDF (Máx. 5MB)</span>
-                  </div>
-                  
-                  {/* Archivo cargado (Mock) */}
-                  <div className="uploaded-file">
-                    <div className="file-icon-pdf">PDF</div>
-                    <div className="file-meta">
-                      <span className="file-name">comprobante_19052024.pdf</span>
-                      <span className="file-size">234 KB</span>
-                    </div>
-                    <button className="remove-file"><Trash2 size={18} /></button>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <div className="form-actions">
-              <button className="btn-cancel">Cancelar</button>
-              <button className="btn-save">
-                <Save size={18} />
-                Guardar Pago
+              <button type="button" className="btn-cancel">
+                Cancelar
+              </button>
+              <button type="submit" className="btn-save" disabled={saving}>
+                {saving ? <Loader size={18} className="spin" /> : <Save size={18} />}
+                {saving ? "Guardando..." : "Guardar Pago"}
               </button>
             </div>
 
             <div className="info-alert">
               <Info size={18} />
-              <p>Los pagos registrados se reflejarán automáticamente en el saldo disponible y en los reportes de tesorería.</p>
+              <p>
+                Los pagos registrados se reflejarán automáticamente en el saldo disponible y en los
+                reportes de tesorería.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Columna Derecha: Resumen e Información */}
+        {/* Right: Summary */}
         <div className="new-payment-sidebar-section">
-          {/* Resumen del Pago */}
           <div className="card-custom summary-card">
             <h3 className="card-title">Resumen del Pago</h3>
             <div className="summary-list">
@@ -156,89 +420,97 @@ const NewPayment: React.FC = () => {
                 <div className="summary-label">
                   <User size={16} /> <span>Tipo de Ingreso</span>
                 </div>
-                <div className="summary-value">Cuota Social</div>
+                <div className="summary-value">{tipoIngreso}</div>
               </div>
               <div className="summary-item">
                 <div className="summary-label">
                   <User size={16} /> <span>Socio</span>
                 </div>
-                <div className="summary-value">Juan Carlos Rodriguez</div>
+                <div className="summary-value">
+                  {selectedMember ? selectedMember.nombre : "—"}
+                </div>
               </div>
               <div className="summary-item">
                 <div className="summary-label">
                   <Calendar size={16} /> <span>Período</span>
                 </div>
-                <div className="summary-value">Mayo 2024</div>
+                <div className="summary-value">
+                  {periodo
+                    ? periodos.find((p) => p.value === periodo)?.label ?? periodo
+                    : "—"}
+                </div>
               </div>
               <div className="summary-item">
                 <div className="summary-label">
                   <DollarSign size={16} /> <span>Importe</span>
                 </div>
-                <div className="summary-value highlight-green">$ 15.000,00</div>
+                <div className="summary-value highlight-green">
+                  {importeNum > 0 ? toCurrency(importeNum) : "—"}
+                </div>
               </div>
               <div className="summary-item">
                 <div className="summary-label">
                   <CreditCard size={16} /> <span>Forma de Pago</span>
                 </div>
-                <div className="summary-value">Transferencia Bancaria</div>
-              </div>
-              <div className="summary-item">
-                <div className="summary-label">
-                  <FileText size={16} /> <span>Cuenta de Origen</span>
-                </div>
-                <div className="summary-value">Banco Nación - Cta. Cte.</div>
+                <div className="summary-value">{formaPago}</div>
               </div>
             </div>
-            
+
             <div className="summary-total">
               <span>Total a Registrar</span>
-              <span className="total-amount">$ 15.000,00</span>
+              <span className="total-amount">
+                {importeNum > 0 ? toCurrency(importeNum) : "—"}
+              </span>
             </div>
           </div>
 
-          {/* Información del Socio */}
-          <div className="card-custom socio-info-card">
-            <h3 className="card-title">Información del Socio</h3>
-            <div className="socio-profile">
-              <div className="socio-avatar">
-                <User size={32} />
+          {selectedMember && (
+            <div className="card-custom socio-info-card">
+              <h3 className="card-title">Información del Socio</h3>
+              <div className="socio-profile">
+                <div className="socio-avatar">
+                  <User size={32} />
+                </div>
+                <div className="socio-meta">
+                  <span className="socio-name">{selectedMember.nombre}</span>
+                  <span className="socio-sub">Nº Socio: {selectedMember.numeroDeSocio}</span>
+                  <span className="socio-sub">DNI: {selectedMember.documento}</span>
+                </div>
               </div>
-              <div className="socio-meta">
-                <span className="socio-name">Juan Carlos Rodriguez</span>
-                <span className="socio-sub">Nº Socio: 2456</span>
-                <span className="socio-sub">DNI: 12.345.678</span>
+              <div className="socio-contact">
+                <div className="contact-item">
+                  <Phone size={16} /> <span>{selectedMember.telefono || "—"}</span>
+                </div>
+                <div className="contact-item">
+                  <Mail size={16} /> <span>{selectedMember.email || "—"}</span>
+                </div>
+                <div className="contact-item">
+                  <MapPin size={16} /> <span>{selectedMember.domicilio || "—"}</span>
+                </div>
               </div>
             </div>
-            <div className="socio-contact">
-              <div className="contact-item">
-                 <CreditCard size={16} /> <span>11 2345 6789</span>
-              </div>
-              <div className="contact-item">
-                 <FileText size={16} /> <span>juancarlos.rodriguez@email.com</span>
-              </div>
-              <div className="contact-item">
-                 <PlusCircle size={16} /> <span>Av. Libertador 1234, CABA</span>
-              </div>
-            </div>
-          </div>
+          )}
 
-          {/* Detalles Socio*/}
           <div className="card-custom">
             <h3 className="card-title">Detalle Socio</h3>
             <div className="quick-grid">
-              <button className="quick-btn">
-                <div className="quick-icon-wrap"><History size={20} /></div>
+              <button type="button" className="quick-btn">
+                <div className="quick-icon-wrap">
+                  <History size={20} />
+                </div>
                 <span>Historial del Socio</span>
               </button>
-              <button className="quick-btn">
-                <div className="quick-icon-wrap"><FileSearch size={20} /></div>
+              <button type="button" className="quick-btn">
+                <div className="quick-icon-wrap">
+                  <FileSearch size={20} />
+                </div>
                 <span>Ficha del Socio</span>
               </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </form>
   );
 };
 

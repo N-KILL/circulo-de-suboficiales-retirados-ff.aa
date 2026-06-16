@@ -21,8 +21,10 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isMembers = pathname === "/api/members";
         const isMovements = pathname === "/api/movements";
         const isMember = pathname === "/api/member";
+        const isInitialBalances = pathname === "/api/initial-balances";
+        const isPayment = pathname === "/api/payment";
 
-        if (!isMembers && !isMovements && !isMember) {
+        if (!isMembers && !isMovements && !isMember && !isInitialBalances && !isPayment) {
           next();
           return;
         }
@@ -50,6 +52,30 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             return;
           }
 
+          if (isInitialBalances) {
+            if (req.method === "GET") {
+              const { getInitialBalances } = await import("./src/database/initialBalancesRepository");
+              const balances = await getInitialBalances();
+              res.statusCode = 200;
+              res.end(JSON.stringify(balances));
+              return;
+            }
+            if (req.method === "POST") {
+              const body = await collectBody(req);
+              const { caja_chica, banco } = JSON.parse(body);
+              const { upsertInitialBalances } = await import("./src/database/initialBalancesRepository");
+              const result = await upsertInitialBalances(caja_chica, banco);
+              res.statusCode = 200;
+              res.end(JSON.stringify(result));
+              return;
+            }
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+          }
+
           if (isMember && req.method === "GET") {
             const id = url.searchParams.get("id");
             if (!id) {
@@ -66,6 +92,27 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             }
             res.statusCode = 200;
             res.end(JSON.stringify(member));
+            return;
+          }
+
+          if (isPayment && req.method === "POST") {
+            const body = await collectBody(req);
+            const payment = JSON.parse(body);
+            if (!payment?.date || !payment?.amount) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Faltan datos requeridos" }));
+              return;
+            }
+            const { insertMovement } = await import("./src/database/pettyCashRepository");
+            await insertMovement(payment);
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true }));
+            return;
+          }
+
+          if (isPayment && req.method === "OPTIONS") {
+            res.statusCode = 204;
+            res.end();
             return;
           }
 

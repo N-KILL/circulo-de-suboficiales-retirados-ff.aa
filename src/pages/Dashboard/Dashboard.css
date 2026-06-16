@@ -1,8 +1,15 @@
+.stats-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
-  margin-bottom: 24px;
+  flex: 1;
+  min-width: 0;
 }
 
 .main-grid {
@@ -52,6 +59,16 @@
 }
 
 @media (max-width: 1200px) {
+  .stats-row {
+    flex-direction: column;
+  }
+  .caja-toggle-column {
+    flex-direction: row;
+    width: 100%;
+  }
+  .caja-card {
+    flex: 1;
+  }
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -76,4 +93,42 @@
     grid-template-columns: 1fr;
     gap: 16px;
   }
+}
+
+/* Caja toggle — vertical column on the left */
+.caja-toggle-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+  width: 100px;
+}
+
+.caja-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.caja-card.active {
+  border-color: var(--azul-institucional);
+  color: var(--azul-institucional);
+}
+
+.caja-card:hover:not(.active) {
+  border-color: var(--azul-institucional);
+  color: var(--text);
 }

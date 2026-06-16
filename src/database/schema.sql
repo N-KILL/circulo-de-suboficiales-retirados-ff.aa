@@ -65,3 +65,23 @@ CREATE INDEX IF NOT EXISTS idx_members_nombre        ON members (nombre);
 CREATE INDEX IF NOT EXISTS idx_members_documento     ON members (documento);
 CREATE INDEX IF NOT EXISTS idx_members_fallecido     ON members (fallecido);
 CREATE INDEX IF NOT EXISTS idx_members_numero_socio  ON members (numero_de_socio);
+
+CREATE TABLE IF NOT EXISTS petty_cash (
+    id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    date                DATE            NOT NULL,
+    detail              TEXT,
+    receipt             VARCHAR(100),
+    amount              NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    type                VARCHAR(20)     NOT NULL,
+    mode                VARCHAR(20)     NOT NULL DEFAULT 'efectivo',
+    total_balance       NUMERIC(12,2),
+    caja_chica_balance  NUMERIC(12,2),
+    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS initial_balances (
+    id          UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    caja_chica  NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    banco       NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    updated_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
