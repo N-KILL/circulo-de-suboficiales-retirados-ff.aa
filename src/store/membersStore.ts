@@ -37,7 +37,6 @@ const emptyForm = (): Member => ({
     depositarEn: '',
     cementerio: '',
     fallecido: false,
-    albacea: null,
     apoderado1: null,
     apoderado2: null,
 });
@@ -45,10 +44,8 @@ const emptyForm = (): Member => ({
 export const useMembersStore = create<MembersFormState>((set, get) => ({
     memberNumber: `SOC-${Date.now().toString().slice(-6)}`,
     form: emptyForm(),
-    albacea: null,
     apoderado1: null,
     apoderado2: null,
-    albSearch: '', albVisible: false,
     ap1Search: '', ap1Visible: false,
     ap2Search: '', ap2Visible: false,
 
@@ -57,23 +54,17 @@ export const useMembersStore = create<MembersFormState>((set, get) => ({
     setForm: (member: Member) => {
         const cp = (p: Person | null): Person | null => p ? { ...p } : null;
         set({
-            form: { ...member, albacea: cp(member.albacea), apoderado1: cp(member.apoderado1), apoderado2: cp(member.apoderado2) },
-            albacea: cp(member.albacea),
+            form: { ...member, apoderado1: cp(member.apoderado1), apoderado2: cp(member.apoderado2) },
             apoderado1: cp(member.apoderado1),
             apoderado2: cp(member.apoderado2),
-            albSearch: '',
-            albVisible: false,
             ap1Search: '',
             ap1Visible: false,
             ap2Search: '',
             ap2Visible: false,
         });
     },
-    setAlbacea: (p: Person | null) => set(() => ({ albacea: p })),
     setApoderado1: (p: Person | null) => set(() => ({ apoderado1: p })),
     setApoderado2: (p: Person | null) => set(() => ({ apoderado2: p })),
-    setAlbSearch: (s: string) => set(() => ({ albSearch: s })),
-    setAlbVisible: (v: boolean) => set(() => ({ albVisible: v })),
     setAp1Search: (s: string) => set(() => ({ ap1Search: s })),
     setAp1Visible: (v: boolean) => set(() => ({ ap1Visible: v })),
     setAp2Search: (s: string) => set(() => ({ ap2Search: s })),
@@ -83,7 +74,6 @@ export const useMembersStore = create<MembersFormState>((set, get) => ({
         const s = get();
         const payload = {
             ...s.form,
-            albacea: s.albacea,
             apoderado1: s.apoderado1,
             apoderado2: s.apoderado2,
         };
@@ -93,8 +83,7 @@ export const useMembersStore = create<MembersFormState>((set, get) => ({
     reset: () => set(() => ({
         memberNumber: `SOC-${Date.now().toString().slice(-6)}`,
         form: emptyForm(),
-        albacea: null, apoderado1: null, apoderado2: null,
-        albSearch: '', albVisible: false,
+        apoderado1: null, apoderado2: null,
         ap1Search: '', ap1Visible: false,
         ap2Search: '', ap2Visible: false,
     })),

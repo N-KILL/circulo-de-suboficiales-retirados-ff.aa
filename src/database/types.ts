@@ -1,3 +1,13 @@
+export type PersonRow = {
+    id: string;
+    nombre: string;
+    tipo_doc: string | null;
+    documento: string | null;
+    domicilio: string | null;
+    telefono: string | null;
+    created_at: string;
+};
+
 export type MemberRow = {
     id: string;
     numero_de_socio: string;
@@ -31,11 +41,8 @@ export type MemberRow = {
     depositar_en: string | null;
     cementerio: string | null;
     fallecido: boolean;
-    albacea_nombre: string | null;
-    albacea_tipo_doc: string | null;
-    albacea_documento: string | null;
-    albacea_domicilio: string | null;
-    albacea_telefono: string | null;
+    apoderado1_id: string | null;
+    apoderado2_id: string | null;
     apoderado1_nombre: string | null;
     apoderado1_tipo_doc: string | null;
     apoderado1_documento: string | null;

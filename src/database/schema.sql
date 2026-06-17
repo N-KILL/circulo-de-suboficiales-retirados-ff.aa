@@ -1,5 +1,17 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+CREATE TABLE IF NOT EXISTS persons (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre          VARCHAR(255)    NOT NULL,
+    tipo_doc        VARCHAR(20),
+    documento       VARCHAR(20),
+    domicilio       VARCHAR(255),
+    telefono        VARCHAR(100),
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_documento ON persons (documento) WHERE documento IS NOT NULL AND documento != '';
+
 CREATE TABLE IF NOT EXISTS members (
     id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     numero_de_socio     VARCHAR(20)     NOT NULL UNIQUE,
@@ -39,23 +51,8 @@ CREATE TABLE IF NOT EXISTS members (
     cementerio          VARCHAR(255),
     fallecido           BOOLEAN         NOT NULL DEFAULT FALSE,
 
-    albacea_nombre      VARCHAR(255),
-    albacea_tipo_doc    VARCHAR(20),
-    albacea_documento   VARCHAR(20),
-    albacea_domicilio   VARCHAR(255),
-    albacea_telefono    VARCHAR(100),
-
-    apoderado1_nombre     VARCHAR(255),
-    apoderado1_tipo_doc   VARCHAR(20),
-    apoderado1_documento  VARCHAR(20),
-    apoderado1_domicilio  VARCHAR(255),
-    apoderado1_telefono   VARCHAR(100),
-
-    apoderado2_nombre     VARCHAR(255),
-    apoderado2_tipo_doc   VARCHAR(20),
-    apoderado2_documento  VARCHAR(20),
-    apoderado2_domicilio  VARCHAR(255),
-    apoderado2_telefono   VARCHAR(100),
+    apoderado1_id       UUID            REFERENCES persons(id) ON DELETE SET NULL,
+    apoderado2_id       UUID            REFERENCES persons(id) ON DELETE SET NULL,
 
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()

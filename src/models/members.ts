@@ -1,4 +1,5 @@
 export type Person = {
+    id: string;
     nombre: string;
     tipoDoc: string;
     documento: string;
@@ -39,7 +40,6 @@ export type Member = {
     depositarEn?: string;
     cementerio: string;
     fallecido: boolean;
-    albacea: Person | null;
     apoderado1: Person | null;
     apoderado2: Person | null;
 };
@@ -48,22 +48,16 @@ export type Member = {
 export type MembersFormState = {
     memberNumber: string;
     form: Member;
-    albacea: Person | null;
     apoderado1: Person | null;
     apoderado2: Person | null;
-    albSearch: string;
-    albVisible: boolean;
     ap1Search: string;
     ap1Visible: boolean;
     ap2Search: string;
     ap2Visible: boolean;
     setField: (key: keyof Member, value: any) => void;
     setForm: (member: Member) => void;
-    setAlbacea: (p: Person | null) => void;
     setApoderado1: (p: Person | null) => void;
     setApoderado2: (p: Person | null) => void;
-    setAlbSearch: (s: string) => void;
-    setAlbVisible: (v: boolean) => void;
     setAp1Search: (s: string) => void;
     setAp1Visible: (v: boolean) => void;
     setAp2Search: (s: string) => void;

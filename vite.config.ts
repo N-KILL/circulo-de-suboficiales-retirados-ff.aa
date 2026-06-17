@@ -19,12 +19,15 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const url = new URL(req.url ?? "", "http://localhost");
         const pathname = url.pathname;
         const isMembers = pathname === "/api/members";
+        const isPersons = pathname === "/api/persons";
         const isMovements = pathname === "/api/movements";
         const isMember = pathname === "/api/member";
+        const isPerson = pathname === "/api/person";
+        const isPersonMembers = pathname === "/api/person-members";
         const isInitialBalances = pathname === "/api/initial-balances";
         const isPayment = pathname === "/api/payment";
 
-        if (!isMembers && !isMovements && !isMember && !isInitialBalances && !isPayment) {
+        if (!isMembers && !isPersons && !isMovements && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment) {
           next();
           return;
         }
@@ -41,6 +44,22 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             const members = await getAllMembers();
             res.statusCode = 200;
             res.end(JSON.stringify(members));
+            return;
+          }
+
+          if (isPersons && req.method === "GET") {
+            const q = url.searchParams.get("q") || "";
+            if (q) {
+              const { searchPersons } = await import("./src/database/membersRepository");
+              const persons = await searchPersons(q);
+              res.statusCode = 200;
+              res.end(JSON.stringify(persons));
+            } else {
+              const { getAllPersons } = await import("./src/database/personsRepository");
+              const persons = await getAllPersons();
+              res.statusCode = 200;
+              res.end(JSON.stringify(persons));
+            }
             return;
           }
 
@@ -122,6 +141,12 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             return;
           }
 
+          if (isPerson && req.method === "OPTIONS") {
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
+
           if (isMember && req.method === "POST") {
             const body = await collectBody(req);
             const member = JSON.parse(body);
@@ -148,6 +173,68 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             await deleteMemberById(id);
             res.statusCode = 200;
             res.end(JSON.stringify({ success: true }));
+            return;
+          }
+
+          if (isPerson && req.method === "GET") {
+            const id = url.searchParams.get("id");
+            if (!id) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta el parámetro id" }));
+              return;
+            }
+            const { getPersonById } = await import("./src/database/personsRepository");
+            const person = await getPersonById(id);
+            if (!person) {
+              res.statusCode = 404;
+              res.end(JSON.stringify({ error: "Persona no encontrada" }));
+              return;
+            }
+            res.statusCode = 200;
+            res.end(JSON.stringify(person));
+            return;
+          }
+
+          if (isPerson && req.method === "POST") {
+            const body = await collectBody(req);
+            const person = JSON.parse(body);
+            if (!person?.nombre?.trim()) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta el nombre de la persona" }));
+              return;
+            }
+            const { upsertPerson } = await import("./src/database/personsRepository");
+            await upsertPerson(person);
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true }));
+            return;
+          }
+
+          if (isPerson && req.method === "DELETE") {
+            const id = url.searchParams.get("id");
+            if (!id) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta el parámetro id" }));
+              return;
+            }
+            const { deletePersonById } = await import("./src/database/personsRepository");
+            await deletePersonById(id);
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true }));
+            return;
+          }
+
+          if (isPersonMembers && req.method === "GET") {
+            const personId = url.searchParams.get("personId");
+            if (!personId) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta el parámetro personId" }));
+              return;
+            }
+            const { getMembersByPersonId } = await import("./src/database/personsRepository");
+            const members = await getMembersByPersonId(personId);
+            res.statusCode = 200;
+            res.end(JSON.stringify(members));
             return;
           }
 

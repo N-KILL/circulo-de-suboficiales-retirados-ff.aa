@@ -30,6 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
     { to: "/", label: "Inicio", icon: Home },
     { to: "/tesoreria/dashboard", label: "Tesorería", icon: Landmark, hasSubmenu: true },
     { to: "/socios", label: "Socios", icon: Users },
+    { to: "/personas", label: "Personas", icon: User },
     { to: "/reportes", label: "Reportes", icon: BarChart2 },
     { to: "/calendario", label: "Calendario", icon: Calendar },
     { to: "/configuracion", label: "Configuración", icon: Settings },

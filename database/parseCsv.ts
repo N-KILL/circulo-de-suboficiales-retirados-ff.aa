@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Member } from "../src/models/members";
+import type { Member, Person } from "../src/models/members";
 
 type SeedIssue = {
     csvLine: number;
@@ -110,6 +110,19 @@ function resolveNumeroDeSocio(row: string[]): string {
     return (row[7] ?? "").trim();
 }
 
+function buildPersonFromRow(row: string[], nombreCol: number, tipoDocCol: number, docCol: number, domCol: number, telCol: number): Person | null {
+    const nombre = (row[nombreCol] ?? "").trim();
+    if (!nombre) return null;
+    return {
+        id: randomUUID(),
+        nombre,
+        tipoDoc: (row[tipoDocCol] ?? "").trim(),
+        documento: (row[docCol] ?? "").trim(),
+        domicilio: (row[domCol] ?? "").trim(),
+        telefono: (row[telCol] ?? "").trim(),
+    };
+}
+
 function buildMemberFromRow(row: string[], id: string, numeroDeSocio: string, nombre: string): Member {
         const sexo = row[3] ?? "";
         const residencia = row[4] ?? "";
@@ -146,6 +159,9 @@ function buildMemberFromRow(row: string[], id: string, numeroDeSocio: string, no
         const militar = fuerza.trim().length > 0 || grado.trim().length > 0;
         const fallecido = normalizeBoolean(fallecidoRaw);
 
+        const apoderado1 = buildPersonFromRow(row, 34, 35, 36, 37, 38);
+        const apoderado2 = buildPersonFromRow(row, 39, 40, 41, 42, 43);
+
         return {
             id,
             numeroDeSocio,
@@ -178,9 +194,8 @@ function buildMemberFromRow(row: string[], id: string, numeroDeSocio: string, no
             pagaPor,
             cementerio,
             fallecido,
-            albacea: null,
-            apoderado1: null,
-            apoderado2: null,
+            apoderado1,
+            apoderado2,
         };
 }
 

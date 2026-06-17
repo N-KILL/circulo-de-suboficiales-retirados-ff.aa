@@ -1,4 +1,4 @@
-import type { Member } from "../models/members";
+import type { Member, Person } from "../models/members";
 
 export async function fetchMembers(): Promise<Member[]> {
     const response = await fetch("/api/members");
@@ -39,6 +39,17 @@ export async function saveMember(member: Member): Promise<void> {
         } | null;
         throw new Error(body?.error ?? "Error al guardar el socio");
     }
+}
+
+export async function fetchPersons(query: string): Promise<Person[]> {
+    const response = await fetch(`/api/persons?q=${encodeURIComponent(query)}`);
+
+    if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Error al buscar personas");
+    }
+
+    return response.json() as Promise<Person[]>;
 }
 
 export async function deleteMember(id: string): Promise<void> {

@@ -1,7 +1,8 @@
-import type { Member } from "../models/members";
+import type { Member, Person } from "../models/members";
 import { getSql } from "./connection";
+import { upsertPerson } from "./personsRepository";
 import { memberToRow, rowToMember } from "./mappers";
-import type { MemberRow } from "./types";
+import type { MemberRow, PersonRow } from "./types";
 
 export type SeedIssue = {
     csvLine: number;
@@ -27,11 +28,7 @@ function upsertMemberQuery(
             edad, cod_postal, localidad, domicilio, email, telefono, asistencial,
             plan_salud, militar, fuerza, grado, estado, fecha_ingreso, fecha_baja,
             motivo_baja, cobra_iaf, paga_por, depositar_en, cementerio, fallecido,
-            albacea_nombre, albacea_tipo_doc, albacea_documento, albacea_domicilio,
-            albacea_telefono, apoderado1_nombre, apoderado1_tipo_doc,
-            apoderado1_documento, apoderado1_domicilio, apoderado1_telefono,
-            apoderado2_nombre, apoderado2_tipo_doc, apoderado2_documento,
-            apoderado2_domicilio, apoderado2_telefono
+            apoderado1_id, apoderado2_id
         ) VALUES (
             ${row.id}, ${row.numero_de_socio}, ${row.nombre}, ${row.sexo},
             ${row.residencia}, ${row.nro_familia}, ${row.nro_fam_a_fall},
@@ -42,13 +39,7 @@ function upsertMemberQuery(
             ${row.estado}, ${row.fecha_ingreso}, ${row.fecha_baja},
             ${row.motivo_baja}, ${row.cobra_iaf}, ${row.paga_por},
             ${row.depositar_en}, ${row.cementerio}, ${row.fallecido},
-            ${row.albacea_nombre}, ${row.albacea_tipo_doc}, ${row.albacea_documento},
-            ${row.albacea_domicilio}, ${row.albacea_telefono},
-            ${row.apoderado1_nombre}, ${row.apoderado1_tipo_doc},
-            ${row.apoderado1_documento}, ${row.apoderado1_domicilio},
-            ${row.apoderado1_telefono}, ${row.apoderado2_nombre},
-            ${row.apoderado2_tipo_doc}, ${row.apoderado2_documento},
-            ${row.apoderado2_domicilio}, ${row.apoderado2_telefono}
+            ${row.apoderado1_id}, ${row.apoderado2_id}
         )
         ON CONFLICT (id) DO UPDATE SET
             nombre = EXCLUDED.nombre,
@@ -82,33 +73,51 @@ function upsertMemberQuery(
             depositar_en = EXCLUDED.depositar_en,
             cementerio = EXCLUDED.cementerio,
             fallecido = EXCLUDED.fallecido,
-            albacea_nombre = EXCLUDED.albacea_nombre,
-            albacea_tipo_doc = EXCLUDED.albacea_tipo_doc,
-            albacea_documento = EXCLUDED.albacea_documento,
-            albacea_domicilio = EXCLUDED.albacea_domicilio,
-            albacea_telefono = EXCLUDED.albacea_telefono,
-            apoderado1_nombre = EXCLUDED.apoderado1_nombre,
-            apoderado1_tipo_doc = EXCLUDED.apoderado1_tipo_doc,
-            apoderado1_documento = EXCLUDED.apoderado1_documento,
-            apoderado1_domicilio = EXCLUDED.apoderado1_domicilio,
-            apoderado1_telefono = EXCLUDED.apoderado1_telefono,
-            apoderado2_nombre = EXCLUDED.apoderado2_nombre,
-            apoderado2_tipo_doc = EXCLUDED.apoderado2_tipo_doc,
-            apoderado2_documento = EXCLUDED.apoderado2_documento,
-            apoderado2_domicilio = EXCLUDED.apoderado2_domicilio,
-            apoderado2_telefono = EXCLUDED.apoderado2_telefono,
+            apoderado1_id = EXCLUDED.apoderado1_id,
+            apoderado2_id = EXCLUDED.apoderado2_id,
             updated_at = NOW()
     `;
+}
+
+export async function searchPersons(query: string): Promise<Person[]> {
+    const sql = getSql();
+    const q = `%${query}%`;
+    const rows = await sql`
+        SELECT * FROM persons
+        WHERE (documento ILIKE ${q} OR nombre ILIKE ${q})
+        ORDER BY nombre
+        LIMIT 20
+    `;
+    return (rows as PersonRow[]).map((row) => ({
+        id: row.id,
+        nombre: row.nombre,
+        tipoDoc: row.tipo_doc ?? "",
+        documento: row.documento ?? "",
+        domicilio: row.domicilio ?? "",
+        telefono: row.telefono ?? "",
+    }));
 }
 
 export async function getAllMembers(): Promise<Member[]> {
     const sql = getSql();
     const rows = await sql`
-        SELECT *
-        FROM members
+        SELECT m.*,
+               ap1.nombre AS apoderado1_nombre,
+               ap1.tipo_doc AS apoderado1_tipo_doc,
+               ap1.documento AS apoderado1_documento,
+               ap1.domicilio AS apoderado1_domicilio,
+               ap1.telefono AS apoderado1_telefono,
+               ap2.nombre AS apoderado2_nombre,
+               ap2.tipo_doc AS apoderado2_tipo_doc,
+               ap2.documento AS apoderado2_documento,
+               ap2.domicilio AS apoderado2_domicilio,
+               ap2.telefono AS apoderado2_telefono
+        FROM members m
+        LEFT JOIN persons ap1 ON m.apoderado1_id = ap1.id
+        LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id
         ORDER BY
-            NULLIF(regexp_replace(numero_de_socio, '[^0-9]', '', 'g'), '')::int NULLS LAST,
-            numero_de_socio
+            NULLIF(regexp_replace(m.numero_de_socio, '[^0-9]', '', 'g'), '')::int NULLS LAST,
+            m.numero_de_socio
     `;
     return (rows as MemberRow[]).map(rowToMember);
 }
@@ -116,7 +125,21 @@ export async function getAllMembers(): Promise<Member[]> {
 export async function getMemberById(id: string): Promise<Member | null> {
     const sql = getSql();
     const rows = (await sql`
-        SELECT * FROM members WHERE id = ${id} LIMIT 1
+        SELECT m.*,
+               ap1.nombre AS apoderado1_nombre,
+               ap1.tipo_doc AS apoderado1_tipo_doc,
+               ap1.documento AS apoderado1_documento,
+               ap1.domicilio AS apoderado1_domicilio,
+               ap1.telefono AS apoderado1_telefono,
+               ap2.nombre AS apoderado2_nombre,
+               ap2.tipo_doc AS apoderado2_tipo_doc,
+               ap2.documento AS apoderado2_documento,
+               ap2.domicilio AS apoderado2_domicilio,
+               ap2.telefono AS apoderado2_telefono
+        FROM members m
+        LEFT JOIN persons ap1 ON m.apoderado1_id = ap1.id
+        LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id
+        WHERE m.id = ${id} LIMIT 1
     `) as MemberRow[];
     const row = rows[0];
     return row ? rowToMember(row) : null;
@@ -125,7 +148,21 @@ export async function getMemberById(id: string): Promise<Member | null> {
 export async function getMemberByNumeroDeSocio(numero: string): Promise<Member | null> {
     const sql = getSql();
     const rows = (await sql`
-        SELECT * FROM members WHERE numero_de_socio = ${numero} LIMIT 1
+        SELECT m.*,
+               ap1.nombre AS apoderado1_nombre,
+               ap1.tipo_doc AS apoderado1_tipo_doc,
+               ap1.documento AS apoderado1_documento,
+               ap1.domicilio AS apoderado1_domicilio,
+               ap1.telefono AS apoderado1_telefono,
+               ap2.nombre AS apoderado2_nombre,
+               ap2.tipo_doc AS apoderado2_tipo_doc,
+               ap2.documento AS apoderado2_documento,
+               ap2.domicilio AS apoderado2_domicilio,
+               ap2.telefono AS apoderado2_telefono
+        FROM members m
+        LEFT JOIN persons ap1 ON m.apoderado1_id = ap1.id
+        LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id
+        WHERE m.numero_de_socio = ${numero} LIMIT 1
     `) as MemberRow[];
     const row = rows[0];
     return row ? rowToMember(row) : null;
@@ -138,7 +175,23 @@ function formatDbError(error: unknown): string {
 
 export async function upsertMember(member: Member): Promise<void> {
     const sql = getSql();
-    await upsertMemberQuery(sql, memberToRow(member));
+
+    const resolvedMember = { ...member };
+
+    if (member.apoderado1) {
+        const personId = await upsertPerson(member.apoderado1);
+        if (personId) {
+            resolvedMember.apoderado1 = { ...member.apoderado1, id: personId };
+        }
+    }
+    if (member.apoderado2) {
+        const personId = await upsertPerson(member.apoderado2);
+        if (personId) {
+            resolvedMember.apoderado2 = { ...member.apoderado2, id: personId };
+        }
+    }
+
+    await upsertMemberQuery(sql, memberToRow(resolvedMember));
 }
 
 export async function deleteMemberById(id: string): Promise<void> {
@@ -146,13 +199,46 @@ export async function deleteMemberById(id: string): Promise<void> {
     await sql`DELETE FROM members WHERE id = ${id}`;
 }
 
+function resolveApoderado(
+    apoderado: Person,
+    seenCache: Map<string, string>,
+): Promise<string | null> {
+    if (apoderado.documento?.trim()) {
+        const doc = apoderado.documento.trim();
+        const cached = seenCache.get(doc);
+        if (cached) return Promise.resolve(cached);
+        return upsertPerson(apoderado).then((id) => {
+            if (id) seenCache.set(doc, id);
+            return id;
+        });
+    }
+    return upsertPerson(apoderado);
+}
+
 export async function insertMembers(members: Member[]): Promise<InsertMembersResult> {
     const issues: SeedIssue[] = [];
     let successCount = 0;
 
+    const seenDocs = new Map<string, string>();
+
     for (const member of members) {
         try {
-            await upsertMember(member);
+            const resolvedMember = { ...member };
+
+            if (member.apoderado1?.nombre?.trim()) {
+                const personId = await resolveApoderado(member.apoderado1, seenDocs);
+                if (personId) {
+                    resolvedMember.apoderado1 = { ...member.apoderado1, id: personId };
+                }
+            }
+            if (member.apoderado2?.nombre?.trim()) {
+                const personId = await resolveApoderado(member.apoderado2, seenDocs);
+                if (personId) {
+                    resolvedMember.apoderado2 = { ...member.apoderado2, id: personId };
+                }
+            }
+
+            await upsertMemberQuery(getSql(), memberToRow(resolvedMember));
             successCount++;
         } catch (error) {
             issues.push({

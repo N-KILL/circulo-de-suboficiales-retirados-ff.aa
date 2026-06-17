@@ -1,10 +1,10 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { getSql } from "../src/database/connection";
 import { insertMembers } from "../src/database/membersRepository";
-import { parseMembersFromCsv } from "./parseCsv";
+import { parseMembersFromCsvWithReport } from "./parseCsv";
 
 config();
 
@@ -29,21 +29,33 @@ async function runSchema() {
 async function main() {
     console.log("Leyendo CSV:", csvPath);
     const content = readFileSync(csvPath, "utf-8");
-    const members = parseMembersFromCsv(content);
+    const { members, issues: parseIssues, totalDataRows } = parseMembersFromCsvWithReport(content);
 
-    console.log(`Socios válidos para cargar: ${members.length}`);
+    console.log(`Socios válidos para cargar: ${members.length} (de ${totalDataRows} filas de datos)`);
 
     console.log("\nCreando tabla si no existe...");
     await runSchema();
 
     console.log("Subiendo socios a Neon...");
-    const { successCount, issues } = await insertMembers(members);
+    const { successCount, issues: insertIssues } = await insertMembers(members);
+
+    const allIssues = [...parseIssues, ...insertIssues];
+    const notLoadedIssues = allIssues.filter(
+        (i) => !i.reason.includes("duplicate key value violates unique constraint"),
+    );
+
+    if (notLoadedIssues.length > 0) {
+        const errorPath = join(__dirname, "seed_errors.json");
+        writeFileSync(errorPath, JSON.stringify(notLoadedIssues, null, 2), "utf-8");
+        console.log(`\nErrores guardados en: ${errorPath}`);
+    }
 
     console.log(`\nInsertados/actualizados en BD: ${successCount}`);
-    console.log(`Fallos en BD: ${issues.length}`);
+    console.log(`Fallos en parseo: ${parseIssues.length}`);
+    console.log(`Fallos en BD: ${insertIssues.length}`);
 
-    if (issues.length > 0) {
-        console.warn(`Se completó con ${issues.length} advertencias/errores.`);
+    if (allIssues.length > 0) {
+        console.warn(`Seed completado con ${allIssues.length} errores.`);
     } else {
         console.log("\nSeed de socios completado sin errores.");
     }

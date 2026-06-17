@@ -30,17 +30,18 @@ const displayToEstado: Record<string, string> = {
 
 // ── Tipo de socio ─────────────────────────────────────
 const tipoSocioToDisplay: Record<string, string> = {
-    ACT:   "Activo",
-    "ACT A": "Activo Tipo A",
-    ADH:   "Adherente",
-    HON:   "Honorario",
-    PART:  "Part",
-    VIT:   "Vitalicio",
+    ACT:          "Activo",
+    "ACT A":      "Activo Tipo A",
+    'ACT "A"':    "Activo Tipo A",
+    ADH:          "Adherente",
+    HON:          "Honorario",
+    PART:         "Part",
+    VIT:          "Vitalicio",
 };
 
 const displayToTipoSocio: Record<string, string> = {
     Activo:         "ACT",
-    "Activo Tipo A": "ACT A",
+    "Activo Tipo A": 'ACT "A"',
     Adherente:      "ADH",
     Honorario:      "HON",
     Part:           "PART",
@@ -72,12 +73,15 @@ function fechaToDb(value: string | null | undefined): string | null {
 
 function personFromRow(
     row: MemberRow,
-    prefix: "albacea" | "apoderado1" | "apoderado2"
+    prefix: "apoderado1" | "apoderado2"
 ): Person | null {
     const nombre = row[`${prefix}_nombre`];
     if (!nombre?.trim()) return null;
 
+    const idKey = `${prefix}_id` as keyof MemberRow;
+
     return {
+        id: (row[idKey] as string | null) ?? "",
         nombre,
         tipoDoc: row[`${prefix}_tipo_doc`] ?? "",
         documento: row[`${prefix}_documento`] ?? "",
@@ -120,21 +124,8 @@ export function memberToRow(member: Member) {
         depositar_en: member.depositarEn || null,
         cementerio: member.cementerio || null,
         fallecido: member.fallecido,
-        albacea_nombre: member.albacea?.nombre ?? null,
-        albacea_tipo_doc: member.albacea?.tipoDoc ?? null,
-        albacea_documento: member.albacea?.documento ?? null,
-        albacea_domicilio: member.albacea?.domicilio ?? null,
-        albacea_telefono: member.albacea?.telefono ?? null,
-        apoderado1_nombre: member.apoderado1?.nombre ?? null,
-        apoderado1_tipo_doc: member.apoderado1?.tipoDoc ?? null,
-        apoderado1_documento: member.apoderado1?.documento ?? null,
-        apoderado1_domicilio: member.apoderado1?.domicilio ?? null,
-        apoderado1_telefono: member.apoderado1?.telefono ?? null,
-        apoderado2_nombre: member.apoderado2?.nombre ?? null,
-        apoderado2_tipo_doc: member.apoderado2?.tipoDoc ?? null,
-        apoderado2_documento: member.apoderado2?.documento ?? null,
-        apoderado2_domicilio: member.apoderado2?.domicilio ?? null,
-        apoderado2_telefono: member.apoderado2?.telefono ?? null,
+        apoderado1_id: member.apoderado1?.id ?? null,
+        apoderado2_id: member.apoderado2?.id ?? null,
     };
 }
 
@@ -172,7 +163,6 @@ export function rowToMember(row: MemberRow): Member {
         depositarEn: row.depositar_en ?? undefined,
         cementerio: row.cementerio ?? "",
         fallecido: row.fallecido,
-        albacea: personFromRow(row, "albacea"),
         apoderado1: personFromRow(row, "apoderado1"),
         apoderado2: personFromRow(row, "apoderado2"),
     };

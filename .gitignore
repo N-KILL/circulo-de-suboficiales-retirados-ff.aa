@@ -30,3 +30,4 @@ dist-ssr
 database/seed-errors.json
 
 *.csv
+seed_errors.json

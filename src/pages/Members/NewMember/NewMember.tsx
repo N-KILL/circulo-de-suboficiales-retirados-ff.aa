@@ -1,16 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Search, Save, User, Loader, Trash2, Calendar } from "lucide-react";
 import "./NewMember.css";
 import { useMembersStore } from "../../../store/membersStore";
-import { fetchMemberById, deleteMember } from "../../../services/membersApi";
+import { fetchMemberById, deleteMember, fetchPersons } from "../../../services/membersApi";
 import type { MembersState, Person } from "../../../models/members";
-
-const mockPeople: Person[] = [
-  { nombre: "Juan", tipoDoc: "", documento: "12345678", domicilio: "", telefono: "3581234567" },
-  { nombre: "Lucia", tipoDoc: "", documento: "23456789", domicilio: "", telefono: "3581234567" },
-  { nombre: "Miguel", tipoDoc: "", documento: "34567890", domicilio: "", telefono: "3581234567" },
-];
 
 const NewMember: React.FC = () => {
   const navigate = useNavigate();
@@ -23,24 +17,24 @@ const NewMember: React.FC = () => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // store selectors
+  const [ap1Results, setAp1Results] = useState<Person[]>([]);
+  const [ap2Results, setAp2Results] = useState<Person[]>([]);
+  const [ap1Loading, setAp1Loading] = useState(false);
+  const [ap2Loading, setAp2Loading] = useState(false);
+  const ap1Timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ap2Timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const form = useMembersStore((s: MembersState) => s.form);
   const setField = useMembersStore((s: MembersState) => s.setField);
   const setForm = useMembersStore((s: MembersState) => s.setForm);
-  const albacea = useMembersStore((s: MembersState) => s.albacea);
   const apoderado1 = useMembersStore((s: MembersState) => s.apoderado1);
   const apoderado2 = useMembersStore((s: MembersState) => s.apoderado2);
-  const albSearch = useMembersStore((s: MembersState) => s.albSearch);
-  const albVisible = useMembersStore((s: MembersState) => s.albVisible);
   const ap1Search = useMembersStore((s: MembersState) => s.ap1Search);
   const ap1Visible = useMembersStore((s: MembersState) => s.ap1Visible);
   const ap2Search = useMembersStore((s: MembersState) => s.ap2Search);
   const ap2Visible = useMembersStore((s: MembersState) => s.ap2Visible);
-  const setAlbacea = useMembersStore((s: MembersState) => s.setAlbacea);
   const setApoderado1 = useMembersStore((s: MembersState) => s.setApoderado1);
   const setApoderado2 = useMembersStore((s: MembersState) => s.setApoderado2);
-  const setAlbSearch = useMembersStore((s: MembersState) => s.setAlbSearch);
-  const setAlbVisible = useMembersStore((s: MembersState) => s.setAlbVisible);
   const setAp1Search = useMembersStore((s: MembersState) => s.setAp1Search);
   const setAp1Visible = useMembersStore((s: MembersState) => s.setAp1Visible);
   const setAp2Search = useMembersStore((s: MembersState) => s.setAp2Search);
@@ -69,15 +63,32 @@ const NewMember: React.FC = () => {
     }
   }, [id]);
 
-  const filteredPeople = useMemo(() => {
-    const q = (albSearch || ap1Search || ap2Search).toLowerCase().trim();
-    if (!q) return mockPeople;
-    return mockPeople.filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(q) ||
-        p.documento.includes(q),
-    );
-  }, [albSearch, ap1Search, ap2Search]);
+  const doSearch = useCallback(async (q: string, setResults: (r: Person[]) => void, setLoading: (v: boolean) => void) => {
+    if (!q.trim()) {
+      setResults([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await fetchPersons(q);
+      setResults(result);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleApSearch = (value: string, which: "ap1" | "ap2") => {
+    const timerRef = which === "ap1" ? ap1Timer : ap2Timer;
+    const setSearch = which === "ap1" ? setAp1Search : setAp2Search;
+    const setResults = which === "ap1" ? setAp1Results : setAp2Results;
+    const setLoad = which === "ap1" ? setAp1Loading : setAp2Loading;
+
+    setSearch(value);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => doSearch(value, setResults, setLoad), 300);
+  };
 
   const handleChange = (key: string, value: any) => setField(key as any, value);
 
@@ -129,7 +140,6 @@ const NewMember: React.FC = () => {
       )}
       {!loading && !fetchError && (
       <div className="new-member-layout">
-        {/* Left: Form */}
         <div className="new-member-form-section">
           <form onSubmit={handleSave} className="card-custom">
             <div className="form-grid">
@@ -305,7 +315,7 @@ const NewMember: React.FC = () => {
               </div>
             </div>
 
-                  <div className="form-grid">
+            <div className="form-grid">
               <div className="form-group">
                 <label>Fecha de ingreso</label>
                 <div className="input-with-icon">
@@ -447,8 +457,6 @@ const NewMember: React.FC = () => {
               </div>
             )}
 
-      
-
             {saveError && (
               <div className="form-error">{saveError}</div>
             )}
@@ -519,68 +527,8 @@ const NewMember: React.FC = () => {
           </form>
         </div>
 
-        {/* Right: Sidebar */}
         <div className="new-member-sidebar">
-          {/* Albacea Section */}
-          <div className="sidebar-section">
-            <h4>Albacea</h4>
-            {albacea ? (
-              <div className="person-card">
-                <div className="person-card-header">
-                  <div className="person-avatar">
-                    <User size={20} />
-                  </div>
-                  <div className="person-info">
-                    <span className="person-name">
-                      {albacea.nombre}
-                    </span>
-                    <span className="person-doc">DNI: {albacea.documento}</span>
-                  </div>
-                </div>
-                <button
-                  className="header-btn small btn-remove"
-                  onClick={() => setAlbacea(null)}
-                >
-                  Quitar
-                </button>
-              </div>
-            ) : (
-              <div className="search-wrapper">
-                <div className="input-with-icon">
-                  <input
-                    className="search-input"
-                    placeholder="Buscar persona..."
-                    value={albSearch}
-                    onFocus={() => setAlbVisible(true)}
-                    onChange={(e) => setAlbSearch(e.target.value)}
-                  />
-                  <Search size={16} className="input-icon" />
-                </div>
-                {albVisible && (
-                  <div className="search-results">
-                    {(albSearch ? filteredPeople : mockPeople).map((p) => (
-                      <div
-                        key={p.documento}
-                        className="search-result-item"
-                        onClick={() => {
-                          setAlbacea(p);
-                          setAlbSearch("");
-                          setAlbVisible(false);
-                        }}
-                      >
-                        <div className="search-result-name">
-                          {p.nombre}
-                        </div>
-                        <div className="search-result-doc">{p.documento}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Apoderado 1 Section */}
+          {/* Apoderado 1 */}
           <div className="sidebar-section">
             <h4>Apoderado 1</h4>
             {apoderado1 ? (
@@ -610,38 +558,49 @@ const NewMember: React.FC = () => {
                 <div className="input-with-icon">
                   <input
                     className="search-input"
-                    placeholder="Buscar persona..."
+                    placeholder="Buscar por nombre o DNI..."
                     value={ap1Search}
-                    onFocus={() => setAp1Visible(true)}
-                    onChange={(e) => setAp1Search(e.target.value)}
+                    onFocus={() => { setAp1Visible(true); if (ap1Search) handleApSearch(ap1Search, "ap1"); }}
+                    onChange={(e) => handleApSearch(e.target.value, "ap1")}
                   />
                   <Search size={16} className="input-icon" />
                 </div>
                 {ap1Visible && (
                   <div className="search-results">
-                    {(ap1Search ? filteredPeople : mockPeople).map((p) => (
-                      <div
-                        key={p.documento}
-                        className="search-result-item"
-                        onClick={() => {
-                          setApoderado1(p);
-                          setAp1Search("");
-                          setAp1Visible(false);
-                        }}
-                      >
-                        <div className="search-result-name">
-                          {p.nombre}
-                        </div>
-                        <div className="search-result-doc">{p.documento}</div>
+                    {ap1Loading ? (
+                      <div className="search-result-item" style={{ justifyContent: "center" }}>
+                        <Loader size={14} className="spin" /> Buscando...
                       </div>
-                    ))}
+                    ) : ap1Search && ap1Results.length === 0 ? (
+                      <div className="search-result-item" style={{ justifyContent: "center", color: "var(--muted)" }}>
+                        Sin resultados
+                      </div>
+                    ) : (
+                      ap1Results.map((p) => (
+                        <div
+                          key={p.id || p.documento}
+                          className="search-result-item"
+                          onClick={() => {
+                            setApoderado1(p);
+                            setAp1Search("");
+                            setAp1Visible(false);
+                            setAp1Results([]);
+                          }}
+                        >
+                          <div className="search-result-name">
+                            {p.nombre}
+                          </div>
+                          <div className="search-result-doc">{p.documento}</div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Apoderado 2 Section */}
+          {/* Apoderado 2 */}
           <div className="sidebar-section">
             <h4>Apoderado 2</h4>
             {apoderado2 ? (
@@ -671,31 +630,42 @@ const NewMember: React.FC = () => {
                 <div className="input-with-icon">
                   <input
                     className="search-input"
-                    placeholder="Buscar persona..."
+                    placeholder="Buscar por nombre o DNI..."
                     value={ap2Search}
-                    onFocus={() => setAp2Visible(true)}
-                    onChange={(e) => setAp2Search(e.target.value)}
+                    onFocus={() => { setAp2Visible(true); if (ap2Search) handleApSearch(ap2Search, "ap2"); }}
+                    onChange={(e) => handleApSearch(e.target.value, "ap2")}
                   />
                   <Search size={16} className="input-icon" />
                 </div>
                 {ap2Visible && (
                   <div className="search-results">
-                    {(ap2Search ? filteredPeople : mockPeople).map((p) => (
-                      <div
-                        key={p.documento}
-                        className="search-result-item"
-                        onClick={() => {
-                          setApoderado2(p);
-                          setAp2Search("");
-                          setAp2Visible(false);
-                        }}
-                      >
-                        <div className="search-result-name">
-                          {p.nombre}
-                        </div>
-                        <div className="search-result-doc">{p.documento}</div>
+                    {ap2Loading ? (
+                      <div className="search-result-item" style={{ justifyContent: "center" }}>
+                        <Loader size={14} className="spin" /> Buscando...
                       </div>
-                    ))}
+                    ) : ap2Search && ap2Results.length === 0 ? (
+                      <div className="search-result-item" style={{ justifyContent: "center", color: "var(--muted)" }}>
+                        Sin resultados
+                      </div>
+                    ) : (
+                      ap2Results.map((p) => (
+                        <div
+                          key={p.id || p.documento}
+                          className="search-result-item"
+                          onClick={() => {
+                            setApoderado2(p);
+                            setAp2Search("");
+                            setAp2Visible(false);
+                            setAp2Results([]);
+                          }}
+                        >
+                          <div className="search-result-name">
+                            {p.nombre}
+                          </div>
+                          <div className="search-result-doc">{p.documento}</div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
