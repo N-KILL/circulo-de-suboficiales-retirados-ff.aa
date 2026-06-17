@@ -265,6 +265,26 @@
   pointer-events: none;
 }
 
+.date-picker-btn {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.date-picker-btn:hover {
+  color: var(--azul-institucional);
+}
+
 .search-results {
   position: absolute;
   left: 0;

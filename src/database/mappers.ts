@@ -12,6 +12,22 @@ const displayToSexo: Record<string, string> = {
     Femenino: "F",
 };
 
+// ── Estado (militar) ───────────────────────────────────
+const estadoToDisplay: Record<string, string> = {
+    "":     "En servicio",
+    "(R)":  "Retirado",
+    RET:    "Retirado",
+    Baja:   "Baja",
+    PENS:   "Pensionado",
+};
+
+const displayToEstado: Record<string, string> = {
+    "En servicio": "",
+    Retirado:      "RET",
+    Baja:          "Baja",
+    Pensionado:    "PENS",
+};
+
 // ── Tipo de socio ─────────────────────────────────────
 const tipoSocioToDisplay: Record<string, string> = {
     ACT:   "Activo",
@@ -95,7 +111,7 @@ export function memberToRow(member: Member) {
         militar: member.militar,
         fuerza: member.fuerza || null,
         grado: member.grado || null,
-        estado: member.estado || null,
+        estado: displayToEstado[member.estado] ?? (member.estado || null),
         fecha_ingreso: fechaToDb(member.fechaIngreso),
         fecha_baja: fechaToDb(member.fechaBaja),
         motivo_baja: member.motivoBaja || null,
@@ -147,7 +163,7 @@ export function rowToMember(row: MemberRow): Member {
         militar: row.militar,
         fuerza: row.fuerza ?? "",
         grado: row.grado ?? "",
-        estado: row.estado ?? "",
+        estado: estadoToDisplay[row.estado ?? ""] ?? row.estado ?? "",
         fechaIngreso: fechaToDisplay(row.fecha_ingreso),
         fechaBaja: fechaToDisplay(row.fecha_baja),
         motivoBaja: row.motivo_baja ?? "",

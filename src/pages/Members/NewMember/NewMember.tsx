@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Search, Save, User, Loader, Trash2 } from "lucide-react";
+import { Search, Save, User, Loader, Trash2, Calendar } from "lucide-react";
 import "./NewMember.css";
 import { useMembersStore } from "../../../store/membersStore";
 import { fetchMemberById, deleteMember } from "../../../services/membersApi";
@@ -238,12 +238,25 @@ const NewMember: React.FC = () => {
 
               <div className="form-group">
                 <label>Fecha Nacimiento</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={form.fechaNac}
-                  onChange={(e) => handleChange("fechaNac", e.target.value)}
-                />
+                <div className="input-with-icon">
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={form.fechaNac}
+                    onChange={(e) => handleChange("fechaNac", e.target.value)}
+                    id="fecha-nac"
+                  />
+                  <button
+                    type="button"
+                    className="date-picker-btn"
+                    onClick={() => {
+                      const el = document.getElementById("fecha-nac") as HTMLInputElement | null;
+                      if (el) { el.focus(); el.showPicker?.(); }
+                    }}
+                  >
+                    <Calendar size={18} />
+                  </button>
+                </div>
               </div>
 
               <div className="form-group">
@@ -295,12 +308,25 @@ const NewMember: React.FC = () => {
                   <div className="form-grid">
               <div className="form-group">
                 <label>Fecha de ingreso</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={form.fechaIngreso}
-                  onChange={(e) => handleChange("fechaIngreso", e.target.value)}
-                />
+                <div className="input-with-icon">
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={form.fechaIngreso}
+                    onChange={(e) => handleChange("fechaIngreso", e.target.value)}
+                    id="fecha-ingreso"
+                  />
+                  <button
+                    type="button"
+                    className="date-picker-btn"
+                    onClick={() => {
+                      const el = document.getElementById("fecha-ingreso") as HTMLInputElement | null;
+                      if (el) { el.focus(); el.showPicker?.(); }
+                    }}
+                  >
+                    <Calendar size={18} />
+                  </button>
+                </div>
               </div>
 
               <div className="form-group">
@@ -414,6 +440,8 @@ const NewMember: React.FC = () => {
                     <option value="">-</option>
                     <option>En servicio</option>
                     <option>Retirado</option>
+                    <option>Baja</option>
+                    <option>Pensionado</option>
                   </select>
                 </div>
               </div>

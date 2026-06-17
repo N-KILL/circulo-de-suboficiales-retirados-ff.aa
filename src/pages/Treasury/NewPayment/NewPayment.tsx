@@ -62,7 +62,7 @@ const NewPayment: React.FC = () => {
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
   const [periodo, setPeriodo] = useState("");
   const [importeStr, setImporteStr] = useState("");
-  const [formaPago, setFormaPago] = useState("Transferencia Bancaria");
+  const [formaPago, setFormaPago] = useState("Transferencia");
   const [descripcion, setDescripcion] = useState("");
 
   const [saving, setSaving] = useState(false);
@@ -371,7 +371,7 @@ const NewPayment: React.FC = () => {
                   value={formaPago}
                   onChange={(e) => setFormaPago(e.target.value)}
                 >
-                  <option>Transferencia Bancaria</option>
+                  <option>Transferencia</option>
                   <option>Efectivo</option>
                 </select>
               </div>
