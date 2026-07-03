@@ -1,0 +1,47 @@
+.cementerio-detalle {
+    display: block;
+}
+
+.field-input {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    background: #fff;
+    color: var(--text);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.field-input:focus {
+    border-color: var(--azul-institucional);
+}
+
+.input-with-icon {
+    position: relative;
+    width: 100%;
+}
+
+.input-with-icon .field-input {
+    padding-left: 44px;
+}
+
+.date-picker-btn {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--muted);
+}
+
+.date-picker-btn:hover {
+    color: var(--azul-institucional);
+}

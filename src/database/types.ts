@@ -1,3 +1,29 @@
+export type CementerioRow = {
+    id: string;
+    nicho: string;
+    folio: string;
+    tipo: string;
+    ocupante: string;
+    numero_orden: string;
+    tiene_lapida: boolean;
+    es_socio: boolean;
+    socio_id: string | null;
+    persona_id: string | null;
+    paga_por: string;
+    anio_de_gracia: string;
+    contrato_nro: string;
+    contrato_por_anios: string;
+    anio_venc_contrato: string;
+    ultimo_pago: string;
+    plan_de_pago: string;
+    fecha_de_pago: string;
+    telefono: string;
+    nombre_alternativo: string;
+    fecha_fallecimiento: string;
+    created_at: string;
+    updated_at: string;
+};
+
 export type PersonRow = {
     id: string;
     nombre: string;

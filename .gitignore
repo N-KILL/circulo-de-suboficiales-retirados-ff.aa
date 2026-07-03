@@ -31,3 +31,4 @@ database/seed-errors.json
 
 *.csv
 seed_errors.json
+seed_cementerio_errors.json

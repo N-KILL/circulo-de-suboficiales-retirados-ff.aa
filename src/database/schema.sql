@@ -76,6 +76,35 @@ CREATE TABLE IF NOT EXISTS petty_cash (
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS cementerios (
+    id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    nicho               VARCHAR(50),
+    folio               VARCHAR(50),
+    tipo                VARCHAR(20),
+    ocupante            VARCHAR(255),
+    numero_orden        VARCHAR(50),
+    tiene_lapida        BOOLEAN         NOT NULL DEFAULT FALSE,
+    es_socio            BOOLEAN         NOT NULL DEFAULT FALSE,
+    socio_id            UUID            REFERENCES members(id) ON DELETE SET NULL,
+    persona_id          UUID            REFERENCES persons(id) ON DELETE SET NULL,
+    paga_por            VARCHAR(20),
+    anio_de_gracia      VARCHAR(50),
+    contrato_nro        VARCHAR(50),
+    contrato_por_anios  VARCHAR(50),
+    anio_venc_contrato  VARCHAR(50),
+    ultimo_pago         VARCHAR(50),
+    plan_de_pago        VARCHAR(100),
+    fecha_de_pago       VARCHAR(50),
+    telefono            VARCHAR(100),
+    nombre_alternativo  VARCHAR(255),
+    fecha_fallecimiento VARCHAR(50),
+    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cementerios_socio_id    ON cementerios (socio_id);
+CREATE INDEX IF NOT EXISTS idx_cementerios_persona_id  ON cementerios (persona_id);
+
 CREATE TABLE IF NOT EXISTS initial_balances (
     id          UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     caja_chica  NUMERIC(12,2)   NOT NULL DEFAULT 0,

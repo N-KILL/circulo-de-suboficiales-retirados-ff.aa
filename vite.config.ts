@@ -26,8 +26,9 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isPersonMembers = pathname === "/api/person-members";
         const isInitialBalances = pathname === "/api/initial-balances";
         const isPayment = pathname === "/api/payment";
+        const isCementerios = pathname === "/api/cementerios";
 
-        if (!isMembers && !isPersons && !isMovements && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment) {
+        if (!isMembers && !isPersons && !isMovements && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios) {
           next();
           return;
         }
@@ -222,6 +223,45 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             res.statusCode = 200;
             res.end(JSON.stringify({ success: true }));
             return;
+          }
+
+          if (isCementerios) {
+            const { getAllCementeriosGrid, getCementeriosByNicho, updateCementerio } = await import("./src/database/cementeriosRepository");
+
+            if (req.method === "GET") {
+              const nicho = url.searchParams.get("nicho");
+              if (nicho) {
+                const items = await getCementeriosByNicho(nicho);
+                res.statusCode = 200;
+                res.end(JSON.stringify(items));
+              } else {
+                const items = await getAllCementeriosGrid();
+                res.statusCode = 200;
+                res.end(JSON.stringify(items));
+              }
+              return;
+            }
+
+            if (req.method === "PATCH") {
+              const id = url.searchParams.get("id");
+              if (!id) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el parámetro id" }));
+                return;
+              }
+              const body = await collectBody(req);
+              const data = JSON.parse(body);
+              await updateCementerio(id, data);
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true }));
+              return;
+            }
+
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
           }
 
           if (isPersonMembers && req.method === "GET") {

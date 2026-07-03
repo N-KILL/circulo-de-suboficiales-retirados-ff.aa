@@ -44,6 +44,32 @@ export type Member = {
     apoderado2: Person | null;
 };
 
+export type Cementerio = {
+    id: string;
+    nicho: string;
+    folio: string;
+    tipo: string;
+    ocupante: string;
+    numeroOrden: string;
+    tieneLapida: boolean;
+    esSocio: boolean;
+    socioId: string | null;
+    personaId: string | null;
+    pagaPor: string;
+    anioDeGracia: string;
+    contratoNro: string;
+    contratoPorAnios: string;
+    anioVencContrato: string;
+    ultimoPago: string;
+    planDePago: string;
+    fechaDePago: string;
+    telefono: string;
+    nombreAlternativo: string;
+    fechaFallecimiento: string;
+    reducir: string;
+    debeAnios: string;
+};
+
 // Estado del formulario de creación/edición de socio
 export type MembersFormState = {
     memberNumber: string;

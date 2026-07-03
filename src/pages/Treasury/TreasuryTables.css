@@ -163,6 +163,58 @@
   color: var(--azul-institucional);
 }
 
+.filter-toggle-buttons {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Stepper */
+.stepper-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--card-bg);
+}
+
+.stepper-btn {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  width: 32px;
+  height: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.stepper-btn:hover {
+  background: #eef2ff;
+}
+
+.stepper-value {
+  min-width: 48px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 0 8px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
 /* Filters panel (expanded) */
 .filters-panel {
   display: flex;
@@ -497,6 +549,26 @@
   z-index: 10;
 }
 
+.treasury-table th.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.treasury-table th.sortable-th:hover {
+  background: #eef2ff;
+  color: var(--azul-institucional);
+}
+
+/* Cementerio column widths */
+.col-nicho { width: 90px; }
+.col-cant { width: 70px; text-align: center; }
+.col-arrendatario { min-width: 180px; }
+.col-telefono { width: 120px; }
+.col-paga-por { width: 100px; }
+.col-fecha { width: 130px; }
+.col-anios { width: 70px; text-align: center; }
+
 .treasury-table td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
@@ -509,6 +581,60 @@
 
 .treasury-table tr:hover {
   background: #fcfcfd;
+}
+
+.treasury-table tr.clickable-row {
+  cursor: pointer;
+}
+
+.treasury-table tr.clickable-row:hover {
+  background: #eef2ff;
+}
+
+/* Stepper */
+.stepper-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--card-bg);
+}
+
+.stepper-btn {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  width: 32px;
+  height: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.stepper-btn:hover {
+  background: #eef2ff;
+}
+
+.stepper-value {
+  min-width: 48px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 0 8px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
 }
 
 /* Badges */

@@ -8,8 +8,9 @@ import Movements from "./pages/Treasury/Movements/Movements";
 import Treasury from "./pages/Treasury/NewMovement/NewMovement";
 import NewPayment from "./pages/Treasury/NewPayment/NewPayment";
 import NewExpense from "./pages/Treasury/NewExpense/NewExpense";
+import Cementerio from "./pages/Treasury/Cementerio/Cementerio";
+import CementerioDetalle from "./pages/Treasury/Cementerio/CementerioDetalle";
 import Members from "./pages/Members/Members";
-import MemberDetails from "./pages/Members/MemberDetails";
 import NewMember from "./pages/Members/NewMember/NewMember";
 import Persons from "./pages/Persons/Persons";
 import NewPerson from "./pages/Persons/NewPerson/NewPerson";
@@ -26,10 +27,11 @@ function App() {
           <Route path="tesoreria/ingresos/nuevo-pago" element={<NewPayment />} />
           <Route path="tesoreria/egresos/nuevo-egreso" element={<NewExpense />} />
           <Route path="tesoreria/dashboard" element={<DashboardPage />} />
+          <Route path="tesoreria/cementerio" element={<Cementerio />} />
+          <Route path="tesoreria/cementerio/:nicho" element={<CementerioDetalle />} />
           <Route path="socios" element={<Members />} />
           <Route path="socios/nuevo" element={<NewMember />} />
           <Route path="socios/editar/:id" element={<NewMember />} />
-          <Route path="socios/:id" element={<MemberDetails />} />
           <Route path="personas" element={<Persons />} />
           <Route path="personas/nuevo" element={<NewPerson />} />
           <Route path="personas/editar/:id" element={<NewPerson />} />

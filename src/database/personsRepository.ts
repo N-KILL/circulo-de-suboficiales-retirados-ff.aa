@@ -6,33 +6,44 @@ import type { PersonRow } from "./types";
 export async function upsertPerson(person: Person): Promise<string | null> {
     if (!person.nombre?.trim()) return null;
     const sql = getSql();
+    const nombre = person.nombre.trim();
+
+    let existing: PersonRow[];
 
     if (person.documento?.trim()) {
-        const existing = await sql`
+        existing = await sql`
             SELECT id FROM persons WHERE documento = ${person.documento.trim()} LIMIT 1
-        `;
-        if ((existing as PersonRow[]).length > 0) {
-            const existingId = (existing as PersonRow[])[0].id;
-            if (person.id && person.id !== existingId) {
-                person.id = existingId;
-            }
-            await sql`
-                UPDATE persons SET
-                    nombre = ${person.nombre},
-                    tipo_doc = ${person.tipoDoc || null},
-                    domicilio = ${person.domicilio || null},
-                    telefono = ${person.telefono || null}
-                WHERE id = ${existingId}
-            `;
-            return existingId;
+        ` as PersonRow[];
+        if (existing.length === 0) {
+            existing = await sql`
+                SELECT id FROM persons WHERE nombre ILIKE ${nombre} LIMIT 1
+            ` as PersonRow[];
         }
+    } else {
+        existing = await sql`
+            SELECT id FROM persons WHERE nombre ILIKE ${nombre} LIMIT 1
+        ` as PersonRow[];
+    }
+
+    if (existing.length > 0) {
+        const existingId = existing[0].id;
+        await sql`
+            UPDATE persons SET
+                nombre = ${nombre},
+                tipo_doc = ${person.tipoDoc || null},
+                documento = ${person.documento?.trim() || null},
+                domicilio = ${person.domicilio || null},
+                telefono = ${person.telefono || null}
+            WHERE id = ${existingId}
+        `;
+        return existingId;
     }
 
     const id = person.id || randomUUID();
     await sql`
         INSERT INTO persons (id, nombre, tipo_doc, documento, domicilio, telefono)
         VALUES (
-            ${id}, ${person.nombre}, ${person.tipoDoc || null},
+            ${id}, ${nombre}, ${person.tipoDoc || null},
             ${person.documento?.trim() || null}, ${person.domicilio || null},
             ${person.telefono || null}
         )
