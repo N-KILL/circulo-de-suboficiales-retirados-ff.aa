@@ -265,3 +265,25 @@ export async function getDuesByMemberWithCemeteryCheck(memberId: string): Promis
         dues,
     };
 }
+
+export async function getMembersDebtStatus(): Promise<Record<string, string | null>> {
+    const sql = getSql();
+    const rows = (await sql`
+        SELECT member_id, paid_members, period_end
+        FROM dues
+        WHERE type = 'socio' AND period_end IS NOT NULL
+    `) as { member_id: string | null; paid_members: unknown; period_end: string }[];
+    const map: Record<string, string | null> = {};
+    for (const row of rows) {
+        const members: string[] = [];
+        if (row.member_id) members.push(row.member_id);
+        const paid = parsePaidMembers(row.paid_members);
+        if (paid) members.push(...paid);
+        for (const mid of members) {
+            if (!map[mid] || row.period_end > map[mid]) {
+                map[mid] = row.period_end;
+            }
+        }
+    }
+    return map;
+}

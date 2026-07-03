@@ -627,52 +627,76 @@ const NewMovement: React.FC = () => {
 
               {shouldCreateDue && (
                 <>
-                  <div className="form-group">
-                    <label>
-                      Periodo desde <span className="required">*</span>
-                    </label>
-                    <div className="input-with-icon date-input-wrap">
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={periodStart}
-                        onChange={(e) => setPeriodStart(e.target.value)}
-                        id="period-start"
-                      />
+                  <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
+                    <div style={{ flex: "0 0 33%" }}>
                       <button
                         type="button"
-                        className="date-picker-btn"
+                        className="header-btn-sm"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          fontSize: "0.9rem",
+                          justifyContent: "center",
+                        }}
                         onClick={() => {
-                          const el = document.getElementById("period-start") as HTMLInputElement | null;
-                          if (el) { el.focus(); el.showPicker?.(); }
+                          const now = new Date();
+                          const y = now.getFullYear();
+                          const m = String(now.getMonth() + 1).padStart(2, "0");
+                          const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+                          setPeriodStart(`${y}-${m}-01`);
+                          setPeriodEnd(`${y}-${m}-${String(lastDay).padStart(2, "0")}`);
                         }}
                       >
-                        <Calendar size={18} />
+                        Este mes
                       </button>
                     </div>
-                  </div>
-                  <div className="form-group">
-                    <label>
-                      Periodo hasta <span className="required">*</span>
-                    </label>
-                    <div className="input-with-icon date-input-wrap">
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={periodEnd}
-                        onChange={(e) => setPeriodEnd(e.target.value)}
-                        id="period-end"
-                      />
-                      <button
-                        type="button"
-                        className="date-picker-btn"
-                        onClick={() => {
-                          const el = document.getElementById("period-end") as HTMLInputElement | null;
-                          if (el) { el.focus(); el.showPicker?.(); }
-                        }}
-                      >
-                        <Calendar size={18} />
-                      </button>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label>
+                        Desde <span className="required">*</span>
+                      </label>
+                      <div className="input-with-icon date-input-wrap">
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={periodStart}
+                          onChange={(e) => setPeriodStart(e.target.value)}
+                          id="period-start"
+                        />
+                        <button
+                          type="button"
+                          className="date-picker-btn"
+                          onClick={() => {
+                            const el = document.getElementById("period-start") as HTMLInputElement | null;
+                            if (el) { el.focus(); el.showPicker?.(); }
+                          }}
+                        >
+                          <Calendar size={18} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label>
+                        Hasta <span className="required">*</span>
+                      </label>
+                      <div className="input-with-icon date-input-wrap">
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={periodEnd}
+                          onChange={(e) => setPeriodEnd(e.target.value)}
+                          id="period-end"
+                        />
+                        <button
+                          type="button"
+                          className="date-picker-btn"
+                          onClick={() => {
+                            const el = document.getElementById("period-end") as HTMLInputElement | null;
+                            if (el) { el.focus(); el.showPicker?.(); }
+                          }}
+                        >
+                          <Calendar size={18} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </>

@@ -2,6 +2,7 @@ export type DuesConfig = {
     id: string;
     member_fee: number;
     cemetery_fee: number;
+    consideration_years: number;
 };
 
 export async function fetchDuesConfig(): Promise<DuesConfig | null> {
@@ -16,11 +17,12 @@ export async function fetchDuesConfig(): Promise<DuesConfig | null> {
 export async function saveDuesConfig(
     member_fee: number,
     cemetery_fee: number,
+    consideration_years: number = 0,
 ): Promise<DuesConfig> {
     const response = await fetch("/api/dues-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member_fee, cemetery_fee }),
+        body: JSON.stringify({ member_fee, cemetery_fee, consideration_years }),
     });
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;

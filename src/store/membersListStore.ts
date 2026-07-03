@@ -5,7 +5,8 @@ import { fetchMembers } from "../services/membersApi";
 function filterAndSort(
     all: Member[],
     searchText: string,
-    showFallecidos: boolean
+    showFallecidos: boolean,
+    pagaPorFilter: string
 ): Member[] {
     const s = searchText.toLowerCase().trim();
     const list = all.filter((m) => {
@@ -15,7 +16,8 @@ function filterAndSort(
             m.documento.includes(s) ||
             m.numeroDeSocio.includes(s);
         const matchFallecido = showFallecidos ? true : !m.fallecido;
-        return matchSearch && matchFallecido;
+        const matchPagaPor = !pagaPorFilter || m.pagaPor === pagaPorFilter;
+        return matchSearch && matchFallecido && matchPagaPor;
     });
     return list.sort((a, b) => {
         const na = parseInt(a.numeroDeSocio.replace(/\D/g, ""), 10) || 0;
@@ -30,6 +32,7 @@ export const useMembersListStore = create<MembersListState>((set, get) => ({
     error: null,
     searchText: "",
     showFallecidos: false,
+    pagaPorFilter: "",
     currentPage: 1,
     rowsPerPage: 15,
 
@@ -52,13 +55,15 @@ export const useMembersListStore = create<MembersListState>((set, get) => ({
     setSearchText: (s: string) => set(() => ({ searchText: s, currentPage: 1 })),
     setShowFallecidos: (v: boolean) =>
         set(() => ({ showFallecidos: v, currentPage: 1 })),
+    setPagaPorFilter: (v: string) =>
+        set(() => ({ pagaPorFilter: v, currentPage: 1 })),
     setCurrentPage: (p: number) => set(() => ({ currentPage: p })),
     setRowsPerPage: (r: number) =>
         set(() => ({ rowsPerPage: r, currentPage: 1 })),
 
     getFiltered: () => {
-        const { allMembers, searchText, showFallecidos } = get();
-        return filterAndSort(allMembers, searchText, showFallecidos);
+        const { allMembers, searchText, showFallecidos, pagaPorFilter } = get();
+        return filterAndSort(allMembers, searchText, showFallecidos, pagaPorFilter);
     },
 
     getPaginated: () => {

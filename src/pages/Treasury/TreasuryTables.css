@@ -529,31 +529,39 @@
 }
 
 .treasury-table .column-socio {
-  width: 7%;
+  width: 6%;
 }
 
 .treasury-table .column-nombre {
-  width: 30%;
+  width: 25%;
 }
 
 .treasury-table .column-telefono {
-  width: 15%;
+  width: 12%;
 }
 
 .treasury-table .column-tipo {
-  width: 8%;
+  width: 7%;
 }
 
 .treasury-table .column-documento {
-  width: 10%;
+  width: 9%;
 }
 
 .treasury-table .column-localidad {
-  width: 10%;
+  width: 9%;
 }
 
 .treasury-table .column-domicilio {
   width: auto;
+}
+
+.treasury-table .column-paga-por {
+  width: 120px;
+}
+
+.treasury-table .column-deuda {
+  width: 130px;
 }
 
 .treasury-table th {

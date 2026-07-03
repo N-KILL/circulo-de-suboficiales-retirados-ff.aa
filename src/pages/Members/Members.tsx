@@ -1,9 +1,18 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Search, UserPlus, Home, Eye } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import "../Treasury/TreasuryTables.css";
 import { useMembersListStore } from "../../store/membersListStore";
+import { fetchMembersDebtStatus } from "../../services/membersDebtApi";
+
+function monthsOwed(lastPeriodEnd: string | null): number {
+  if (!lastPeriodEnd) return -1;
+  const now = new Date();
+  const end = new Date(lastPeriodEnd + "T00:00:00");
+  if (end >= now) return 0;
+  return (now.getFullYear() - end.getFullYear()) * 12 + (now.getMonth() - end.getMonth());
+}
 
 const Members: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +20,7 @@ const Members: React.FC = () => {
 
   const searchText = useMembersListStore((s) => s.searchText);
   const showFallecidos = useMembersListStore((s) => s.showFallecidos);
+  const pagaPorFilter = useMembersListStore((s) => s.pagaPorFilter);
   const currentPage = useMembersListStore((s) => s.currentPage);
   const rowsPerPage = useMembersListStore((s) => s.rowsPerPage);
   const allMembers = useMembersListStore((s) => s.allMembers);
@@ -19,30 +29,72 @@ const Members: React.FC = () => {
   const loadMembers = useMembersListStore((s) => s.loadMembers);
   const setSearchText = useMembersListStore((s) => s.setSearchText);
   const setShowFallecidos = useMembersListStore((s) => s.setShowFallecidos);
+  const setPagaPorFilter = useMembersListStore((s) => s.setPagaPorFilter);
   const setCurrentPage = useMembersListStore((s) => s.setCurrentPage);
   const setRowsPerPage = useMembersListStore((s) => s.setRowsPerPage);
 
+  const [debtMap, setDebtMap] = useState<Record<string, string | null>>({});
+  const [considerationYears, setConsiderationYears] = useState(0);
+  const [debtLoading, setDebtLoading] = useState(true);
+  const [showDebtorsOnly, setShowDebtorsOnly] = useState(false);
+  const [hideOldDebt, setHideOldDebt] = useState(false);
+  const [debtSortDir, setDebtSortDir] = useState<"asc" | "desc" | null>(null);
+
   useEffect(() => {
     void loadMembers();
+    fetchMembersDebtStatus()
+      .then((data) => {
+        setDebtMap(data.members);
+        setConsiderationYears(data.consideration_years);
+      })
+      .catch(() => {})
+      .finally(() => setDebtLoading(false));
   }, [loadMembers, location.key]);
+
+  const pagaPorOptions = useMemo(() => {
+    const values = new Set<string>();
+    allMembers.forEach((m) => { if (m.pagaPor) values.add(m.pagaPor); });
+    return Array.from(values).sort();
+  }, [allMembers]);
+
+  const membersWithDebt = useMemo(() => {
+    return allMembers.map((m) => {
+      const owed = monthsOwed(debtMap[m.id] ?? null);
+      return {
+        member: m,
+        monthsOwed: owed,
+        noData: owed === -1,
+      };
+    });
+  }, [allMembers, debtMap]);
 
   const filtered = useMemo(() => {
     const s = searchText.toLowerCase().trim();
-    const list = allMembers.filter((m) => {
+    const maxMonths = considerationYears * 12;
+    return membersWithDebt.filter((item) => {
+      const m = item.member;
       const matchSearch =
         !s ||
         m.nombre.toLowerCase().includes(s) ||
         m.documento.includes(s) ||
         m.numeroDeSocio.includes(s);
       const matchFallecido = showFallecidos ? true : !m.fallecido;
-      return matchSearch && matchFallecido;
-    });
-    return list.sort((a, b) => {
-      const na = parseInt(a.numeroDeSocio.replace(/\D/g, ""), 10) || 0;
-      const nb = parseInt(b.numeroDeSocio.replace(/\D/g, ""), 10) || 0;
+      const matchPagaPor = !pagaPorFilter || m.pagaPor === pagaPorFilter;
+      const matchDebtor = !showDebtorsOnly || item.monthsOwed > 0 || item.noData;
+      const matchOldDebt = !hideOldDebt || maxMonths <= 0 || item.monthsOwed <= maxMonths;
+      return matchSearch && matchFallecido && matchPagaPor && matchDebtor && matchOldDebt;
+    }).sort((a, b) => {
+      if (debtSortDir === "asc") {
+        return (a.monthsOwed - b.monthsOwed);
+      }
+      if (debtSortDir === "desc") {
+        return (b.monthsOwed - a.monthsOwed);
+      }
+      const na = parseInt(a.member.numeroDeSocio.replace(/\D/g, ""), 10) || 0;
+      const nb = parseInt(b.member.numeroDeSocio.replace(/\D/g, ""), 10) || 0;
       return na - nb;
     });
-  }, [allMembers, searchText, showFallecidos]);
+  }, [membersWithDebt, searchText, showFallecidos, pagaPorFilter, showDebtorsOnly, hideOldDebt, considerationYears, debtSortDir]);
 
   const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
@@ -89,6 +141,53 @@ const Members: React.FC = () => {
             Mostrar fallecidos
           </label>
         </div>
+
+        <div
+          className="filter-item"
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
+        >
+          <input
+            id="debtors"
+            type="checkbox"
+            checked={showDebtorsOnly}
+            onChange={(e) => setShowDebtorsOnly(e.target.checked)}
+          />
+          <label htmlFor="debtors" style={{ userSelect: "none" }}>
+            Solo deudores
+          </label>
+        </div>
+
+        <div
+          className="filter-item"
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
+        >
+          <input
+            id="hideOldDebt"
+            type="checkbox"
+            checked={hideOldDebt}
+            onChange={(e) => setHideOldDebt(e.target.checked)}
+          />
+          <label htmlFor="hideOldDebt" style={{ userSelect: "none" }}>
+            Ocultar deuda &gt; {considerationYears} años
+          </label>
+        </div>
+
+        <select
+          value={pagaPorFilter}
+          onChange={(e) => setPagaPorFilter(e.target.value)}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 6,
+            border: "1px solid var(--border)",
+            fontSize: "0.875rem",
+            background: "white",
+          }}
+        >
+          <option value="">Todos (Paga por)</option>
+          {pagaPorOptions.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
       </div>
 
       <div className="table-card">
@@ -102,6 +201,8 @@ const Members: React.FC = () => {
               <col className="column-documento" />
               <col className="column-localidad" />
               <col className="column-domicilio" />
+              <col className="column-paga-por" />
+              <col className="column-deuda" />
             </colgroup>
             <thead>
               <tr>
@@ -112,14 +213,25 @@ const Members: React.FC = () => {
                 <th>Documento</th>
                 <th>Localidad</th>
                 <th>Dirección/Residencia</th>
+                <th>Paga por</th>
+                <th
+                  style={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() =>
+                    setDebtSortDir((prev) =>
+                      prev === "asc" ? "desc" : prev === "desc" ? null : "asc"
+                    )
+                  }
+                >
+                  Deuda {debtSortDir === "asc" ? "▲" : debtSortDir === "desc" ? "▼" : ""}
+                </th>
                 <th style={{ width: 100 }}></th>
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (
+              {isLoading || debtLoading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     style={{
                       textAlign: "center",
                       padding: "32px",
@@ -132,7 +244,7 @@ const Members: React.FC = () => {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     style={{
                       textAlign: "center",
                       padding: "32px",
@@ -145,7 +257,7 @@ const Members: React.FC = () => {
               ) : paginated.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     style={{
                       textAlign: "center",
                       padding: "32px",
@@ -156,7 +268,7 @@ const Members: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                paginated.map((m) => (
+                paginated.map(({ member: m, monthsOwed: owed }) => (
                   <tr
                     key={m.id}
                     onClick={() => navigate(`/socios/editar/${m.id}`, { state: { member: m } })}
@@ -198,6 +310,16 @@ const Members: React.FC = () => {
                         </span>
                       ) : (
                         m.domicilio
+                      )}
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>{m.pagaPor}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {owed === -1 ? (
+                        <span style={{ color: "var(--muted)" }}>No disp.</span>
+                      ) : owed === 0 ? (
+                        <span style={{ color: "green" }}>Al día</span>
+                      ) : (
+                        <span style={{ color: "#dc3545" }}>{owed} meses</span>
                       )}
                     </td>
                     <td>

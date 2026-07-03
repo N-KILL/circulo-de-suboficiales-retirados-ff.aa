@@ -99,11 +99,13 @@ export type MembersListState = {
     error: string | null;
     searchText: string;
     showFallecidos: boolean;
+    pagaPorFilter: string;
     currentPage: number;
     rowsPerPage: number;
     loadMembers: () => Promise<void>;
     setSearchText: (s: string) => void;
     setShowFallecidos: (v: boolean) => void;
+    setPagaPorFilter: (v: string) => void;
     setCurrentPage: (p: number) => void;
     setRowsPerPage: (r: number) => void;
     getFiltered: () => Member[];

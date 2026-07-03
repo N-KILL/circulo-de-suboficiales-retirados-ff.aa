@@ -131,14 +131,15 @@ CREATE INDEX IF NOT EXISTS idx_dues_person_id   ON dues (person_id);
 CREATE INDEX IF NOT EXISTS idx_dues_type        ON dues (type);
 
 CREATE TABLE IF NOT EXISTS pricing (
-    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
-    member_fee      NUMERIC(12,2)   NOT NULL DEFAULT 0,
-    cemetery_fee    NUMERIC(12,2)   NOT NULL DEFAULT 0,
-    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+    id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    member_fee          NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    cemetery_fee        NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    consideration_years INT             NOT NULL DEFAULT 0,
+    updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO pricing (id, member_fee, cemetery_fee)
-VALUES ('00000000-0000-0000-0000-000000000002', 0, 0)
+INSERT INTO pricing (id, member_fee, cemetery_fee, consideration_years)
+VALUES ('00000000-0000-0000-0000-000000000002', 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS services (

@@ -9,12 +9,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return;
         }
         if (req.method === "POST") {
-            const { member_fee, cemetery_fee } = req.body;
+            const { member_fee, cemetery_fee, consideration_years } = req.body;
             if (member_fee === undefined || cemetery_fee === undefined) {
                 res.status(400).json({ error: "Faltan parámetros member_fee y/o cemetery_fee" });
                 return;
             }
-            const result = await upsertDuesConfig(member_fee, cemetery_fee);
+            const result = await upsertDuesConfig(member_fee, cemetery_fee, consideration_years);
             res.status(200).json(result);
             return;
         }

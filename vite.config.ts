@@ -20,6 +20,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const pathname = url.pathname;
         const isMembers = pathname === "/api/members";
         const isMembersFamily = pathname === "/api/members/family";
+        const isMembersDebt = pathname === "/api/members/debt-status";
         const isPersons = pathname === "/api/persons";
         const isMovements = pathname === "/api/movements";
         const isMovement = pathname === "/api/movement";
@@ -33,7 +34,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isDuesConfig = pathname === "/api/dues-config";
         const isServices = pathname === "/api/services";
 
-        if (!isMembers && !isMembersFamily && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices) {
+        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices) {
           next();
           return;
         }
@@ -64,6 +65,21 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             const members = await getFamilyMembers(memberId);
             res.statusCode = 200;
             res.end(JSON.stringify(members));
+            return;
+          }
+
+          if (isMembersDebt && req.method === "GET") {
+            const { getMembersDebtStatus } = await import("./src/database/duesRepository");
+            const { getDuesConfig } = await import("./src/database/duesConfigRepository");
+            const [members, config] = await Promise.all([
+              getMembersDebtStatus(),
+              getDuesConfig(),
+            ]);
+            res.statusCode = 200;
+            res.end(JSON.stringify({
+              members,
+              consideration_years: config?.consideration_years ?? 0,
+            }));
             return;
           }
 
@@ -453,14 +469,14 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             }
             if (req.method === "POST") {
               const body = JSON.parse(await collectBody(req));
-              const { member_fee, cemetery_fee } = body;
+              const { member_fee, cemetery_fee, consideration_years } = body;
               if (member_fee === undefined || cemetery_fee === undefined) {
                 res.statusCode = 400;
                 res.end(JSON.stringify({ error: "Faltan parámetros member_fee y/o cemetery_fee" }));
                 return;
               }
               const { upsertDuesConfig } = await import("./src/database/duesConfigRepository");
-              const result = await upsertDuesConfig(member_fee, cemetery_fee);
+              const result = await upsertDuesConfig(member_fee, cemetery_fee, consideration_years);
               res.statusCode = 200;
               res.end(JSON.stringify(result));
               return;

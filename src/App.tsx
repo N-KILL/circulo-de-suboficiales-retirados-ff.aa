@@ -18,6 +18,8 @@ import Persons from "./pages/Persons/Persons";
 import DetallePersona from "./pages/Persons/Detalle/Detalle";
 import NewPerson from "./pages/Persons/NewPerson/NewPerson";
 import Config from "./pages/Config/Config";
+import Calendario from "./pages/Calendario/Calendario";
+import Reportes from "./pages/Reportes/Reportes";
 
 function App() {
   return (
@@ -43,6 +45,8 @@ function App() {
           <Route path="personas/editar/:id" element={<NewPerson />} />
           <Route path="personas/detalle/:id" element={<DetallePersona />} />
           <Route path="configuracion" element={<Config />} />
+          <Route path="reportes" element={<Reportes />} />
+          <Route path="calendario" element={<Calendario />} />
         </Route>
       </Routes>
     </BrowserRouter>

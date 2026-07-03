@@ -27,6 +27,7 @@ const Config: React.FC = () => {
 
     const [memberFee, setMemberFee] = useState("");
     const [cemeteryFee, setCemeteryFee] = useState("");
+    const [considerationYears, setConsiderationYears] = useState("");
     const [savingDues, setSavingDues] = useState(false);
     const [duesSuccess, setDuesSuccess] = useState(false);
     const [duesError, setDuesError] = useState<string | null>(null);
@@ -56,9 +57,11 @@ const Config: React.FC = () => {
                 if (duesCfg) {
                     setMemberFee(duesCfg.member_fee.toString());
                     setCemeteryFee(duesCfg.cemetery_fee.toString());
+                    setConsiderationYears(duesCfg.consideration_years.toString());
                 } else {
                     setMemberFee("0");
                     setCemeteryFee("0");
+                    setConsiderationYears("0");
                 }
                 setServices(svcs);
             })
@@ -103,10 +106,11 @@ const Config: React.FC = () => {
         try {
             const cuota = parseFloat(memberFee.replace(/\./g, "").replace(",", "."));
             const cem = parseFloat(cemeteryFee.replace(/\./g, "").replace(",", "."));
+            const years = parseInt(considerationYears, 10) || 0;
             if (isNaN(cuota) || isNaN(cem)) {
                 throw new Error("Ingresá valores numéricos válidos");
             }
-            await saveDuesConfig(cuota, cem);
+            await saveDuesConfig(cuota, cem, years);
             setDuesSuccess(true);
             setTimeout(() => setDuesSuccess(false), 3000);
         } catch (err) {
@@ -212,7 +216,7 @@ const Config: React.FC = () => {
             </div>
 
             <div className="config-card">
-                <h3>Pricing</h3>
+                <h3>Cuotas</h3>
                 <p className="config-description">
                     Establecé los valores por defecto para la cuota de socio y el costo de cementerio.
                     Estos valores se cargarán automáticamente al crear un nuevo movimiento.
@@ -238,6 +242,20 @@ const Config: React.FC = () => {
                             value={cemeteryFee}
                             onChange={(e) => setCemeteryFee(e.target.value)}
                             placeholder="0.00"
+                        />
+                    </div>
+
+                    <div className="config-field">
+                        <label>Años de consideración</label>
+                        <input
+                            type="number"
+                            className="config-input"
+                            value={considerationYears}
+                            onChange={(e) => setConsiderationYears(e.target.value)}
+                            min={0}
+                            max={9}
+                            step={1}
+                            placeholder="0"
                         />
                     </div>
 

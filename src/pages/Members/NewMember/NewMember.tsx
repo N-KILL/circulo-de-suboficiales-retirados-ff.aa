@@ -1,10 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Search, Save, User, Loader, Trash2, Calendar } from "lucide-react";
+import { Search, Save, User, Loader, Trash2, Calendar, ExternalLink } from "lucide-react";
 import "./NewMember.css";
 import { useMembersStore } from "../../../store/membersStore";
 import { fetchMemberById, deleteMember, fetchPersons } from "../../../services/membersApi";
+import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
 import type { MembersState, Person } from "../../../models/members";
+
+function monthsOwed(lastPeriodEnd: string | null): number {
+  if (!lastPeriodEnd) return -1;
+  const now = new Date();
+  const end = new Date(lastPeriodEnd + "T00:00:00");
+  if (end >= now) return 0;
+  return (now.getFullYear() - end.getFullYear()) * 12 + (now.getMonth() - end.getMonth());
+}
 
 const NewMember: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +25,7 @@ const NewMember: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [debtMonths, setDebtMonths] = useState<number | null>(null);
 
   const [ap1Results, setAp1Results] = useState<Person[]>([]);
   const [ap2Results, setAp2Results] = useState<Person[]>([]);
@@ -58,6 +68,9 @@ const NewMember: React.FC = () => {
   useEffect(() => {
     if (id) {
       loadMember(id);
+      fetchMembersDebtStatus().then((data) => {
+        setDebtMonths(monthsOwed(data.members[id] ?? null));
+      }).catch(() => {});
     } else {
       reset();
     }
@@ -136,6 +149,39 @@ const NewMember: React.FC = () => {
       {fetchError && (
         <div className="table-card" style={{ padding: 20, color: "var(--danger, #dc3545)" }}>
           {fetchError}
+        </div>
+      )}
+      {isEditing && debtMonths !== null && !loading && !fetchError && (
+        <div
+          style={{
+            padding: "12px 16px",
+            borderRadius: 8,
+            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            background: debtMonths === -1 || debtMonths === 0 ? "#f0fdf4" : "#fff3cd",
+            border: `1px solid ${debtMonths === -1 || debtMonths === 0 ? "#bbf7d0" : "#ffc107"}`,
+            color: debtMonths === -1 || debtMonths === 0 ? "#166534" : "#856404",
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>
+            {debtMonths === -1
+              ? "No disp."
+              : debtMonths === 0
+                ? "Al día"
+                : `Debe ${debtMonths} meses`}
+          </span>
+          <button
+            type="button"
+            className="header-btn-sm"
+            onClick={() => window.open(`/socios/detalle/${id}`, "_blank")}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <ExternalLink size={14} />
+            Ver detalles
+          </button>
         </div>
       )}
       {!loading && !fetchError && (
