@@ -8,6 +8,7 @@ export type PettyCashRow = {
     amount: number;
     type: "ingreso" | "egreso" | "transferencia";
     mode: "efectivo" | "transferencia";
+    concept: string | null;
 };
 
 export async function migratePettyCashSchema(): Promise<void> {
@@ -26,16 +27,53 @@ export async function migratePettyCashSchema(): Promise<void> {
     await sql`
         ALTER TABLE petty_cash ADD COLUMN IF NOT EXISTS mode VARCHAR(20) NOT NULL DEFAULT 'efectivo'
     `;
+    await sql`
+        ALTER TABLE petty_cash ADD COLUMN IF NOT EXISTS concept VARCHAR(100)
+    `;
 }
 
 export async function getAllMovements(): Promise<PettyCashRow[]> {
     const sql = getSql();
     const rows = await sql`
-        SELECT id, date::text as date, detail, amount::float as amount, type, mode
+        SELECT id, date::text as date, detail, amount::float as amount, type, mode, concept
         FROM petty_cash
         ORDER BY date ASC, id ASC
     `;
     return rows as PettyCashRow[];
+}
+
+export async function getMovementById(id: string): Promise<PettyCashRow | null> {
+    const sql = getSql();
+    const rows = await sql`
+        SELECT id, date::text as date, detail, amount::float as amount, type, mode, concept
+        FROM petty_cash
+        WHERE id = ${id}
+    `;
+    const result = rows as PettyCashRow[];
+    return result.length > 0 ? result[0] : null;
+}
+
+export async function updateMovement(
+    id: string,
+    data: { date?: string; detail?: string; amount?: number; type?: string; mode?: string; concept?: string | null }
+): Promise<void> {
+    const sql = getSql();
+    await sql`
+        UPDATE petty_cash
+        SET
+            date = COALESCE(${data.date ?? null}, date),
+            detail = COALESCE(${data.detail ?? null}, detail),
+            amount = COALESCE(${data.amount ?? null}, amount),
+            type = COALESCE(${data.type ?? null}, type),
+            mode = COALESCE(${data.mode ?? null}, mode),
+            concept = COALESCE(${data.concept ?? null}, concept)
+        WHERE id = ${id}
+    `;
+}
+
+export async function deleteMovement(id: string): Promise<void> {
+    const sql = getSql();
+    await sql`DELETE FROM petty_cash WHERE id = ${id}`;
 }
 
 export async function clearAllMovements(): Promise<void> {
@@ -49,12 +87,15 @@ export async function insertMovement(movement: {
     amount: number;
     type: "ingreso" | "egreso" | "transferencia";
     mode: "efectivo" | "transferencia";
-}): Promise<void> {
+    concept?: string | null;
+}): Promise<string> {
     const sql = getSql();
+    const id = randomUUID();
     await sql`
-        INSERT INTO petty_cash (id, date, detail, amount, type, mode)
-        VALUES (${randomUUID()}, ${movement.date}, ${movement.detail}, ${movement.amount}, ${movement.type}, ${movement.mode})
+        INSERT INTO petty_cash (id, date, detail, amount, type, mode, concept)
+        VALUES (${id}, ${movement.date}, ${movement.detail}, ${movement.amount}, ${movement.type}, ${movement.mode}, ${movement.concept ?? null})
     `;
+    return id;
 }
 
 export async function insertMovementsBatch(

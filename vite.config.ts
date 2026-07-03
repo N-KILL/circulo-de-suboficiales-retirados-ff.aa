@@ -19,16 +19,21 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const url = new URL(req.url ?? "", "http://localhost");
         const pathname = url.pathname;
         const isMembers = pathname === "/api/members";
+        const isMembersFamily = pathname === "/api/members/family";
         const isPersons = pathname === "/api/persons";
         const isMovements = pathname === "/api/movements";
+        const isMovement = pathname === "/api/movement";
         const isMember = pathname === "/api/member";
         const isPerson = pathname === "/api/person";
         const isPersonMembers = pathname === "/api/person-members";
         const isInitialBalances = pathname === "/api/initial-balances";
         const isPayment = pathname === "/api/payment";
         const isCementerios = pathname === "/api/cementerios";
+        const isDues = pathname === "/api/dues";
+        const isDuesConfig = pathname === "/api/dues-config";
+        const isServices = pathname === "/api/services";
 
-        if (!isMembers && !isPersons && !isMovements && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios) {
+        if (!isMembers && !isMembersFamily && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices) {
           next();
           return;
         }
@@ -48,6 +53,20 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             return;
           }
 
+          if (isMembersFamily && req.method === "GET") {
+            const memberId = url.searchParams.get("memberId");
+            if (!memberId) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta el parámetro memberId" }));
+              return;
+            }
+            const { getFamilyMembers } = await import("./src/database/membersRepository");
+            const members = await getFamilyMembers(memberId);
+            res.statusCode = 200;
+            res.end(JSON.stringify(members));
+            return;
+          }
+
           if (isPersons && req.method === "GET") {
             const q = url.searchParams.get("q") || "";
             if (q) {
@@ -61,6 +80,70 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               res.statusCode = 200;
               res.end(JSON.stringify(persons));
             }
+            return;
+          }
+
+          if (isMovement) {
+            const { getMovementById, updateMovement, deleteMovement } = await import("./src/database/pettyCashRepository");
+            const { getDueByMovementId, deleteDueByMovementId, updateDueByMovementId } = await import("./src/database/duesRepository");
+            const id = url.searchParams.get("id") ?? undefined;
+
+            if (req.method === "GET") {
+              if (!id) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el parámetro id" }));
+                return;
+              }
+              const movement = await getMovementById(id);
+              if (!movement) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: "Movimiento no encontrado" }));
+                return;
+              }
+              const due = await getDueByMovementId(id);
+              res.statusCode = 200;
+              res.end(JSON.stringify({ ...movement, linked_due: due }));
+              return;
+            }
+
+            if (req.method === "PUT") {
+              if (!id) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el parámetro id" }));
+                return;
+              }
+              const body = JSON.parse(await collectBody(req));
+              const { due: dueData, ...movementData } = body;
+              await updateMovement(id, movementData);
+              if (dueData) {
+                await updateDueByMovementId(id, dueData);
+              }
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true }));
+              return;
+            }
+
+            if (req.method === "DELETE") {
+              if (!id) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el parámetro id" }));
+                return;
+              }
+              await deleteDueByMovementId(id);
+              await deleteMovement(id);
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true }));
+              return;
+            }
+
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
             return;
           }
 
@@ -124,9 +207,16 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               return;
             }
             const { insertMovement } = await import("./src/database/pettyCashRepository");
-            await insertMovement(payment);
+            const movementId = await insertMovement({
+              date: payment.date,
+              detail: payment.detail,
+              amount: payment.amount,
+              type: "ingreso",
+              mode: payment.mode,
+              concept: payment.concept ?? null,
+            });
             res.statusCode = 200;
-            res.end(JSON.stringify({ success: true }));
+            res.end(JSON.stringify({ success: true, id: movementId }));
             return;
           }
 
@@ -275,6 +365,172 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             const members = await getMembersByPersonId(personId);
             res.statusCode = 200;
             res.end(JSON.stringify(members));
+            return;
+          }
+
+          if (isDues) {
+            const {
+              getAllDues,
+              getDuesByMember,
+              getDuesByPerson,
+              insertDue,
+              getDuesByMemberWithCemeteryCheck,
+            } = await import("./src/database/duesRepository");
+
+            if (req.method === "GET") {
+              const memberId = url.searchParams.get("memberId");
+              const personId = url.searchParams.get("personId");
+              const check = url.searchParams.get("check");
+
+              if (memberId && check === "cementerio") {
+                const result = await getDuesByMemberWithCemeteryCheck(memberId);
+                res.statusCode = 200;
+                res.end(JSON.stringify(result));
+                return;
+              }
+
+              if (memberId) {
+                const dues = await getDuesByMember(memberId);
+                res.statusCode = 200;
+                res.end(JSON.stringify(dues));
+                return;
+              }
+
+              if (personId) {
+                const dues = await getDuesByPerson(personId);
+                res.statusCode = 200;
+                res.end(JSON.stringify(dues));
+                return;
+              }
+
+              const all = await getAllDues();
+              res.statusCode = 200;
+              res.end(JSON.stringify(all));
+              return;
+            }
+
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req));
+              if (!body?.type || !body?.payment_date) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan datos requeridos (type, payment_date)" }));
+                return;
+              }
+              const id = await insertDue({
+                type: body.type,
+                payment_date: body.payment_date,
+                period_start: body.period_start ?? null,
+                period_end: body.period_end ?? null,
+                member_id: body.member_id ?? null,
+                person_id: body.person_id ?? null,
+                movement_id: body.movement_id ?? null,
+                family_group: body.family_group ?? null,
+                paid_members: body.paid_members ?? null,
+              });
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true, id }));
+              return;
+            }
+
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isDuesConfig) {
+            if (req.method === "GET") {
+              const { getDuesConfig } = await import("./src/database/duesConfigRepository");
+              const config = await getDuesConfig();
+              res.statusCode = 200;
+              res.end(JSON.stringify(config));
+              return;
+            }
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req));
+              const { member_fee, cemetery_fee } = body;
+              if (member_fee === undefined || cemetery_fee === undefined) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan parámetros member_fee y/o cemetery_fee" }));
+                return;
+              }
+              const { upsertDuesConfig } = await import("./src/database/duesConfigRepository");
+              const result = await upsertDuesConfig(member_fee, cemetery_fee);
+              res.statusCode = 200;
+              res.end(JSON.stringify(result));
+              return;
+            }
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isServices) {
+            const { getAllServices, insertService, updateService, deleteService } = await import("./src/database/servicesRepository");
+            if (req.method === "GET") {
+              const services = await getAllServices();
+              res.statusCode = 200;
+              res.end(JSON.stringify(services));
+              return;
+            }
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req));
+              if (!body?.name?.trim()) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el name del servicio" }));
+                return;
+              }
+              const result = await insertService(body.name.trim(), body.amount ?? 0);
+              res.statusCode = 200;
+              res.end(JSON.stringify(result));
+              return;
+            }
+            if (req.method === "PUT") {
+              const body = JSON.parse(await collectBody(req));
+              if (!body?.id || !body?.name?.trim()) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan parámetros id y/o name" }));
+                return;
+              }
+              const result = await updateService(body.id, body.name.trim(), body.amount ?? 0);
+              if (!result) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: "Servicio no encontrado" }));
+                return;
+              }
+              res.statusCode = 200;
+              res.end(JSON.stringify(result));
+              return;
+            }
+            if (req.method === "DELETE") {
+              const id = url.searchParams.get("id");
+              if (!id) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el parámetro id" }));
+                return;
+              }
+              await deleteService(id);
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true }));
+              return;
+            }
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
             return;
           }
 

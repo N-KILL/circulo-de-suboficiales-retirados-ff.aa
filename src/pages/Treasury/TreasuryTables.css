@@ -38,6 +38,26 @@
   background: var(--azul-armada);
 }
 
+.header-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--azul-institucional);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.header-btn-sm:hover {
+  background: var(--azul-armada);
+}
+
 /* Filters */
 .filters-bar {
   display: flex;

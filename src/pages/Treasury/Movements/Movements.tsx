@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Search, ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import TablePagination from "../../../components/TablePagination/TablePagination";
 import { fetchMovements, type Movement } from "../../../services/movementsApi";
 import { fetchInitialBalances } from "../../../services/initialBalancesApi";
@@ -20,6 +21,8 @@ const MONTHS = [
 ];
 
 const Movements: React.FC = () => {
+  const navigate = useNavigate();
+
   // ── Raw data ──────────────────────────────────────────
   const [rawMovements, setRawMovements] = useState<Movement[]>([]);
   const [initialBanco, setInitialBanco] = useState(0);
@@ -372,7 +375,7 @@ const Movements: React.FC = () => {
                 </tr>
               ) : (
                 paginatedMovements.map((m, idx) => (
-                  <tr key={idx}>
+                  <tr key={idx} className="clickable-row" onClick={() => navigate(`/tesoreria/movimientos/detalle/${m.id}`)}>
                     <td>{m.fecha}</td>
                     <td>
                       <span className={`badge ${m.tipo === "Ingreso" ? "badge-ingreso" : "badge-egreso"}`}>

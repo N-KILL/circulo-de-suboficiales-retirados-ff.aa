@@ -4,9 +4,10 @@ export interface PaymentData {
   amount: number;
   type: "ingreso";
   mode: "efectivo" | "transferencia";
+  concept?: string | null;
 }
 
-export async function savePayment(payment: PaymentData): Promise<void> {
+export async function savePayment(payment: PaymentData): Promise<{ id: string }> {
   const response = await fetch("/api/payment", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -19,4 +20,6 @@ export async function savePayment(payment: PaymentData): Promise<void> {
     } | null;
     throw new Error(body?.error ?? "Error al guardar el pago");
   }
+
+  return response.json() as Promise<{ id: string }>;
 }

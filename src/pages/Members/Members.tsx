@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { Search, UserPlus, Home } from "lucide-react";
+import { Search, UserPlus, Home, Eye } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import "../Treasury/TreasuryTables.css";
@@ -112,6 +112,7 @@ const Members: React.FC = () => {
                 <th>Documento</th>
                 <th>Localidad</th>
                 <th>Dirección/Residencia</th>
+                <th style={{ width: 100 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -198,6 +199,19 @@ const Members: React.FC = () => {
                       ) : (
                         m.domicilio
                       )}
+                    </td>
+                    <td>
+                      <button
+                        className="header-btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/socios/detalle/${m.id}`);
+                        }}
+                        title="Ver cuotas"
+                      >
+                        <Eye size={14} />
+                        Cuotas
+                      </button>
                     </td>
                   </tr>
                 ))

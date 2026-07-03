@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "db:seed": "tsx database/seed.ts",
     "db:seed-petty-cash": "tsx database/seed-petty-cash.ts",
-    "db:seed-cementerio": "tsx database/seed-cementerio.ts"
+    "db:seed-cementerio": "tsx database/seed-cementerio.ts",
+"db:migrate": "tsx database/migrate.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

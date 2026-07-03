@@ -165,6 +165,7 @@ const NewPayment: React.FC = () => {
           amount: importeNum,
           type: "ingreso",
           mode,
+          concept: tipoIngreso,
         });
 
         setSuccess(true);

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, Eye } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import "../Treasury/TreasuryTables.css";
@@ -84,24 +84,25 @@ const Persons: React.FC = () => {
                 <th>Documento</th>
                 <th>Domicilio</th>
                 <th>Teléfono</th>
+                <th style={{ width: 100 }}></th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                     Cargando personas...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                     {error}
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                     No se encontraron personas.
                   </td>
                 </tr>
@@ -117,6 +118,19 @@ const Persons: React.FC = () => {
                     <td>{p.documento}</td>
                     <td>{p.domicilio}</td>
                     <td>{p.telefono}</td>
+                    <td>
+                      <button
+                        className="header-btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/personas/detalle/${p.id}`);
+                        }}
+                        title="Ver cuotas"
+                      >
+                        <Eye size={14} />
+                        Cuotas
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}

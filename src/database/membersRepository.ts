@@ -253,3 +253,36 @@ export async function insertMembers(members: Member[]): Promise<InsertMembersRes
 
     return { successCount, issues };
 }
+
+export async function getFamilyMembers(memberId: string): Promise<Member[]> {
+    const sql = getSql();
+    const current = await getMemberById(memberId);
+    if (!current) return [];
+    let raw = current.nroFamilia?.trim();
+    if (!raw) {
+        const partes = current.numeroDeSocio.split("/");
+        if (partes.length >= 2) raw = partes[0];
+    }
+    if (!raw) return [];
+    const familyGroup = raw.split("/")[0];
+    const rows = (await sql`
+        SELECT m.*,
+               ap1.nombre AS apoderado1_nombre,
+               ap1.tipo_doc AS apoderado1_tipo_doc,
+               ap1.documento AS apoderado1_documento,
+               ap1.domicilio AS apoderado1_domicilio,
+               ap1.telefono AS apoderado1_telefono,
+               ap2.nombre AS apoderado2_nombre,
+               ap2.tipo_doc AS apoderado2_tipo_doc,
+               ap2.documento AS apoderado2_documento,
+               ap2.domicilio AS apoderado2_domicilio,
+               ap2.telefono AS apoderado2_telefono
+        FROM members m
+        LEFT JOIN persons ap1 ON m.apoderado1_id = ap1.id
+        LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id
+        WHERE m.nro_familia LIKE ${familyGroup + "/%"}
+           OR m.nro_familia = ${familyGroup}
+        ORDER BY m.numero_de_socio
+    `) as MemberRow[];
+    return rows.map(rowToMember);
+}

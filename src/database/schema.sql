@@ -111,3 +111,40 @@ CREATE TABLE IF NOT EXISTS initial_balances (
     banco       NUMERIC(12,2)   NOT NULL DEFAULT 0,
     updated_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS dues (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    type            VARCHAR(20)     NOT NULL,
+    payment_date    DATE            NOT NULL,
+    period_start    DATE,
+    period_end      DATE,
+    member_id       UUID            REFERENCES members(id) ON DELETE SET NULL,
+    person_id       UUID            REFERENCES persons(id) ON DELETE SET NULL,
+    movement_id     UUID            REFERENCES petty_cash(id) ON DELETE SET NULL,
+    family_group    VARCHAR(50),
+    paid_members    JSONB,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_dues_member_id   ON dues (member_id);
+CREATE INDEX IF NOT EXISTS idx_dues_person_id   ON dues (person_id);
+CREATE INDEX IF NOT EXISTS idx_dues_type        ON dues (type);
+
+CREATE TABLE IF NOT EXISTS pricing (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    member_fee      NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    cemetery_fee    NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO pricing (id, member_fee, cemetery_fee)
+VALUES ('00000000-0000-0000-0000-000000000002', 0, 0)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS services (
+    id          UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        VARCHAR(255)    NOT NULL,
+    amount      NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);

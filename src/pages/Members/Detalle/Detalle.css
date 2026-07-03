@@ -1,0 +1,360 @@
+.detalle-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
+.btn-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--azul-institucional);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  font-size: 14px;
+  width: fit-content;
+}
+
+.btn-back:hover {
+  text-decoration: underline;
+}
+
+.detalle-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border);
+}
+
+.detalle-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.detalle-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #eef2fb;
+  color: var(--azul-armada);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.detalle-title h2 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--azul-armada);
+}
+
+.detalle-sub {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.detalle-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-item span:last-child {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.detalle-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--azul-armada);
+  margin: 0 0 12px 0;
+}
+
+.detalle-empty {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 16px 0;
+  text-align: center;
+}
+
+.due-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.due-badge-self {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.due-badge-family {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.due-badge-other {
+  background: transparent;
+  color: var(--muted);
+}
+
+.detalle-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.detalle-section-header .detalle-section-title {
+  margin: 0;
+}
+
+.btn-register-period {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--azul-institucional);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-register-period:hover {
+  background: var(--azul-armada);
+}
+
+.family-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.family-picker-modal {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.family-picker-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.family-picker-modal-header h4 {
+  margin: 0;
+  color: var(--azul-armada);
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.modal-close-btn:hover {
+  color: var(--text);
+  background: var(--gris-claro);
+}
+
+.modal-body {
+  padding: 0;
+}
+
+.modal-member-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f0f4ff;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  color: var(--azul-armada);
+}
+
+.modal-member-info strong {
+  display: block;
+  font-size: 14px;
+}
+
+.modal-member-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.modal-family-section {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: #fff8e1;
+  border-radius: 8px;
+}
+
+.modal-family-section .family-member-item {
+  padding: 4px 0;
+}
+
+.modal-body .config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-body .config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-body .config-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-body .config-input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  background: var(--gris-claro);
+  color: var(--azul-armada);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.date-input-wrap .config-input {
+  padding-left: 36px;
+  padding-right: 12px;
+}
+
+.date-input-wrap .date-picker-btn {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--azul-institucional);
+  z-index: 1;
+}
+
+.date-input-wrap .date-picker-btn:hover {
+  color: var(--azul-armada);
+}
+
+.modal-body .config-input:focus {
+  border-color: var(--azul-institucional);
+}
+
+.family-picker-modal > p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 12px 0;
+}
+
+.family-member-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.family-member-item input[type="checkbox"] {
+  accent-color: var(--azul-institucional);
+}
+
+.family-member-socio {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.family-picker-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.family-picker-actions .btn-cancel,
+.family-picker-actions .btn-save {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+}
+
+.family-picker-actions .btn-cancel {
+  background: var(--gris-claro);
+  color: var(--text);
+}
+
+.family-picker-actions .btn-save {
+  background: var(--azul-institucional);
+  color: #fff;
+}
+
+.family-member-hint {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .detalle-info-grid {
+    grid-template-columns: 1fr;
+  }
+}

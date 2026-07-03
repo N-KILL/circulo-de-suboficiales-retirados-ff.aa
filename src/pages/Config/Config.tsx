@@ -1,9 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { Save, Loader } from "lucide-react";
+import { Save, Loader, Plus, Trash2, Pencil, X } from "lucide-react";
 import {
     fetchInitialBalances,
     saveInitialBalances,
 } from "../../services/initialBalancesApi";
+import {
+    fetchDuesConfig,
+    saveDuesConfig,
+} from "../../services/duesConfigApi";
+import {
+    fetchServices,
+    saveService,
+    updateService,
+    deleteService,
+} from "../../services/servicesApi";
+import type { ServiceItem } from "../../services/servicesApi";
 import "./Config.css";
 
 const Config: React.FC = () => {
@@ -14,25 +25,56 @@ const Config: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
+    const [memberFee, setMemberFee] = useState("");
+    const [cemeteryFee, setCemeteryFee] = useState("");
+    const [savingDues, setSavingDues] = useState(false);
+    const [duesSuccess, setDuesSuccess] = useState(false);
+    const [duesError, setDuesError] = useState<string | null>(null);
+
+    const [services, setServices] = useState<ServiceItem[]>([]);
+    const [svcName, setSvcName] = useState("");
+    const [svcAmount, setSvcAmount] = useState("");
+    const [savingService, setSavingService] = useState(false);
+    const [servicesError, setServicesError] = useState<string | null>(null);
+    const [editServiceId, setEditServiceId] = useState<string | null>(null);
+
     useEffect(() => {
         setLoading(true);
-        fetchInitialBalances()
-            .then((data) => {
-                if (data) {
-                    setCajaChica(data.caja_chica.toString());
-                    setBanco(data.banco.toString());
+        Promise.all([
+            fetchInitialBalances(),
+            fetchDuesConfig(),
+            fetchServices(),
+        ])
+            .then(([balances, duesCfg, svcs]) => {
+                if (balances) {
+                    setCajaChica(balances.caja_chica.toString());
+                    setBanco(balances.banco.toString());
                 } else {
                     setCajaChica("0");
                     setBanco("0");
                 }
+                if (duesCfg) {
+                    setMemberFee(duesCfg.member_fee.toString());
+                    setCemeteryFee(duesCfg.cemetery_fee.toString());
+                } else {
+                    setMemberFee("0");
+                    setCemeteryFee("0");
+                }
+                setServices(svcs);
             })
             .catch((err) => {
-                setError(err.message || "Error al cargar valores iniciales");
+                setError(err.message || "Error al cargar datos");
             })
             .finally(() => setLoading(false));
     }, []);
 
-    const handleSave = async (e: React.FormEvent) => {
+    const resetServiceForm = () => {
+        setSvcName("");
+        setSvcAmount("");
+        setEditServiceId(null);
+    };
+
+    const handleSaveBalances = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
         setError(null);
@@ -53,6 +95,68 @@ const Config: React.FC = () => {
         }
     };
 
+    const handleSaveDues = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSavingDues(true);
+        setDuesError(null);
+        setDuesSuccess(false);
+        try {
+            const cuota = parseFloat(memberFee.replace(/\./g, "").replace(",", "."));
+            const cem = parseFloat(cemeteryFee.replace(/\./g, "").replace(",", "."));
+            if (isNaN(cuota) || isNaN(cem)) {
+                throw new Error("Ingresá valores numéricos válidos");
+            }
+            await saveDuesConfig(cuota, cem);
+            setDuesSuccess(true);
+            setTimeout(() => setDuesSuccess(false), 3000);
+        } catch (err) {
+            setDuesError(err instanceof Error ? err.message : "Error al guardar");
+        } finally {
+            setSavingDues(false);
+        }
+    };
+
+    const handleSubmitService = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!svcName.trim()) return;
+        setSavingService(true);
+        setServicesError(null);
+        try {
+            const amount = parseFloat(svcAmount.replace(/\./g, "").replace(",", ".")) || 0;
+            if (editServiceId) {
+                const updated = await updateService(editServiceId, svcName.trim(), amount);
+                setServices((prev) =>
+                    prev.map((s) => (s.id === editServiceId ? updated : s))
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                );
+            } else {
+                const created = await saveService(svcName.trim(), amount);
+                setServices((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+            }
+            resetServiceForm();
+        } catch (err) {
+            setServicesError(err instanceof Error ? err.message : "Error al guardar servicio");
+        } finally {
+            setSavingService(false);
+        }
+    };
+
+    const handleStartEdit = (svc: ServiceItem) => {
+        setSvcName(svc.name);
+        setSvcAmount(svc.amount.toString());
+        setEditServiceId(svc.id);
+    };
+
+    const handleDeleteService = async (id: string) => {
+        if (editServiceId === id) resetServiceForm();
+        try {
+            await deleteService(id);
+            setServices((prev) => prev.filter((s) => s.id !== id));
+        } catch (err) {
+            setServicesError(err instanceof Error ? err.message : "Error al eliminar servicio");
+        }
+    };
+
     if (loading) {
         return <div className="dashboard-loading">Cargando...</div>;
     }
@@ -63,6 +167,7 @@ const Config: React.FC = () => {
                 <h2>Configuración</h2>
             </div>
 
+            <div className="config-grid">
             <div className="config-card">
                 <h3>Valores Iniciales</h3>
                 <p className="config-description">
@@ -70,7 +175,7 @@ const Config: React.FC = () => {
                     para calcular los saldos acumulados desde el inicio de los movimientos (2025).
                 </p>
 
-                <form onSubmit={handleSave} className="config-form">
+                <form onSubmit={handleSaveBalances} className="config-form">
                     <div className="config-field">
                         <label>Caja Chica (efectivo)</label>
                         <input
@@ -104,6 +209,127 @@ const Config: React.FC = () => {
                         )}
                     </button>
                 </form>
+            </div>
+
+            <div className="config-card">
+                <h3>Pricing</h3>
+                <p className="config-description">
+                    Establecé los valores por defecto para la cuota de socio y el costo de cementerio.
+                    Estos valores se cargarán automáticamente al crear un nuevo movimiento.
+                </p>
+
+                <form onSubmit={handleSaveDues} className="config-form">
+                    <div className="config-field">
+                        <label>Cuota de Socio</label>
+                        <input
+                            type="text"
+                            className="config-input"
+                            value={memberFee}
+                            onChange={(e) => setMemberFee(e.target.value)}
+                            placeholder="0.00"
+                        />
+                    </div>
+
+                    <div className="config-field">
+                        <label>Cuota de Cementerio</label>
+                        <input
+                            type="text"
+                            className="config-input"
+                            value={cemeteryFee}
+                            onChange={(e) => setCemeteryFee(e.target.value)}
+                            placeholder="0.00"
+                        />
+                    </div>
+
+                    {duesError && <div className="config-error">{duesError}</div>}
+                    {duesSuccess && <div className="config-success">Valores guardados correctamente</div>}
+
+                    <button type="submit" className="config-save-btn" disabled={savingDues}>
+                        {savingDues ? (
+                            <><Loader size={16} className="spin" /> Guardando...</>
+                        ) : (
+                            <><Save size={16} /> Guardar</>
+                        )}
+                    </button>
+                </form>
+            </div>
+
+            <div className="config-card">
+                <h3>Servicios</h3>
+                <p className="config-description">
+                    Gestioná los servicios disponibles para cobrar. Se mostrarán en el formulario de nuevo movimiento.
+                </p>
+
+                <form onSubmit={handleSubmitService} className="config-form">
+                    <div className="config-field">
+                        <label>{editServiceId ? "Nombre del servicio" : "Nuevo servicio"}</label>
+                        <input
+                            type="text"
+                            className="config-input"
+                            value={svcName}
+                            onChange={(e) => setSvcName(e.target.value)}
+                            placeholder="Nombre del servicio"
+                        />
+                    </div>
+
+                    <div className="config-field">
+                        <label>Costo</label>
+                        <input
+                            type="text"
+                            className="config-input"
+                            value={svcAmount}
+                            onChange={(e) => setSvcAmount(e.target.value)}
+                            placeholder="0.00"
+                        />
+                    </div>
+
+                    {servicesError && <div className="config-error">{servicesError}</div>}
+
+                    <div className="config-form-actions" style={{ display: "flex", gap: 8 }}>
+                        <button type="submit" className="config-save-btn" disabled={savingService || !svcName.trim()}>
+                            {savingService ? (
+                                <><Loader size={16} className="spin" /> Guardando...</>
+                            ) : editServiceId ? (
+                                <><Save size={16} /> Actualizar Servicio</>
+                            ) : (
+                                <><Plus size={16} /> Agregar Servicio</>
+                            )}
+                        </button>
+                        {editServiceId && (
+                            <button type="button" className="config-save-btn" onClick={resetServiceForm}
+                                style={{ background: "#6c757d" }}>
+                                <X size={16} /> Cancelar
+                            </button>
+                        )}
+                    </div>
+                </form>
+
+                {services.length > 0 && (
+                    <div className="services-list" style={{ marginTop: 16 }}>
+                        {services.map((svc) => (
+                            <div key={svc.id} className="service-item" style={{
+                                display: "flex", alignItems: "center", justifyContent: "space-between",
+                                padding: "8px 0", borderBottom: "1px solid var(--border)", gap: 8,
+                            }}>
+                                <div style={{ flex: 1 }}>
+                                    <span style={{ fontWeight: 600 }}>{svc.name}</span>
+                                    <span style={{ marginLeft: 12, color: "var(--muted)" }}>
+                                        $ {svc.amount.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                                <button type="button" onClick={() => handleStartEdit(svc)}
+                                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--azul-institucional)", padding: 4 }}>
+                                    <Pencil size={16} />
+                                </button>
+                                <button type="button" onClick={() => handleDeleteService(svc.id)}
+                                    style={{ background: "none", border: "none", cursor: "pointer", color: "#dc3545", padding: 4 }}>
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
             </div>
         </div>
     );
