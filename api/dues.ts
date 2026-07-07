@@ -51,8 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const id = await insertDue({
                 type: body.type,
                 payment_date: body.payment_date,
-                period_start: body.period_start ?? null,
-                period_end: body.period_end ?? null,
+                period: body.period ?? null,
                 member_id: body.member_id ?? null,
                 person_id: body.person_id ?? null,
                 movement_id: body.movement_id ?? null,

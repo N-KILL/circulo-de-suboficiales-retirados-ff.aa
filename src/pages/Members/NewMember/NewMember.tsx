@@ -7,10 +7,10 @@ import { fetchMemberById, deleteMember, fetchPersons } from "../../../services/m
 import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
 import type { MembersState, Person } from "../../../models/members";
 
-function monthsOwed(lastPeriodEnd: string | null): number {
-  if (!lastPeriodEnd) return -1;
+function monthsOwed(lastPeriod: string | null): number {
+  if (!lastPeriod) return -1;
   const now = new Date();
-  const end = new Date(lastPeriodEnd + "T00:00:00");
+  const end = new Date(lastPeriod + "-01T00:00:00");
   if (end >= now) return 0;
   return (now.getFullYear() - end.getFullYear()) * 12 + (now.getMonth() - end.getMonth());
 }

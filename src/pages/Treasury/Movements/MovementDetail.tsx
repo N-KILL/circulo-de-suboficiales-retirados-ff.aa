@@ -13,6 +13,19 @@ function toCurrency(val: number): string {
     }).format(Math.abs(val))}`;
 }
 
+function formatPeriodsDisplay(periods: string[] | null): string {
+    if (!periods || periods.length === 0) return "—";
+    const byYear: Record<string, string[]> = {};
+    for (const p of periods) {
+        const [y, m] = p.split("-");
+        if (!byYear[y]) byYear[y] = [];
+        byYear[y].push(m);
+    }
+    return Object.entries(byYear)
+        .map(([year, months]) => `${year} (Meses: ${months.join(",")})`)
+        .join(" ");
+}
+
 const MovementDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -183,16 +196,10 @@ const MovementDetail: React.FC = () => {
                                     {movement.linked_due!.type === "socio" ? "Cuota Socio" : "Cuota Cementerio"}
                                 </span>
                             </div>
-                            {movement.linked_due!.period_start && (
+                            {movement.linked_due!.period && movement.linked_due!.period.length > 0 && (
                                 <div className="detail-field">
-                                    <span className="detail-label">Periodo inicio</span>
-                                    <span className="detail-value">{movement.linked_due!.period_start}</span>
-                                </div>
-                            )}
-                            {movement.linked_due!.period_end && (
-                                <div className="detail-field">
-                                    <span className="detail-label">Periodo fin</span>
-                                    <span className="detail-value">{movement.linked_due!.period_end}</span>
+                                    <span className="detail-label">Periodo</span>
+                                    <span className="detail-value">{formatPeriodsDisplay(movement.linked_due!.period)}</span>
                                 </div>
                             )}
                             {movement.linked_due!.member_nombre && (

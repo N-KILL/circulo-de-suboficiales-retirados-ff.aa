@@ -2,8 +2,7 @@ export type DueWithDetails = {
   id: string;
   type: "socio" | "cementerio";
   payment_date: string;
-  period_start: string | null;
-  period_end: string | null;
+  period: string[] | null;
   member_id: string | null;
   member_nombre: string | null;
   member_numero_de_socio: string | null;
@@ -60,8 +59,7 @@ export async function fetchAllDues(): Promise<DueWithDetails[]> {
 export async function saveDue(data: {
   type: "socio" | "cementerio";
   payment_date: string;
-  period_start?: string | null;
-  period_end?: string | null;
+  period?: string[] | null;
   member_id?: string | null;
   person_id?: string | null;
   movement_id?: string | null;

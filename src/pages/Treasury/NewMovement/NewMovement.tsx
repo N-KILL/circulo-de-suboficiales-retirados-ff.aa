@@ -15,16 +15,20 @@ import {
   MapPin,
   Phone,
   Mail,
+  AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
 import { savePayment } from "../../../services/paymentsApi";
 import { fetchMembers, fetchMemberById } from "../../../services/membersApi";
 import { fetchAllPersons, fetchPersonById } from "../../../services/personsApi";
 import { fetchMovementById, updateMovement } from "../../../services/movementsApi";
-import { fetchMemberCemeteryCheck, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
+import { fetchMemberCemeteryCheck, fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
 import { fetchDuesConfig } from "../../../services/duesConfigApi";
 import { fetchServices } from "../../../services/servicesApi";
+import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
 import type { DuesConfig } from "../../../services/duesConfigApi";
 import type { ServiceItem } from "../../../services/servicesApi";
+import type { MembersDebtStatus } from "../../../services/membersDebtApi";
 import type { Member, Person } from "../../../models/members";
 import "./NewMovement.css";
 
@@ -40,6 +44,7 @@ type FieldErrors = {
   persona?: string;
   fecha?: string;
   importe?: string;
+  period?: string;
 };
 
 const NewMovement: React.FC = () => {
@@ -74,12 +79,16 @@ const NewMovement: React.FC = () => {
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
   const [importeStr, setImporteStr] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [periodStart, setPeriodStart] = useState("");
-  const [periodEnd, setPeriodEnd] = useState("");
+  const [periods, setPeriods] = useState<string[]>([]);
+  const [periodYear, setPeriodYear] = useState(new Date().getFullYear());
+  const [paidPeriods, setPaidPeriods] = useState<Set<string>>(new Set());
 
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const [debtStatus, setDebtStatus] = useState<MembersDebtStatus | null>(null);
+  const [debtLoading, setDebtLoading] = useState(true);
 
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -105,12 +114,15 @@ const NewMovement: React.FC = () => {
     Promise.all([
       fetchDuesConfig(),
       fetchServices(),
-    ]).then(([cfg, svcs]) => {
+      fetchMembersDebtStatus(),
+    ]).then(([cfg, svcs, debt]) => {
       if (mounted) {
         setDuesConfig(cfg);
         setServiciosFromApi(svcs);
+        setDebtStatus(debt);
+        setDebtLoading(false);
       }
-    }).catch(() => {});
+    }).catch(() => { if (mounted) setDebtLoading(false); });
     return () => { mounted = false; };
   }, []);
 
@@ -190,6 +202,28 @@ const NewMovement: React.FC = () => {
   }, [selectedMember, familyPayment, concept, id]);
 
   useEffect(() => {
+    if (!selectedMember || concept !== "Cuota Socio") {
+      setPaidPeriods(new Set());
+      return;
+    }
+    let mounted = true;
+    fetchDuesByMember(selectedMember.id)
+      .then((dues) => {
+        if (!mounted) return;
+        const all = new Set<string>();
+        for (const d of dues) {
+          if (d.movement_id === id) continue;
+          if (d.period) d.period.forEach((p) => all.add(p));
+        }
+        setPaidPeriods(all);
+      })
+      .catch(() => {
+        if (mounted) setPaidPeriods(new Set());
+      });
+    return () => { mounted = false; };
+  }, [selectedMember, concept, id]);
+
+  useEffect(() => {
     if (!id) return;
     let mounted = true;
     fetchMovementById(id)
@@ -215,8 +249,11 @@ const NewMovement: React.FC = () => {
 
         const due = (m as any).linked_due;
         if (due) {
-          setPeriodStart(due.period_start || "");
-          setPeriodEnd(due.period_end || "");
+          if (due.period && Array.isArray(due.period) && due.period.length > 0) {
+            setPeriods(due.period);
+            const [y] = due.period[0].split("-");
+            setPeriodYear(Number(y));
+          }
 
           if (due.member_id) {
             setPersonType("socio");
@@ -260,28 +297,70 @@ const NewMovement: React.FC = () => {
     return found ? found.amount : null;
   }, [concept, servicio, serviciosFromApi]);
 
-  function monthsBetween(start: string, end: string): number {
-    if (!start || !end) return 1;
-    const [sy, sm] = start.split("-").map(Number);
-    const [ey, em] = end.split("-").map(Number);
-    if (!sy || !sm || !ey || !em) return 1;
-    return (ey - sy) * 12 + (em - sm) + 1;
+  function parseDateYMD(dateStr: string): Date | null {
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      const [y, m, d] = parts.map(Number);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m - 1, d);
+    }
+    if (parts.length === 2) {
+      const [y, m] = parts.map(Number);
+      if (!isNaN(y) && !isNaN(m)) return new Date(y, m - 1, 1);
+    }
+    const fallback = new Date(dateStr);
+    return isNaN(fallback.getTime()) ? null : fallback;
+  }
+
+  function calculateMonthsOwed(memberId: string): number | null {
+    if (!debtStatus) return null;
+    const lastEnd = debtStatus.members[memberId];
+    if (!lastEnd) return null;
+    const last = parseDateYMD(lastEnd);
+    if (!last) return null;
+    const now = new Date();
+    const months = (now.getFullYear() - last.getFullYear()) * 12 + (now.getMonth() - last.getMonth());
+    return Math.max(0, months - 1);
+  }
+
+  function formatPeriod(periodStr: string): string {
+    const parts = periodStr.split("-");
+    if (parts.length >= 2) {
+      const y = parts[0];
+      const m = parts[1];
+      if (y && m && !isNaN(Number(y)) && !isNaN(Number(m))) return `${m.padStart(2, "0")}/${y}`;
+    }
+    return periodStr;
+  }
+
+
+
+  function getLastPaidPeriod(memberId: string): string | null {
+    if (!debtStatus) return null;
+    return debtStatus.members[memberId] || null;
   }
 
   useEffect(() => {
     if (concept === "Cuota Socio" && duesConfig) {
+      const unpaidPeriods = periods.filter((p) => !paidPeriods.has(p));
       const count = familyPayment ? Math.max(selectedFamilyMembers.size, 1) : 1;
-      const months = monthsBetween(periodStart, periodEnd);
-      const total = duesConfig.member_fee * count * months;
+      const monthCount = unpaidPeriods.length > 0 ? unpaidPeriods.length : 1;
+      const total = duesConfig.member_fee * count * monthCount;
       setImporteStr(total.toString().replace(".", ","));
     } else if (concept === "Cementerio" && duesConfig) {
-      const months = monthsBetween(periodStart, periodEnd);
-      const total = duesConfig.cemetery_fee * months;
+      const unpaidPeriods = periods.filter((p) => !paidPeriods.has(p));
+      const monthCount = unpaidPeriods.length > 0 ? unpaidPeriods.length : 1;
+      const total = duesConfig.cemetery_fee * monthCount;
       setImporteStr(total.toString().replace(".", ","));
     } else if (concept === "Servicios" && selectedServiceAmount !== null) {
       setImporteStr(selectedServiceAmount.toString().replace(".", ","));
     }
-  }, [concept, duesConfig, selectedServiceAmount, familyPayment, selectedFamilyMembers, periodStart, periodEnd]);
+    setErrors((prev) => {
+      if (!prev.period) return prev;
+      const next = { ...prev };
+      delete next.period;
+      return next;
+    });
+  }, [concept, duesConfig, selectedServiceAmount, familyPayment, selectedFamilyMembers, periods, paidPeriods]);
 
   const socioConcepts = useMemo(() => {
     const base = ["Cuota Socio", "Servicios"];
@@ -359,16 +438,21 @@ const NewMovement: React.FC = () => {
     if (!fecha) {
       errs.fecha = "Ingresá una fecha";
     }
+    if (shouldCreateDue && periods.length === 0) {
+      errs.period = "Seleccioná al menos un mes";
+    }
     if (!importeNum || importeNum <= 0) {
       errs.importe = "Ingresá un importe válido mayor a cero";
     }
     return errs;
-  }, [personType, selectedMember, selectedPerson, fecha, importeNum]);
+  }, [personType, selectedMember, selectedPerson, fecha, shouldCreateDue, periods, importeNum]);
 
   const handleSelectMember = useCallback((m: Member) => {
     setSelectedMember(m);
     setMemberSearch(m.nombre);
     setShowMemberDropdown(false);
+    setPeriods([]);
+    setPaidPeriods(new Set());
     setErrors((prev) => {
       const next = { ...prev };
       delete next.socio;
@@ -383,6 +467,8 @@ const NewMovement: React.FC = () => {
     setFamilyPayment(false);
     setFamilyMembers([]);
     setSelectedFamilyMembers(new Set());
+    setPeriods([]);
+    setPaidPeriods(new Set());
     setTouched((prev) => ({ ...prev, socio: true }));
     setErrors((prev) => ({ ...prev, socio: "Seleccioná un socio" }));
   }, []);
@@ -431,8 +517,7 @@ const NewMovement: React.FC = () => {
         if (isEditing && id) {
           const dueData: Record<string, any> = {};
           if (shouldCreateDue) {
-            dueData.period_start = periodStart || null;
-            dueData.period_end = periodEnd || null;
+            dueData.period = periods.length > 0 ? periods : null;
             if (concept === "Cuota Socio" && familyPayment && selectedFamilyMembers.size > 0) {
               dueData.paid_members = Array.from(selectedFamilyMembers);
             }
@@ -461,8 +546,7 @@ const NewMovement: React.FC = () => {
             const commonDue = {
               type: dueType,
               payment_date: fecha,
-              period_start: periodStart || null,
-              period_end: periodEnd || null,
+              period: periods.length > 0 ? periods : null,
             } as const;
             if (dueType === "socio" && familyPayment && selectedMember && selectedFamilyMembers.size > 0) {
               await saveDue({
@@ -511,7 +595,7 @@ const NewMovement: React.FC = () => {
       isEditing, id, validate, showServicioSelect, servicio, concept, payerName,
       descripcion, fecha, importeNum, mode, shouldCreateDue,
       personType, selectedMember, selectedPerson, familyPayment, selectedFamilyMembers,
-      periodStart, periodEnd, navigate,
+      periods, navigate,
     ]
   );
 
@@ -535,6 +619,15 @@ const NewMovement: React.FC = () => {
           <Info size={18} />
           {apiError}
           <button type="button" className="success-close" onClick={() => setApiError(null)}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      {errors.period && (
+        <div className="error-banner">
+          <Info size={18} />
+          <span>{errors.period}</span>
+          <button type="button" className="success-close" onClick={() => setErrors((prev) => { const n = { ...prev }; delete n.period; return n; })}>
             <X size={16} />
           </button>
         </div>
@@ -623,83 +716,6 @@ const NewMovement: React.FC = () => {
                     )}
                   </select>
                 </div>
-              )}
-
-              {shouldCreateDue && (
-                <>
-                  <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
-                    <div style={{ flex: "0 0 33%" }}>
-                      <button
-                        type="button"
-                        className="header-btn-sm"
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          fontSize: "0.9rem",
-                          justifyContent: "center",
-                        }}
-                        onClick={() => {
-                          const now = new Date();
-                          const y = now.getFullYear();
-                          const m = String(now.getMonth() + 1).padStart(2, "0");
-                          const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
-                          setPeriodStart(`${y}-${m}-01`);
-                          setPeriodEnd(`${y}-${m}-${String(lastDay).padStart(2, "0")}`);
-                        }}
-                      >
-                        Este mes
-                      </button>
-                    </div>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label>
-                        Desde <span className="required">*</span>
-                      </label>
-                      <div className="input-with-icon date-input-wrap">
-                        <input
-                          type="date"
-                          className="form-control"
-                          value={periodStart}
-                          onChange={(e) => setPeriodStart(e.target.value)}
-                          id="period-start"
-                        />
-                        <button
-                          type="button"
-                          className="date-picker-btn"
-                          onClick={() => {
-                            const el = document.getElementById("period-start") as HTMLInputElement | null;
-                            if (el) { el.focus(); el.showPicker?.(); }
-                          }}
-                        >
-                          <Calendar size={18} />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label>
-                        Hasta <span className="required">*</span>
-                      </label>
-                      <div className="input-with-icon date-input-wrap">
-                        <input
-                          type="date"
-                          className="form-control"
-                          value={periodEnd}
-                          onChange={(e) => setPeriodEnd(e.target.value)}
-                          id="period-end"
-                        />
-                        <button
-                          type="button"
-                          className="date-picker-btn"
-                          onClick={() => {
-                            const el = document.getElementById("period-end") as HTMLInputElement | null;
-                            if (el) { el.focus(); el.showPicker?.(); }
-                          }}
-                        >
-                          <Calendar size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </>
               )}
 
               <div className="form-group full-width">
@@ -897,90 +913,142 @@ const NewMovement: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
 
-              <div className="form-group">
-                <label>
-                  Fecha <span className="required">*</span>
-                </label>
-                <div className="input-with-icon date-input-wrap">
-                  <input
-                    type="date"
-                    className={`form-control${touched.fecha && errors.fecha ? " input-error" : ""}`}
-                    value={fecha}
-                    onChange={(e) => {
-                      setFecha(e.target.value);
-                      setErrors((prev) => {
-                        const next = { ...prev };
-                        delete next.fecha;
-                        return next;
-                      });
-                    }}
-                    onBlur={() => {
-                      if (!fecha) touchField("fecha");
-                    }}
-                    id="movement-date"
-                  />
-                  <button
-                    type="button"
-                    className="date-picker-btn"
-                    onClick={() => {
-                      const el = document.getElementById("movement-date") as HTMLInputElement | null;
-                      if (el) {
-                        el.focus();
-                        el.showPicker?.();
-                      }
-                    }}
-                  >
-                    <Calendar size={18} />
-                  </button>
+            <div className="period-details-row">
+              {shouldCreateDue && (
+                <div className="period-column">
+                  <div className="period-field-group">
+                    <label>
+                      Período <span className="required">*</span>
+                    </label>
+                    <div className="period-year-nav">
+                      <button type="button" className="period-year-btn" onClick={() => setPeriodYear((y) => y - 1)}>
+                        &lt;
+                      </button>
+                      <span className="period-year-label">{periodYear}</span>
+                      <button type="button" className="period-year-btn" onClick={() => setPeriodYear((y) => y + 1)}>
+                        &gt;
+                      </button>
+                    </div>
+                    <div className="period-months-grid">
+                      {["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"].map((name, i) => {
+                        const m = String(i + 1).padStart(2, "0");
+                        const val = `${periodYear}-${m}`;
+                        const active = periods.includes(val);
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            className={`period-month-btn${active && !paidPeriods.has(val) ? " active" : ""}${paidPeriods.has(val) ? " paid" : ""}`}
+                            onClick={() => {
+                              if (paidPeriods.has(val)) return;
+                              setPeriods((prev) => {
+                                if (prev.includes(val)) return prev.filter((p) => p !== val);
+                                return [...prev, val].sort();
+                              });
+                              setErrors((prev) => {
+                                if (!prev.period) return prev;
+                                const next = { ...prev };
+                                delete next.period;
+                                return next;
+                              });
+                            }}
+                          >
+                            {name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-                {touched.fecha && errors.fecha && (
-                  <span className="field-error">{errors.fecha}</span>
-                )}
-              </div>
+              )}
 
-              <div className="form-group">
-                <label>
-                  Importe <span className="required">*</span>
-                </label>
-                <div className="input-with-icon">
-                  <input
-                    type="text"
-                    className={`form-control${touched.importe && errors.importe ? " input-error" : ""}`}
-                    placeholder="0,00"
-                    value={importeStr}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      const cleaned = raw.replace(/[^0-9,]/g, "");
-                      setImporteStr(cleaned);
-                      if (parseFloat(cleaned.replace(",", ".")) > 0) {
+              <div className="details-column">
+                <div className="form-group">
+                  <label>
+                    Fecha <span className="required">*</span>
+                  </label>
+                  <div className="input-with-icon date-input-wrap">
+                    <input
+                      type="date"
+                      className={`form-control${touched.fecha && errors.fecha ? " input-error" : ""}`}
+                      value={fecha}
+                      onChange={(e) => {
+                        setFecha(e.target.value);
                         setErrors((prev) => {
                           const next = { ...prev };
-                          delete next.importe;
+                          delete next.fecha;
                           return next;
                         });
-                      }
-                    }}
-                    onBlur={() => touchField("importe")}
-                  />
-                  <DollarSign size={18} className="input-icon" />
+                      }}
+                      onBlur={() => {
+                        if (!fecha) touchField("fecha");
+                      }}
+                      id="movement-date"
+                    />
+                    <button
+                      type="button"
+                      className="date-picker-btn"
+                      onClick={() => {
+                        const el = document.getElementById("movement-date") as HTMLInputElement | null;
+                        if (el) {
+                          el.focus();
+                          el.showPicker?.();
+                        }
+                      }}
+                    >
+                      <Calendar size={18} />
+                    </button>
+                  </div>
+                  {touched.fecha && errors.fecha && (
+                    <span className="field-error">{errors.fecha}</span>
+                  )}
                 </div>
-                {touched.importe && errors.importe && (
-                  <span className="field-error">{errors.importe}</span>
-                )}
-              </div>
 
-              <div className="form-group full-width">
-                <label>Descripción / Observaciones</label>
-                <textarea
-                  className="form-control text-area"
-                  placeholder="Detalle del movimiento..."
-                  rows={3}
-                  value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value)}
-                  maxLength={200}
-                />
-                <span className="char-counter">{descripcion.length}/200</span>
+                <div className="form-group">
+                  <label>
+                    Importe <span className="required">*</span>
+                  </label>
+                  <div className="input-with-icon">
+                    <input
+                      type="text"
+                      className={`form-control${touched.importe && errors.importe ? " input-error" : ""}`}
+                      placeholder="0,00"
+                      value={importeStr}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const cleaned = raw.replace(/[^0-9,]/g, "");
+                        setImporteStr(cleaned);
+                        if (parseFloat(cleaned.replace(",", ".")) > 0) {
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.importe;
+                            return next;
+                          });
+                        }
+                      }}
+                      onBlur={() => touchField("importe")}
+                    />
+                    <DollarSign size={18} className="input-icon" />
+                  </div>
+                  {touched.importe && errors.importe && (
+                    <span className="field-error">{errors.importe}</span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label>Descripción / Observaciones</label>
+                  <textarea
+                    className="form-control text-area"
+                    placeholder="Detalle del movimiento..."
+                    rows={3}
+                    value={descripcion}
+                    onChange={(e) => setDescripcion(e.target.value)}
+                    maxLength={200}
+                  />
+                  <span className="char-counter">{descripcion.length}/200</span>
+                </div>
               </div>
             </div>
 
@@ -992,14 +1060,6 @@ const NewMovement: React.FC = () => {
                 {saving ? <Loader size={18} className="spin" /> : <Save size={18} />}
                 {saving ? "Guardando..." : isEditing ? "Actualizar" : "Guardar Movimiento"}
               </button>
-            </div>
-
-            <div className="info-alert">
-              <Info size={18} />
-              <p>
-                Los movimientos registrados se reflejarán automáticamente en el saldo disponible y en los
-                reportes de tesorería.
-              </p>
             </div>
           </div>
         </div>
@@ -1094,7 +1154,45 @@ const NewMovement: React.FC = () => {
                 <div className="contact-item">
                   <MapPin size={16} /> <span>{selectedMember.domicilio || "—"}</span>
                 </div>
+                      <div className="contact-item">
+                  <AlertTriangle size={16} /> <span>{"Estado deuda"}</span>
+                </div>
               </div>
+
+              {(() => {
+                if (debtLoading) return null;
+                const monthsOwed = calculateMonthsOwed(selectedMember.id);
+                const canCalculate = monthsOwed !== null;
+                const lastPaid = getLastPaidPeriod(selectedMember.id);
+                const lastPaidFormatted = lastPaid ? formatPeriod(lastPaid) : "";
+                const showWarning = canCalculate && monthsOwed! > 0;
+                return (
+                  <div className={`debt-alert${showWarning ? " debt-alert-warning" : " debt-alert-ok"}`}>
+                    <div className="debt-alert-header">
+                      <AlertTriangle size={16} />
+                      <span>
+                        {canCalculate
+                          ? monthsOwed! > 0
+                            ? `Debe ${monthsOwed} ${monthsOwed === 1 ? "mes" : "meses"}`
+                            : `Al día (último pago: ${lastPaidFormatted})`
+                          : lastPaidFormatted
+                            ? `Último pago: ${lastPaidFormatted}`
+                            : "No disp."
+                        }
+                      </span>
+                    </div>
+                    <a
+                      href={`/socios/detalle/${selectedMember.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="debt-detail-btn"
+                    >
+                      Ver detalles
+                      <ExternalLink size={14} />
+                    </a>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

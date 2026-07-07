@@ -5,8 +5,7 @@ export type DueRow = {
     id: string;
     type: "socio" | "cementerio";
     payment_date: string;
-    period_start: string | null;
-    period_end: string | null;
+    period: string[] | null;
     member_id: string | null;
     person_id: string | null;
     movement_id: string | null;
@@ -19,8 +18,7 @@ export type DueWithDetails = {
     id: string;
     type: "socio" | "cementerio";
     payment_date: string;
-    period_start: string | null;
-    period_end: string | null;
+    period: string[] | null;
     member_id: string | null;
     member_nombre: string | null;
     member_numero_de_socio: string | null;
@@ -33,7 +31,7 @@ export type DueWithDetails = {
     created_at: string;
 };
 
-function parsePaidMembers(val: unknown): string[] | null {
+function parseJsonArray(val: unknown): string[] | null {
     if (!val) return null;
     if (Array.isArray(val)) return val as string[];
     if (typeof val === "string") {
@@ -41,6 +39,10 @@ function parsePaidMembers(val: unknown): string[] | null {
         catch { return null; }
     }
     return null;
+}
+
+function parsePaidMembers(val: unknown): string[] | null {
+    return parseJsonArray(val);
 }
 
 export async function migrateDuesSchema(): Promise<void> {
@@ -72,18 +74,14 @@ export async function migrateDuesSchema(): Promise<void> {
         ALTER TABLE dues ADD COLUMN IF NOT EXISTS paid_members JSONB DEFAULT '[]'::jsonb
     `;
     await sql`
-        ALTER TABLE dues ADD COLUMN IF NOT EXISTS period_start DATE
-    `;
-    await sql`
-        ALTER TABLE dues ADD COLUMN IF NOT EXISTS period_end DATE
+        ALTER TABLE dues ADD COLUMN IF NOT EXISTS period JSONB DEFAULT '[]'::jsonb
     `;
 }
 
 export async function insertDue(due: {
     type: "socio" | "cementerio";
     payment_date: string;
-    period_start?: string | null;
-    period_end?: string | null;
+    period?: string | null;
     member_id?: string | null;
     person_id?: string | null;
     movement_id?: string | null;
@@ -95,9 +93,10 @@ export async function insertDue(due: {
     const paidMembers = due.paid_members && due.paid_members.length > 0
         ? JSON.stringify(due.paid_members)
         : null;
+    const periodJson = due.period && due.period.length > 0 ? JSON.stringify(due.period) : null;
     await sql`
-        INSERT INTO dues (id, type, payment_date, period_start, period_end, member_id, person_id, movement_id, family_group, paid_members)
-        VALUES (${id}, ${due.type}, ${due.payment_date}, ${due.period_start ?? null}, ${due.period_end ?? null}, ${due.member_id ?? null}, ${due.person_id ?? null}, ${due.movement_id ?? null}, ${due.family_group ?? null}, ${paidMembers})
+        INSERT INTO dues (id, type, payment_date, period, member_id, person_id, movement_id, family_group, paid_members)
+        VALUES (${id}, ${due.type}, ${due.payment_date}, ${periodJson}, ${due.member_id ?? null}, ${due.person_id ?? null}, ${due.movement_id ?? null}, ${due.family_group ?? null}, ${paidMembers})
     `;
     return id;
 }
@@ -105,6 +104,7 @@ export async function insertDue(due: {
 async function mapDues(rows: any): Promise<DueWithDetails[]> {
     return (rows as any[]).map((r: Record<string, unknown>) => ({
         ...r,
+        period: parseJsonArray(r.period),
         paid_members: parsePaidMembers(r.paid_members),
     })) as DueWithDetails[];
 }
@@ -116,8 +116,7 @@ export async function getDuesByMember(memberId: string): Promise<DueWithDetails[
             d.id,
             d.type,
             d.payment_date::text as payment_date,
-            d.period_start::text as period_start,
-            d.period_end::text as period_end,
+            d.period,
             d.member_id,
             m.nombre AS member_nombre,
             m.numero_de_socio AS member_numero_de_socio,
@@ -146,8 +145,7 @@ export async function getDuesByPerson(personId: string): Promise<DueWithDetails[
             d.id,
             d.type,
             d.payment_date::text as payment_date,
-            d.period_start::text as period_start,
-            d.period_end::text as period_end,
+            d.period,
             d.member_id,
             m.nombre AS member_nombre,
             m.numero_de_socio AS member_numero_de_socio,
@@ -175,8 +173,7 @@ export async function getAllDues(): Promise<DueWithDetails[]> {
             d.id,
             d.type,
             d.payment_date::text as payment_date,
-            d.period_start::text as period_start,
-            d.period_end::text as period_end,
+            d.period,
             d.member_id,
             m.nombre AS member_nombre,
             m.numero_de_socio AS member_numero_de_socio,
@@ -203,8 +200,7 @@ export async function getDueByMovementId(movementId: string): Promise<DueWithDet
             d.id,
             d.type,
             d.payment_date::text as payment_date,
-            d.period_start::text as period_start,
-            d.period_end::text as period_end,
+            d.period,
             d.member_id,
             m.nombre AS member_nombre,
             m.numero_de_socio AS member_numero_de_socio,
@@ -236,17 +232,17 @@ export async function deleteDueByMovementId(movementId: string): Promise<boolean
 
 export async function updateDueByMovementId(
     movementId: string,
-    data: { period_start?: string | null; period_end?: string | null; paid_members?: string[] | null }
+    data: { period?: string[] | null; paid_members?: string[] | null }
 ): Promise<void> {
     const sql = getSql();
+    const periodJson = data.period && data.period.length > 0 ? JSON.stringify(data.period) : null;
     const paidMembers = data.paid_members && data.paid_members.length > 0
         ? JSON.stringify(data.paid_members)
         : null;
     await sql`
         UPDATE dues SET
-            period_start = COALESCE(${data.period_start ?? null}, period_start),
-            period_end = COALESCE(${data.period_end ?? null}, period_end),
-            paid_members = COALESCE(${paidMembers}, paid_members)
+            period = COALESCE(${periodJson}::jsonb, period),
+            paid_members = COALESCE(${paidMembers}::jsonb, paid_members)
         WHERE movement_id = ${movementId}
     `;
 }
@@ -269,19 +265,22 @@ export async function getDuesByMemberWithCemeteryCheck(memberId: string): Promis
 export async function getMembersDebtStatus(): Promise<Record<string, string | null>> {
     const sql = getSql();
     const rows = (await sql`
-        SELECT member_id, paid_members, period_end
+        SELECT member_id, paid_members, period
         FROM dues
-        WHERE type = 'socio' AND period_end IS NOT NULL
-    `) as { member_id: string | null; paid_members: unknown; period_end: string }[];
+        WHERE type = 'socio'
+    `) as { member_id: string | null; paid_members: unknown; period: unknown }[];
     const map: Record<string, string | null> = {};
     for (const row of rows) {
+        const periods = parseJsonArray(row.period);
+        if (!periods || periods.length === 0) continue;
+        const latest = periods.reduce((a, b) => a > b ? a : b);
         const members: string[] = [];
         if (row.member_id) members.push(row.member_id);
         const paid = parsePaidMembers(row.paid_members);
         if (paid) members.push(...paid);
         for (const mid of members) {
-            if (!map[mid] || row.period_end > map[mid]) {
-                map[mid] = row.period_end;
+            if (!map[mid] || latest > map[mid]) {
+                map[mid] = latest;
             }
         }
     }

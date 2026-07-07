@@ -2,8 +2,7 @@ export interface DueLink {
     id: string;
     type: "socio" | "cementerio";
     payment_date: string;
-    period_start: string | null;
-    period_end: string | null;
+    period: string[] | null;
     member_id: string | null;
     member_nombre: string | null;
     person_id: string | null;

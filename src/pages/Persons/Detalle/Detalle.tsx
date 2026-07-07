@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Phone, MapPin, Loader } from "lucide-react";
+import { ArrowLeft, User, Loader } from "lucide-react";
 import { fetchPersonById } from "../../../services/personsApi";
 import { fetchDuesByPerson } from "../../../services/duesApi";
 import type { Person } from "../../../models/members";

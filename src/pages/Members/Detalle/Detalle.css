@@ -358,3 +358,69 @@
     grid-template-columns: 1fr;
   }
 }
+
+.period-year-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.period-year-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--azul-institucional);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.period-year-btn:hover {
+  background: #eef2fb;
+}
+
+.period-year-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--azul-armada);
+  min-width: 60px;
+  text-align: center;
+}
+
+.period-months-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.period-month-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.period-month-btn:hover {
+  background: #eef2fb;
+  border-color: var(--azul-institucional);
+}
+
+.period-month-btn.active {
+  background: var(--azul-institucional);
+  color: #fff;
+  border-color: var(--azul-institucional);
+}

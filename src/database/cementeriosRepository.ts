@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { Cementerio } from "../models/members";
 import { getSql } from "./connection";
 import type { CementerioRow } from "./types";
@@ -42,11 +41,6 @@ export async function searchMemberByNombre(nombre: string): Promise<{ id: string
     if (fuzzy.length > 0) return fuzzy[0];
 
     return null;
-}
-
-function normalizeBoolean(value: string): boolean {
-    const v = value.trim().toLowerCase();
-    return v === "si" || v === "sí" || v === "s";
 }
 
 export function rowToCementerio(row: CementerioRow): Cementerio {
@@ -211,7 +205,6 @@ export async function updateCementerio(
 
     await sql.unsafe(
         `UPDATE cementerios SET ${fields.join(", ")} WHERE id = $${idx}`,
-        [...values, id]
     );
 }
 

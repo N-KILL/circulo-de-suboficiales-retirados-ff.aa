@@ -17,7 +17,6 @@ const NewPerson: React.FC = () => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [linkedMembers, setLinkedMembers] = useState<PersonMember[]>([]);
-  const [membersLoading, setMembersLoading] = useState(false);
 
   const form = usePersonFormStore((s) => s.form);
   const setField = usePersonFormStore((s) => s.setField);
@@ -34,11 +33,10 @@ const NewPerson: React.FC = () => {
         .then((person) => setForm(person))
         .catch((err) => setFetchError(err instanceof Error ? err.message : "Error al cargar persona"))
         .finally(() => setLoading(false));
-      setMembersLoading(true);
       fetchPersonMembers(id)
         .then(setLinkedMembers)
         .catch(() => {})
-        .finally(() => setMembersLoading(false));
+        .finally(() => {});
     } else {
       reset();
     }

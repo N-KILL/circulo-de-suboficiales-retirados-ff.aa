@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Loader, Plus, X, Calendar } from "lucide-react";
+import { ArrowLeft, User, Loader, Plus, X } from "lucide-react";
 import { fetchMemberById } from "../../../services/membersApi";
 import { fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
 import type { Member } from "../../../models/members";
@@ -15,6 +15,19 @@ function formatCurrency(val: number): string {
   }).format(val)}`;
 }
 
+function formatPeriodsDisplay(periods: string[] | null): string {
+  if (!periods || periods.length === 0) return "—";
+  const byYear: Record<string, string[]> = {};
+  for (const p of periods) {
+    const [y, m] = p.split("-");
+    if (!byYear[y]) byYear[y] = [];
+    byYear[y].push(m);
+  }
+  return Object.entries(byYear)
+    .map(([year, months]) => `${year} (Meses: ${months.join(",")})`)
+    .join(" ");
+}
+
 const DetalleSocio: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -24,8 +37,8 @@ const DetalleSocio: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [showModal, setShowModal] = useState(false);
-  const [periodStart, setPeriodStart] = useState("");
-  const [periodEnd, setPeriodEnd] = useState("");
+  const [periods, setPeriods] = useState<string[]>([]);
+  const [periodYear, setPeriodYear] = useState(new Date().getFullYear());
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
   const [selectedFamily, setSelectedFamily] = useState<Set<string>>(new Set());
   const [savingMark, setSavingMark] = useState(false);
@@ -61,8 +74,8 @@ const DetalleSocio: React.FC = () => {
 
   const openModal = useCallback(async () => {
     if (!id) return;
-    setPeriodStart("");
-    setPeriodEnd("");
+    setPeriods([]);
+    setPeriodYear(new Date().getFullYear());
     setSelectedFamily(new Set(id ? [id] : []));
     setShowModal(true);
     if (familyGroupPrefix) {
@@ -78,14 +91,13 @@ const DetalleSocio: React.FC = () => {
   }, [id, familyGroupPrefix]);
 
   const handleConfirm = useCallback(async () => {
-    if (!id || !periodStart || !periodEnd) return;
+    if (!id || periods.length === 0) return;
     setSavingMark(true);
     try {
       await saveDue({
         type: "socio",
         payment_date: new Date().toISOString().split("T")[0],
-        period_start: periodStart,
-        period_end: periodEnd,
+        period: periods,
         member_id: id,
         family_group: familyGroupPrefix ?? undefined,
         paid_members: familyGroupPrefix ? Array.from(selectedFamily) : undefined,
@@ -98,7 +110,7 @@ const DetalleSocio: React.FC = () => {
     } finally {
       setSavingMark(false);
     }
-  }, [id, periodStart, periodEnd, familyGroupPrefix, selectedFamily]);
+  }, [id, periods, familyGroupPrefix, selectedFamily]);
 
   if (loading) {
     return (
@@ -156,8 +168,7 @@ const DetalleSocio: React.FC = () => {
             <table className="treasury-table">
               <thead>
                 <tr>
-                  <th>Periodo inicio</th>
-                  <th>Periodo fin</th>
+                  <th>Periodo</th>
                   <th>Fecha de Pago</th>
                   <th>Importe</th>
                   <th>Pago</th>
@@ -170,8 +181,7 @@ const DetalleSocio: React.FC = () => {
                   const isFamilyPaid = !isSelf && d.paid_members?.includes(member.id ?? "");
                   return (
                     <tr key={d.id}>
-                      <td>{d.period_start || "—"}</td>
-                      <td>{d.period_end || "—"}</td>
+                      <td>{formatPeriodsDisplay(d.period)}</td>
                       <td>{d.payment_date}</td>
                       <td className="amount-ingreso">{d.amount != null ? formatCurrency(d.amount) : "—"}</td>
                       <td>
@@ -204,8 +214,7 @@ const DetalleSocio: React.FC = () => {
             <table className="treasury-table">
               <thead>
                 <tr>
-                  <th>Periodo inicio</th>
-                  <th>Periodo fin</th>
+                  <th>Periodo</th>
                   <th>Fecha de Pago</th>
                   <th>Importe</th>
                   <th>Movimiento</th>
@@ -214,8 +223,7 @@ const DetalleSocio: React.FC = () => {
               <tbody>
                 {cementerioDues.map((d) => (
                   <tr key={d.id}>
-                    <td>{d.period_start || "—"}</td>
-                    <td>{d.period_end || "—"}</td>
+                    <td>{formatPeriodsDisplay(d.period)}</td>
                     <td>{d.payment_date}</td>
                     <td className="amount-ingreso">{d.amount != null ? formatCurrency(d.amount) : "—"}</td>
                     <td>{d.movement_id ? d.movement_id.slice(0, 8) + "…" : "—"}</td>
@@ -274,47 +282,37 @@ const DetalleSocio: React.FC = () => {
 
               <div className="config-form">
                 <div className="config-field">
-                  <label>Periodo desde</label>
-                  <div className="input-with-icon date-input-wrap">
-                    <input
-                      type="date"
-                      className="config-input"
-                      value={periodStart}
-                      onChange={(e) => setPeriodStart(e.target.value)}
-                      id="modal-period-start"
-                    />
-                    <button
-                      type="button"
-                      className="date-picker-btn"
-                      onClick={() => {
-                        const el = document.getElementById("modal-period-start") as HTMLInputElement | null;
-                        if (el) { el.focus(); el.showPicker?.(); }
-                      }}
-                    >
-                      <Calendar size={18} />
+                  <label>Período</label>
+                  <div className="period-year-nav" style={{ justifyContent: "center", marginBottom: 8 }}>
+                    <button type="button" className="period-year-btn" onClick={() => setPeriodYear((y) => y - 1)}>
+                      &lt;
+                    </button>
+                    <span className="period-year-label">{periodYear}</span>
+                    <button type="button" className="period-year-btn" onClick={() => setPeriodYear((y) => y + 1)}>
+                      &gt;
                     </button>
                   </div>
-                </div>
-                <div className="config-field">
-                  <label>Periodo hasta</label>
-                  <div className="input-with-icon date-input-wrap">
-                    <input
-                      type="date"
-                      className="config-input"
-                      value={periodEnd}
-                      onChange={(e) => setPeriodEnd(e.target.value)}
-                      id="modal-period-end"
-                    />
-                    <button
-                      type="button"
-                      className="date-picker-btn"
-                      onClick={() => {
-                        const el = document.getElementById("modal-period-end") as HTMLInputElement | null;
-                        if (el) { el.focus(); el.showPicker?.(); }
-                      }}
-                    >
-                      <Calendar size={18} />
-                    </button>
+                  <div className="period-months-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
+                    {["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"].map((name, i) => {
+                      const m = String(i + 1).padStart(2, "0");
+                      const val = `${periodYear}-${m}`;
+                      const active = periods.includes(val);
+                      return (
+                        <button
+                          key={val}
+                          type="button"
+                          className={`period-month-btn${active ? " active" : ""}`}
+                          onClick={() => {
+                            setPeriods((prev) => {
+                              if (prev.includes(val)) return prev.filter((p) => p !== val);
+                              return [...prev, val].sort();
+                            });
+                          }}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -324,7 +322,7 @@ const DetalleSocio: React.FC = () => {
               <button className="btn-cancel" onClick={() => setShowModal(false)}>
                 Cancelar
               </button>
-              <button className="btn-save" onClick={handleConfirm} disabled={savingMark || !periodStart || !periodEnd}>
+              <button className="btn-save" onClick={handleConfirm} disabled={savingMark || periods.length === 0}>
                 {savingMark ? "Guardando..." : "Registrar"}
               </button>
             </div>
