@@ -198,7 +198,7 @@ export async function getCementeriosByNicho(nicho: string): Promise<CementerioDe
 }
 
 export async function updateCementerio(
-    id: string,
+    _id: string,
     data: Partial<Omit<Cementerio, "id" | "reducir" | "debeAnios">>
 ): Promise<void> {
     const sql = getSql();

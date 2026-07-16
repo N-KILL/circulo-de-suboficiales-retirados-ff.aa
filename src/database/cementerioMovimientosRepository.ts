@@ -120,6 +120,6 @@ export async function deleteCementerioMovimientosByMovement(movementId: string):
 
 export async function hasCementerioMovimientosByNicho(nicho: string): Promise<boolean> {
     const sql = getSql();
-    const rows = await sql`SELECT 1 FROM cementerio_movimientos WHERE nicho = ${nicho} LIMIT 1`;
+    const rows = await sql`SELECT 1 FROM cementerio_movimientos WHERE nicho = ${nicho} LIMIT 1` as unknown[];
     return rows.length > 0;
 }

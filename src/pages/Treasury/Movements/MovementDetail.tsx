@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader, Edit3, Trash2, X, Calendar, Briefcase, User, DollarSign, FileText, ExternalLink, MapPin } from "lucide-react";
+import { ArrowLeft, Loader, Edit3, Trash2, X, Calendar, Briefcase, User, DollarSign, FileText } from "lucide-react";
 import { fetchMovementById, deleteMovement, type Movement, type ServiceRecordLink, type CementerioMovimientoLink } from "../../../services/movementsApi";
 import { fetchMemberById } from "../../../services/membersApi";
 import "../TreasuryTables.css";

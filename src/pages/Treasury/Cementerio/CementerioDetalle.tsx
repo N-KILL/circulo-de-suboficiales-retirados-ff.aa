@@ -321,7 +321,7 @@ const CementerioDetalle: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
-                            {groupRecords.map((rec, ridx) => (
+                            {groupRecords.map((rec) => (
                                 <div key={rec.id} style={{ padding: 16, borderBottom: groupRecords.length <= 1 ? "1px solid var(--border)" : "16px solid var(--border)" }}>
                                     {/* Ocupante como subtítulo */}
                                     <div style={{
