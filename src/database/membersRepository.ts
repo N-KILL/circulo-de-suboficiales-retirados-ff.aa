@@ -1,8 +1,8 @@
-import type { Member, Person } from "../models/members";
-import { getSql } from "./connection";
-import { upsertPerson } from "./personsRepository";
-import { memberToRow, rowToMember } from "./mappers";
-import type { MemberRow, PersonRow } from "./types";
+import type { Member, Person } from "../models/members.js";
+import { getSql } from "./connection.js";
+import { upsertPerson } from "./personsRepository.js";
+import { memberToRow, rowToMember } from "./mappers.js";
+import type { MemberRow, PersonRow } from "./types.js";
 
 export type SeedIssue = {
     csvLine: number;

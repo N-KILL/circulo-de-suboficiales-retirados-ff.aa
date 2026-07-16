@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import type { Person } from "../models/members";
-import { getSql } from "./connection";
-import type { PersonRow } from "./types";
+import type { Person } from "../models/members.js";
+import { getSql } from "./connection.js";
+import type { PersonRow } from "./types.js";
 
 export async function upsertPerson(person: Person): Promise<string | null> {
     if (!person.nombre?.trim()) return null;
