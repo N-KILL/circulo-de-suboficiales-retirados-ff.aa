@@ -172,3 +172,22 @@ CREATE INDEX IF NOT EXISTS idx_service_records_service_id   ON service_records (
 CREATE INDEX IF NOT EXISTS idx_service_records_member_id    ON service_records (member_id);
 CREATE INDEX IF NOT EXISTS idx_service_records_person_id    ON service_records (person_id);
 CREATE INDEX IF NOT EXISTS idx_service_records_movement_id  ON service_records (movement_id);
+
+CREATE TABLE IF NOT EXISTS cementerio_movimientos (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    movement_id     UUID            REFERENCES petty_cash(id) ON DELETE CASCADE,
+    cementerio_id   UUID            REFERENCES cementerios(id) ON DELETE SET NULL,
+    nicho           VARCHAR(50)     NOT NULL,
+    tipo            VARCHAR(20),
+    ocupante        VARCHAR(255),
+    anios_pagados   TEXT[]          NOT NULL DEFAULT '{}',
+    importe         NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    fecha_pago      DATE            NOT NULL,
+    member_id       UUID            REFERENCES members(id) ON DELETE SET NULL,
+    person_id       UUID            REFERENCES persons(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cm_movement_id   ON cementerio_movimientos (movement_id);
+CREATE INDEX IF NOT EXISTS idx_cm_cementerio_id ON cementerio_movimientos (cementerio_id);
+CREATE INDEX IF NOT EXISTS idx_cm_nicho         ON cementerio_movimientos (nicho);

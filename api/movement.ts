@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMovementById, updateMovement, deleteMovement } from "../src/database/pettyCashRepository";
 import { getDueByMovementId, deleteDueByMovementId, updateDueByMovementId } from "../src/database/duesRepository";
 import { getServiceRecordsByMovement, deleteServiceRecordsByMovement } from "../src/database/serviceRecordsRepository";
+import { getCementerioMovimientosByMovement, deleteCementerioMovimientosByMovement } from "../src/database/cementerioMovimientosRepository";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
@@ -17,11 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 res.status(404).json({ error: "Movimiento no encontrado" });
                 return;
             }
-            const [due, serviceRecords] = await Promise.all([
+            const [due, serviceRecords, cementerioMovimientos] = await Promise.all([
                 getDueByMovementId(id),
                 getServiceRecordsByMovement(id),
+                getCementerioMovimientosByMovement(id),
             ]);
-            res.status(200).json({ ...movement, linked_due: due, linked_service_records: serviceRecords });
+            res.status(200).json({ ...movement, linked_due: due, linked_service_records: serviceRecords, linked_cementerio_movimientos: cementerioMovimientos });
             return;
         }
 
@@ -43,6 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (req.method === "DELETE") {
             await deleteDueByMovementId(id);
             await deleteServiceRecordsByMovement(id);
+            await deleteCementerioMovimientosByMovement(id);
             await deleteMovement(id);
             res.status(200).json({ success: true });
             return;

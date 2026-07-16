@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader, Edit3, Trash2, X, Calendar, Briefcase, User, DollarSign, FileText, ExternalLink } from "lucide-react";
-import { fetchMovementById, deleteMovement, type Movement, type ServiceRecordLink } from "../../../services/movementsApi";
+import { ArrowLeft, Loader, Edit3, Trash2, X, Calendar, Briefcase, User, DollarSign, FileText, ExternalLink, MapPin } from "lucide-react";
+import { fetchMovementById, deleteMovement, type Movement, type ServiceRecordLink, type CementerioMovimientoLink } from "../../../services/movementsApi";
 import { fetchMemberById } from "../../../services/membersApi";
 import "../TreasuryTables.css";
 import "../ServiceHistory/ServiceHistory.css";
@@ -115,6 +115,8 @@ const MovementDetail: React.FC = () => {
     const modeLabel = movement.mode === "efectivo" ? "Efectivo" : "Transferencia";
     const hasLinkedDue = !!movement.linked_due;
     const hasServiceRecords = (movement.linked_service_records?.length ?? 0) > 0;
+    const hasCementerioMovimientos = (movement.linked_cementerio_movimientos?.length ?? 0) > 0;
+    const hasAnyLinked = hasLinkedDue || hasServiceRecords || hasCementerioMovimientos;
 
     return (
         <div className="movement-detail-container">
@@ -149,13 +151,9 @@ const MovementDetail: React.FC = () => {
                 {confirmDelete && (
                     <div className="delete-confirm-box">
                         <p>
-                            {hasLinkedDue && hasServiceRecords
-                                ? "Este movimiento está asociado a un registro de cuota y uno o más registros de servicio. Se eliminarán todos los registros vinculados."
-                                : hasLinkedDue
-                                    ? "Este movimiento está asociado a un registro de cuota. Se eliminarán ambos registros."
-                                    : hasServiceRecords
-                                        ? "Este movimiento está asociado a uno o más registros de servicio. Se eliminarán los registros vinculados."
-                                        : "¿Estás seguro de eliminar este movimiento? Esta acción no se puede deshacer."}
+                            {hasAnyLinked
+                                ? "Este movimiento está asociado a registros vinculados (cuotas, servicios y/o cementerio). Se eliminarán todos los registros vinculados."
+                                : "¿Estás seguro de eliminar este movimiento? Esta acción no se puede deshacer."}
                         </p>
                         <div className="delete-confirm-actions">
                             <button className="btn-cancel" onClick={() => setConfirmDelete(false)} disabled={deleting}>
@@ -215,7 +213,7 @@ const MovementDetail: React.FC = () => {
                                     {movement.linked_due!.type === "socio" ? "Cuota Socio" : "Cuota Cementerio"}
                                 </span>
                             </div>
-                            {movement.linked_due!.period && movement.linked_due!.period.length > 0 && (
+                            {movement.linked_due!.period && movement.linked_due!.period.length > 0 && movement.linked_due!.type === "socio" && (
                                 <div className="detail-field">
                                     <span className="detail-label">Periodo</span>
                                     <span className="detail-value">{formatPeriodsDisplay(movement.linked_due!.period)}</span>
@@ -282,6 +280,53 @@ const MovementDetail: React.FC = () => {
                                                     <td>{sr.service_name ?? "—"}</td>
                                                     <td>{titular}</td>
                                                     <td className="amount-ingreso">{toCurrency(sr.amount)}</td>
+                                                    <td>{fecha}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+
+                    {hasCementerioMovimientos && (
+                        <>
+                            <div className="detail-field separator-row" style={{ gridColumn: "1 / -1" }}>
+                                <hr />
+                            </div>
+                            <div className="detail-field" style={{ gridColumn: "1 / -1" }}>
+                                <span className="detail-label due-label">Cementerio - Detalle por nicho</span>
+                            </div>
+                            <div style={{ gridColumn: "1 / -1" }}>
+                                <table className="treasury-table" style={{ minWidth: 0 }}>
+                                    <thead>
+                                        <tr>
+                                            <th>Nicho</th>
+                                            <th>Tipo</th>
+                                            <th>Ocupante</th>
+                                            <th>Años pagados</th>
+                                            <th>Importe</th>
+                                            <th>Fecha pago</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {movement.linked_cementerio_movimientos!.map((cm: CementerioMovimientoLink) => {
+                                            const parts = cm.fecha_pago.split("-");
+                                            const fecha = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : cm.fecha_pago;
+                                            return (
+                                                <tr key={cm.id}>
+                                                    <td style={{ fontWeight: 600 }}>{cm.nicho}</td>
+                                                    <td>{cm.tipo ?? "—"}</td>
+                                                    <td>{cm.ocupante ?? "—"}</td>
+                                                    <td>
+                                                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                                            {cm.anios_pagados.map((y) => (
+                                                                <span key={y} className="paid-member-chip" style={{ background: "#e0f2fe", color: "#0369a1" }}>{y}</span>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    <td className="amount-ingreso">{toCurrency(cm.importe)}</td>
                                                     <td>{fecha}</td>
                                                 </tr>
                                             );

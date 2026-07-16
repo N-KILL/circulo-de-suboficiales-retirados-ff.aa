@@ -27,6 +27,20 @@ export interface ServiceRecordLink {
     detail: string | null;
 }
 
+export interface CementerioMovimientoLink {
+    id: string;
+    movement_id: string | null;
+    cementerio_id: string | null;
+    nicho: string;
+    tipo: string | null;
+    ocupante: string | null;
+    anios_pagados: string[];
+    importe: number;
+    fecha_pago: string;
+    member_id: string | null;
+    person_id: string | null;
+}
+
 export interface Movement {
     id: string;
     date: string;
@@ -37,6 +51,7 @@ export interface Movement {
     concept?: string | null;
     linked_due?: DueLink | null;
     linked_service_records?: ServiceRecordLink[];
+    linked_cementerio_movimientos?: CementerioMovimientoLink[];
 }
 
 export async function fetchMovements(): Promise<Movement[]> {

@@ -25,7 +25,7 @@ import { fetchMovementById, updateMovement } from "../../../services/movementsAp
 import { fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
 import { fetchDuesConfig } from "../../../services/duesConfigApi";
 import { fetchServices } from "../../../services/servicesApi";
-import { fetchCementeriosByOwner, fetchCementerioOwnerIds } from "../../../services/cementeriosApi";
+import { fetchCementeriosByOwner, fetchCementerioOwnerIds, saveCementerioMovimiento, updateCementerioRecord } from "../../../services/cementeriosApi";
 import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
 import { saveServiceRecord, updateServiceRecord, fetchServiceRecordsByMovement, deleteServiceRecord } from "../../../services/serviceRecordsApi";
 import { saveService } from "../../../services/servicesApi";
@@ -736,6 +736,29 @@ const NewMovement: React.FC = () => {
                   person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
                   movement_id: movementId,
                 });
+
+                const aniosPagados = years ? Array.from(years).sort() : [];
+                const maxYear = aniosPagados.length > 0 ? aniosPagados[aniosPagados.length - 1] : null;
+                await saveCementerioMovimiento({
+                  movement_id: movementId,
+                  cementerio_id: c.id,
+                  nicho: c.nicho,
+                  tipo: c.tipo || null,
+                  ocupante: c.ocupante || null,
+                  anios_pagados: aniosPagados,
+                  importe: getFeeForCementerio(c) * aniosPagados.length,
+                  fecha_pago: fecha,
+                  member_id: personType === "socio" ? selectedMember?.id ?? null : null,
+                  person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
+                });
+
+                if (maxYear) {
+                  const patchData: Record<string, any> = {
+                    ultimoPago: maxYear,
+                    fechaDePago: fecha,
+                  };
+                  await updateCementerioRecord(c.id, patchData);
+                }
               }
             } else if (familyPayment && selectedMember && selectedFamilyMembers.size > 0) {
               await saveDue({

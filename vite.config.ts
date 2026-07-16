@@ -34,8 +34,9 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isDuesConfig = pathname === "/api/dues-config";
         const isServices = pathname === "/api/services";
         const isServiceRecords = pathname === "/api/service-records";
+        const isCementerioMovimientos = pathname === "/api/cementerio-movimientos";
 
-        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords) {
+        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos) {
           next();
           return;
         }
@@ -104,6 +105,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             const { getMovementById, updateMovement, deleteMovement } = await import("./src/database/pettyCashRepository");
             const { getDueByMovementId, deleteDueByMovementId, updateDueByMovementId } = await import("./src/database/duesRepository");
             const { getServiceRecordsByMovement, deleteServiceRecordsByMovement } = await import("./src/database/serviceRecordsRepository");
+            const { getCementerioMovimientosByMovement, deleteCementerioMovimientosByMovement } = await import("./src/database/cementerioMovimientosRepository");
             const id = url.searchParams.get("id") ?? undefined;
 
             if (req.method === "GET") {
@@ -118,12 +120,13 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
                 res.end(JSON.stringify({ error: "Movimiento no encontrado" }));
                 return;
               }
-              const [due, serviceRecords] = await Promise.all([
+              const [due, serviceRecords, cementerioMovimientos] = await Promise.all([
                 getDueByMovementId(id),
                 getServiceRecordsByMovement(id),
+                getCementerioMovimientosByMovement(id),
               ]);
               res.statusCode = 200;
-              res.end(JSON.stringify({ ...movement, linked_due: due, linked_service_records: serviceRecords }));
+              res.end(JSON.stringify({ ...movement, linked_due: due, linked_service_records: serviceRecords, linked_cementerio_movimientos: cementerioMovimientos }));
               return;
             }
 
@@ -152,6 +155,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               }
               await deleteDueByMovementId(id);
               await deleteServiceRecordsByMovement(id);
+              await deleteCementerioMovimientosByMovement(id);
               await deleteMovement(id);
               res.statusCode = 200;
               res.end(JSON.stringify({ success: true }));
@@ -706,6 +710,77 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               await deleteServiceRecord(id);
               res.statusCode = 200;
               res.end(JSON.stringify({ success: true }));
+              return;
+            }
+
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isCementerioMovimientos) {
+            const {
+              getCementerioMovimientosByMovement,
+              getCementerioMovimientosByNicho,
+              insertCementerioMovimiento,
+              hasCementerioMovimientosByNicho,
+            } = await import("./src/database/cementerioMovimientosRepository");
+
+            if (req.method === "GET") {
+              const movementId = url.searchParams.get("movementId");
+              const nicho = url.searchParams.get("nicho");
+              const hasNicho = url.searchParams.get("hasNicho");
+
+              if (hasNicho) {
+                const exists = await hasCementerioMovimientosByNicho(hasNicho);
+                res.statusCode = 200;
+                res.end(JSON.stringify({ exists }));
+                return;
+              }
+              if (movementId) {
+                const records = await getCementerioMovimientosByMovement(movementId);
+                res.statusCode = 200;
+                res.end(JSON.stringify(records));
+                return;
+              }
+              if (nicho) {
+                const records = await getCementerioMovimientosByNicho(nicho);
+                res.statusCode = 200;
+                res.end(JSON.stringify(records));
+                return;
+              }
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta el parámetro movementId o nicho" }));
+              return;
+            }
+
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req));
+              if (!body?.movement_id || !body?.nicho || !body?.fecha_pago) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan datos requeridos (movement_id, nicho, fecha_pago)" }));
+                return;
+              }
+              const id = await insertCementerioMovimiento({
+                movement_id: body.movement_id,
+                cementerio_id: body.cementerio_id ?? null,
+                nicho: body.nicho,
+                tipo: body.tipo ?? null,
+                ocupante: body.ocupante ?? null,
+                anios_pagados: body.anios_pagados ?? [],
+                importe: body.importe ?? 0,
+                fecha_pago: body.fecha_pago,
+                member_id: body.member_id ?? null,
+                person_id: body.person_id ?? null,
+              });
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true, id }));
               return;
             }
 

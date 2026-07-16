@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Search, ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Search, ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw, X } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import TablePagination from "../../../components/TablePagination/TablePagination";
 import { fetchMovements, type Movement } from "../../../services/movementsApi";
 import { fetchInitialBalances } from "../../../services/initialBalancesApi";
+import { fetchCementerioMovimientosByNicho } from "../../../services/cementeriosApi";
 import "../TreasuryTables.css";
 
 function formatCurrency(val: number): string {
@@ -22,6 +23,8 @@ const MONTHS = [
 
 const Movements: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const nichoFilter = searchParams.get("nicho") || "";
 
   // ── Raw data ──────────────────────────────────────────
   const [rawMovements, setRawMovements] = useState<Movement[]>([]);
@@ -42,6 +45,7 @@ const Movements: React.FC = () => {
   const [filtroEgreso, setFiltroEgreso] = useState(true);
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
   const yearDropdownRef = useRef<HTMLDivElement>(null);
+  const [nichoMovementIds, setNichoMovementIds] = useState<Set<string> | null>(null);
 
   // ── Available years from data ─────────────────────────
   const availableYears = useMemo(() => {
@@ -65,6 +69,25 @@ const Movements: React.FC = () => {
     }
     return () => document.removeEventListener("mousedown", handler);
   }, [yearDropdownOpen, yearDropdownRef]);
+
+  // ── Fetch nicho movement IDs when nichoFilter changes ──
+  useEffect(() => {
+    if (!nichoFilter) {
+      setNichoMovementIds(null);
+      return;
+    }
+    let mounted = true;
+    fetchCementerioMovimientosByNicho(nichoFilter)
+      .then((records) => {
+        if (!mounted) return;
+        const ids = new Set(records.map((r) => r.movement_id).filter(Boolean) as string[]);
+        setNichoMovementIds(ids);
+      })
+      .catch(() => {
+        if (mounted) setNichoMovementIds(new Set());
+      });
+    return () => { mounted = false; };
+  }, [nichoFilter]);
 
   // ── Initial data fetch ────────────────────────────────
   useEffect(() => {
@@ -141,6 +164,7 @@ const Movements: React.FC = () => {
 
     return movementsWithSaldo
       .filter((m) => {
+        if (nichoMovementIds && !nichoMovementIds.has(m.id)) return false;
         // month/year
         if (hasYear || hasMonth) {
           const d = m.dateObj;
@@ -163,7 +187,7 @@ const Movements: React.FC = () => {
       })
       .reverse();
   }, [movementsWithSaldo, searchText, selectedMonths, selectedYears,
-      cajaBanco, cajaChica, filtroIngreso, filtroEgreso]);
+      cajaBanco, cajaChica, filtroIngreso, filtroEgreso, nichoMovementIds]);
 
   // ── Pagination ────────────────────────────────────────
   const [currentPage, setCurrentPage] = useState(1);
@@ -198,6 +222,7 @@ const Movements: React.FC = () => {
     setCajaChica(true);
     setFiltroIngreso(true);
     setFiltroEgreso(true);
+    setSearchParams({});
   };
 
   // ── Render ────────────────────────────────────────────
@@ -249,8 +274,28 @@ const Movements: React.FC = () => {
               {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               Filtros
             </button>
-          </div>
         </div>
+        {nichoFilter && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "8px 12px", marginTop: 8,
+            background: "#e0f2fe", borderRadius: 8,
+            fontSize: 13, fontWeight: 600, color: "#0369a1",
+          }}>
+            <span>Filtrado por nicho: {nichoFilter}</span>
+            <button
+              onClick={() => setSearchParams({})}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "#0369a1", padding: 2, display: "flex",
+              }}
+              title="Quitar filtro"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+      </div>
 
         {/* Collapsible extra filters */}
         {showFilters && (

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, User, ExternalLink, Calendar } from "lucide-react";
+import { ArrowLeft, Save, User, ExternalLink, Calendar, History } from "lucide-react";
 import type { Cementerio } from "../../../models/members";
 import {
     fetchCementeriosByNicho,
     updateCementerioRecord,
+    hasCementerioMovimientosByNicho,
     type CementerioDetalleRecord,
 } from "../../../services/cementeriosApi";
 import "./Cementerio.css";
@@ -133,6 +134,7 @@ const CementerioDetalle: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [savingId, setSavingId] = useState<string | null>(null);
     const [arrendatarioFilter, setArrendatarioFilter] = useState<Set<string> | null>(null);
+    const [hasMovimientos, setHasMovimientos] = useState(false);
 
     useEffect(() => {
         document.querySelector(".content")?.classList.add("custom-scroll");
@@ -157,6 +159,11 @@ const CementerioDetalle: React.FC = () => {
                 }
             });
         return () => { mounted = false; };
+    }, [nicho]);
+
+    useEffect(() => {
+        if (!nicho) return;
+        hasCementerioMovimientosByNicho(nicho).then(setHasMovimientos).catch(() => setHasMovimientos(false));
     }, [nicho]);
 
     const grouped = useMemo(() => {
@@ -279,7 +286,7 @@ const CementerioDetalle: React.FC = () => {
                 filteredGrouped.map(([personaId, groupRecords]) => {
                     const personaNombre = groupRecords[0]?.personaNombre || "Sin arrendatario";
                     return (
-                        <div key={personaId} className="table-card" style={{ margin: "10px 0", padding: 0, overflow: "hidden" }}>
+                            <div key={personaId} className="table-card" style={{ margin: "10px 0", padding: 0, overflow: "hidden" }}>
                             <div style={{
                                 display: "flex", alignItems: "center", gap: 8,
                                 padding: "10px 16px", background: "#f8fafc",
@@ -291,6 +298,28 @@ const CementerioDetalle: React.FC = () => {
                                 <span style={{ fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
                                     ({groupRecords.length} registro{groupRecords.length !== 1 ? "s" : ""})
                                 </span>
+                                <div style={{ marginLeft: "auto" }}>
+                                    <button
+                                        className="header-btn"
+                                        style={{
+                                            background: hasMovimientos ? "transparent" : "#f1f5f9",
+                                            color: hasMovimientos ? "var(--azul-institucional)" : "var(--muted)",
+                                            border: hasMovimientos ? "1px solid var(--azul-institucional)" : "1px solid var(--border)",
+                                            cursor: hasMovimientos ? "pointer" : "not-allowed",
+                                            opacity: hasMovimientos ? 1 : 0.6,
+                                            fontSize: 13,
+                                        }}
+                                        disabled={!hasMovimientos}
+                                        title={hasMovimientos ? "Ver movimientos de este nicho" : "No hay registros disponibles"}
+                                        onClick={() => {
+                                            if (hasMovimientos && nicho) {
+                                                navigate(`/tesoreria/movimientos?nicho=${encodeURIComponent(nicho)}`);
+                                            }
+                                        }}
+                                    >
+                                        <History size={14} /> Ver últimos movimientos
+                                    </button>
+                                </div>
                             </div>
                             {groupRecords.map((rec, ridx) => (
                                 <div key={rec.id} style={{ padding: 16, borderBottom: groupRecords.length <= 1 ? "1px solid var(--border)" : "16px solid var(--border)" }}>
