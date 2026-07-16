@@ -4,7 +4,7 @@ import {
     getCementerioMovimientosByNicho,
     insertCementerioMovimiento,
     hasCementerioMovimientosByNicho,
-} from "../src/database/cementerioMovimientosRepository";
+} from "../src/database/cementerioMovimientosRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {

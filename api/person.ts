@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { upsertPerson, getPersonById, deletePersonById } from "../src/database/personsRepository";
-import type { Person } from "../src/models/members";
+import { upsertPerson, getPersonById, deletePersonById } from "../src/database/personsRepository.js";
+import type { Person } from "../src/models/members.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {

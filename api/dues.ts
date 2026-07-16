@@ -5,7 +5,7 @@ import {
     getDuesByPerson,
     insertDue,
     getDuesByMemberWithCemeteryCheck,
-} from "../src/database/duesRepository";
+} from "../src/database/duesRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === "OPTIONS") {

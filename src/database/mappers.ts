@@ -1,5 +1,5 @@
-import type { Member, Person, ServiceRecord } from "../models/members";
-import type { MemberRow, ServiceRecordWithDetails } from "./types";
+import type { Member, Person, ServiceRecord } from "../models/members.js";
+import type { MemberRow, ServiceRecordWithDetails } from "./types.js";
 
 // ── Sexo ──────────────────────────────────────────────
 const sexoToDisplay: Record<string, string> = {

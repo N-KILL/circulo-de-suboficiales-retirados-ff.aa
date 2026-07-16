@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { insertMovement } from "../src/database/pettyCashRepository";
+import { insertMovement } from "../src/database/pettyCashRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === "OPTIONS") {

@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getMovementById, updateMovement, deleteMovement } from "../src/database/pettyCashRepository";
-import { getDueByMovementId, deleteDueByMovementId, updateDueByMovementId } from "../src/database/duesRepository";
-import { getServiceRecordsByMovement, deleteServiceRecordsByMovement } from "../src/database/serviceRecordsRepository";
-import { getCementerioMovimientosByMovement, deleteCementerioMovimientosByMovement } from "../src/database/cementerioMovimientosRepository";
+import { getMovementById, updateMovement, deleteMovement } from "../src/database/pettyCashRepository.js";
+import { getDueByMovementId, deleteDueByMovementId, updateDueByMovementId } from "../src/database/duesRepository.js";
+import { getServiceRecordsByMovement, deleteServiceRecordsByMovement } from "../src/database/serviceRecordsRepository.js";
+import { getCementerioMovimientosByMovement, deleteCementerioMovimientosByMovement } from "../src/database/cementerioMovimientosRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {

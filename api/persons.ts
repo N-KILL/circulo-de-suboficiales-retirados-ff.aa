@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAllPersons } from "../src/database/personsRepository";
-import { searchPersons } from "../src/database/membersRepository";
+import { getAllPersons } from "../src/database/personsRepository.js";
+import { searchPersons } from "../src/database/membersRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== "GET") {

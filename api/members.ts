@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAllMembers } from "../src/database/membersRepository";
+import { getAllMembers } from "../src/database/membersRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== "GET") {

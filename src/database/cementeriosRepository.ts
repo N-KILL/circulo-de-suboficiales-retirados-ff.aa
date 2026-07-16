@@ -1,6 +1,6 @@
-import type { Cementerio } from "../models/members";
-import { getSql } from "./connection";
-import type { CementerioRow } from "./types";
+import type { Cementerio } from "../models/members.js";
+import { getSql } from "./connection.js";
+import type { CementerioRow } from "./types.js";
 
 export type CementerioSeedIssue = {
     csvLine: number;

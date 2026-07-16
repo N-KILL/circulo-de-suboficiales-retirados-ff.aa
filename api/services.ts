@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAllServices, insertService, updateService, deleteService } from "../src/database/servicesRepository";
+import { getAllServices, insertService, updateService, deleteService } from "../src/database/servicesRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {

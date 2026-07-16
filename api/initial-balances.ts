@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getInitialBalances, upsertInitialBalances } from "../src/database/initialBalancesRepository";
+import { getInitialBalances, upsertInitialBalances } from "../src/database/initialBalancesRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { getSql } from "./connection";
+import { getSql } from "./connection.js";
 
 export type DueRow = {
     id: string;

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getMembersDebtStatus } from "../src/database/duesRepository";
-import { getDuesConfig } from "../src/database/duesConfigRepository";
+import { getMembersDebtStatus } from "../src/database/duesRepository.js";
+import { getDuesConfig } from "../src/database/duesConfigRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {

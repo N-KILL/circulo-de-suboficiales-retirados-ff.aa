@@ -5,7 +5,7 @@ import {
     getCementeriosByOwnerId,
     getCementerioOwnerIds,
     updateCementerio,
-} from "../src/database/cementeriosRepository";
+} from "../src/database/cementeriosRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {

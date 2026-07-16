@@ -8,7 +8,7 @@ import {
     insertServiceRecord,
     updateServiceRecord,
     deleteServiceRecord,
-} from "../src/database/serviceRecordsRepository";
+} from "../src/database/serviceRecordsRepository.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {

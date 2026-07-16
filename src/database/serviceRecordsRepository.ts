@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { getSql } from "./connection";
-import type { ServiceRecordWithDetails } from "./types";
+import { getSql } from "./connection.js";
+import type { ServiceRecordWithDetails } from "./types.js";
 
 export async function migrateServiceRecordsSchema(): Promise<void> {
     const sql = getSql();
