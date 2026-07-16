@@ -26,8 +26,13 @@ const Config: React.FC = () => {
     const [success, setSuccess] = useState(false);
 
     const [memberFee, setMemberFee] = useState("");
-    const [cemeteryFee, setCemeteryFee] = useState("");
     const [considerationYears, setConsiderationYears] = useState("");
+    const [nichoMemberFee, setNichoMemberFee] = useState("");
+    const [nichoNonMemberFee, setNichoNonMemberFee] = useState("");
+    const [urnaMemberFee, setUrnaMemberFee] = useState("");
+    const [urnaNonMemberFee, setUrnaNonMemberFee] = useState("");
+    const [bolsaMemberFee, setBolsaMemberFee] = useState("");
+    const [bolsaNonMemberFee, setBolsaNonMemberFee] = useState("");
     const [savingDues, setSavingDues] = useState(false);
     const [duesSuccess, setDuesSuccess] = useState(false);
     const [duesError, setDuesError] = useState<string | null>(null);
@@ -56,12 +61,22 @@ const Config: React.FC = () => {
                 }
                 if (duesCfg) {
                     setMemberFee(duesCfg.member_fee.toString());
-                    setCemeteryFee(duesCfg.cemetery_fee.toString());
                     setConsiderationYears(duesCfg.consideration_years.toString());
+                    setNichoMemberFee(duesCfg.nicho_member_fee.toString());
+                    setNichoNonMemberFee(duesCfg.nicho_non_member_fee.toString());
+                    setUrnaMemberFee(duesCfg.urna_member_fee.toString());
+                    setUrnaNonMemberFee(duesCfg.urna_non_member_fee.toString());
+                    setBolsaMemberFee(duesCfg.bolsa_member_fee.toString());
+                    setBolsaNonMemberFee(duesCfg.bolsa_non_member_fee.toString());
                 } else {
                     setMemberFee("0");
-                    setCemeteryFee("0");
                     setConsiderationYears("0");
+                    setNichoMemberFee("0");
+                    setNichoNonMemberFee("0");
+                    setUrnaMemberFee("0");
+                    setUrnaNonMemberFee("0");
+                    setBolsaMemberFee("0");
+                    setBolsaNonMemberFee("0");
                 }
                 setServices(svcs);
             })
@@ -77,14 +92,16 @@ const Config: React.FC = () => {
         setEditServiceId(null);
     };
 
+    const parseMoney = (v: string) => parseFloat(v.replace(/\./g, "").replace(",", ".")) || 0;
+
     const handleSaveBalances = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
         setError(null);
         setSuccess(false);
         try {
-            const cc = parseFloat(cajaChica.replace(/\./g, "").replace(",", "."));
-            const bk = parseFloat(banco.replace(/\./g, "").replace(",", "."));
+            const cc = parseMoney(cajaChica);
+            const bk = parseMoney(banco);
             if (isNaN(cc) || isNaN(bk)) {
                 throw new Error("Ingresá valores numéricos válidos");
             }
@@ -104,13 +121,17 @@ const Config: React.FC = () => {
         setDuesError(null);
         setDuesSuccess(false);
         try {
-            const cuota = parseFloat(memberFee.replace(/\./g, "").replace(",", "."));
-            const cem = parseFloat(cemeteryFee.replace(/\./g, "").replace(",", "."));
+            const cuota = parseMoney(memberFee);
             const years = parseInt(considerationYears, 10) || 0;
-            if (isNaN(cuota) || isNaN(cem)) {
+            if (isNaN(cuota)) {
                 throw new Error("Ingresá valores numéricos válidos");
             }
-            await saveDuesConfig(cuota, cem, years);
+            await saveDuesConfig(
+                cuota, years,
+                parseMoney(nichoMemberFee), parseMoney(nichoNonMemberFee),
+                parseMoney(urnaMemberFee), parseMoney(urnaNonMemberFee),
+                parseMoney(bolsaMemberFee), parseMoney(bolsaNonMemberFee),
+            );
             setDuesSuccess(true);
             setTimeout(() => setDuesSuccess(false), 3000);
         } catch (err) {
@@ -126,7 +147,7 @@ const Config: React.FC = () => {
         setSavingService(true);
         setServicesError(null);
         try {
-            const amount = parseFloat(svcAmount.replace(/\./g, "").replace(",", ".")) || 0;
+            const amount = parseMoney(svcAmount);
             if (editServiceId) {
                 const updated = await updateService(editServiceId, svcName.trim(), amount);
                 setServices((prev) =>
@@ -235,17 +256,6 @@ const Config: React.FC = () => {
                     </div>
 
                     <div className="config-field">
-                        <label>Cuota de Cementerio</label>
-                        <input
-                            type="text"
-                            className="config-input"
-                            value={cemeteryFee}
-                            onChange={(e) => setCemeteryFee(e.target.value)}
-                            placeholder="0.00"
-                        />
-                    </div>
-
-                    <div className="config-field">
                         <label>Años de consideración</label>
                         <input
                             type="number"
@@ -257,6 +267,83 @@ const Config: React.FC = () => {
                             step={1}
                             placeholder="0"
                         />
+                    </div>
+
+                    <div className="config-cemetery-section">
+                        <label className="config-cemetery-title">Cuotas de Cementerio</label>
+                        <p className="config-cemetery-subtitle">
+                            Definí el valor mensual para cada tipo de sepultura,区分 socios y no socios.
+                        </p>
+                        <div className="config-cemetery-table">
+                            <div className="config-cemetery-header">
+                                <div className="config-cemetery-cell config-cemetery-label"></div>
+                                <div className="config-cemetery-cell config-cemetery-col-header">Socios</div>
+                                <div className="config-cemetery-cell config-cemetery-col-header">No Socios</div>
+                            </div>
+                            <div className="config-cemetery-row">
+                                <div className="config-cemetery-cell config-cemetery-row-label">Nicho</div>
+                                <div className="config-cemetery-cell">
+                                    <input
+                                        type="text"
+                                        className="config-input"
+                                        value={nichoMemberFee}
+                                        onChange={(e) => setNichoMemberFee(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="config-cemetery-cell">
+                                    <input
+                                        type="text"
+                                        className="config-input"
+                                        value={nichoNonMemberFee}
+                                        onChange={(e) => setNichoNonMemberFee(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div className="config-cemetery-row">
+                                <div className="config-cemetery-cell config-cemetery-row-label">Urna</div>
+                                <div className="config-cemetery-cell">
+                                    <input
+                                        type="text"
+                                        className="config-input"
+                                        value={urnaMemberFee}
+                                        onChange={(e) => setUrnaMemberFee(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="config-cemetery-cell">
+                                    <input
+                                        type="text"
+                                        className="config-input"
+                                        value={urnaNonMemberFee}
+                                        onChange={(e) => setUrnaNonMemberFee(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div className="config-cemetery-row">
+                                <div className="config-cemetery-cell config-cemetery-row-label">Bolsa</div>
+                                <div className="config-cemetery-cell">
+                                    <input
+                                        type="text"
+                                        className="config-input"
+                                        value={bolsaMemberFee}
+                                        onChange={(e) => setBolsaMemberFee(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="config-cemetery-cell">
+                                    <input
+                                        type="text"
+                                        className="config-input"
+                                        value={bolsaNonMemberFee}
+                                        onChange={(e) => setBolsaNonMemberFee(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {duesError && <div className="config-error">{duesError}</div>}

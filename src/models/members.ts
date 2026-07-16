@@ -44,6 +44,24 @@ export type Member = {
     apoderado2: Person | null;
 };
 
+export type ServiceRecord = {
+    id: string;
+    serviceId: string | null;
+    serviceName: string | null;
+    serviceAmount: number | null;
+    memberId: string | null;
+    memberNombre: string | null;
+    memberNumeroDeSocio: string | null;
+    personId: string | null;
+    personNombre: string | null;
+    movementId: string | null;
+    movementAmount: number | null;
+    amount: number;
+    date: string;
+    serviceDate: string | null;
+    detail: string;
+};
+
 export type Cementerio = {
     id: string;
     nicho: string;

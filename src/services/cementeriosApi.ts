@@ -41,6 +41,29 @@ export async function fetchCementeriosByNicho(nicho: string): Promise<Cementerio
     return response.json() as Promise<CementerioDetalleRecord[]>;
 }
 
+export async function fetchCementeriosByOwner(
+    ownerId: string,
+    isSocio: boolean,
+): Promise<Cementerio[]> {
+    const response = await fetch(
+        `/api/cementerios?ownerId=${encodeURIComponent(ownerId)}&isSocio=${isSocio}`,
+    );
+    if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "No se pudieron cargar los cementerios del titular");
+    }
+    return response.json() as Promise<Cementerio[]>;
+}
+
+export async function fetchCementerioOwnerIds(): Promise<{ memberIds: string[]; personIds: string[] }> {
+    const response = await fetch("/api/cementerios?owners=true");
+    if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "No se pudieron cargar los propietarios de cementerio");
+    }
+    return response.json() as Promise<{ memberIds: string[]; personIds: string[] }>;
+}
+
 export async function updateCementerioRecord(
     id: string,
     data: Partial<Cementerio>

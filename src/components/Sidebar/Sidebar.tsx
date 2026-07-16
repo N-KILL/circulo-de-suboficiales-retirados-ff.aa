@@ -38,7 +38,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
 
   const submenuLinks = [
     { to: "/tesoreria/movimientos", label: "Movimientos" },
-    { to: "/tesoreria/nuevo-movimiento", label: "Nuevo movimiento" },
+    { to: "/tesoreria/nuevo-movimiento", label: "Nuevo ingreso" },
+    { to: "/tesoreria/historial-servicios", label: "Historial de servicios" },
     { to: "/tesoreria/cementerio", label: "Cementerio" },
   ];
 

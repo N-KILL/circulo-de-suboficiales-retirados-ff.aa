@@ -22,14 +22,17 @@ import { savePayment } from "../../../services/paymentsApi";
 import { fetchMembers, fetchMemberById } from "../../../services/membersApi";
 import { fetchAllPersons, fetchPersonById } from "../../../services/personsApi";
 import { fetchMovementById, updateMovement } from "../../../services/movementsApi";
-import { fetchMemberCemeteryCheck, fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
+import { fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
 import { fetchDuesConfig } from "../../../services/duesConfigApi";
 import { fetchServices } from "../../../services/servicesApi";
+import { fetchCementeriosByOwner, fetchCementerioOwnerIds } from "../../../services/cementeriosApi";
 import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
+import { saveServiceRecord, updateServiceRecord, fetchServiceRecordsByMovement, deleteServiceRecord } from "../../../services/serviceRecordsApi";
+import { saveService } from "../../../services/servicesApi";
 import type { DuesConfig } from "../../../services/duesConfigApi";
 import type { ServiceItem } from "../../../services/servicesApi";
 import type { MembersDebtStatus } from "../../../services/membersDebtApi";
-import type { Member, Person } from "../../../models/members";
+import type { Member, Person, Cementerio } from "../../../models/members";
 import "./NewMovement.css";
 
 function toCurrency(val: number): string {
@@ -67,7 +70,6 @@ const NewMovement: React.FC = () => {
   const [memberSearch, setMemberSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
-  const [memberHasCementerio, setMemberHasCementerio] = useState(false);
   const [familyPayment, setFamilyPayment] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
   const [selectedFamilyMembers, setSelectedFamilyMembers] = useState<Set<string>>(new Set());
@@ -77,6 +79,7 @@ const NewMovement: React.FC = () => {
   const [showPersonDropdown, setShowPersonDropdown] = useState(false);
 
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
+  const [serviceDate, setServiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [importeStr, setImporteStr] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [periods, setPeriods] = useState<string[]>([]);
@@ -92,6 +95,17 @@ const NewMovement: React.FC = () => {
 
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const [cementeriosList, setCementeriosList] = useState<Cementerio[]>([]);
+  const [selectedCementerios, setSelectedCementerios] = useState<Cementerio[]>([]);
+  const [cementerioSelectedYears, setCementerioSelectedYears] = useState<Map<string, Set<string>>>(new Map());
+  const [cementerioOwnerIds, setCementerioOwnerIds] = useState<{ memberIds: string[]; personIds: string[] } | null>(null);
+
+  const [showNewServiceModal, setShowNewServiceModal] = useState(false);
+  const [newServiceName, setNewServiceName] = useState("");
+  const [newServiceCost, setNewServiceCost] = useState("");
+  const [savingService, setSavingService] = useState(false);
+  const [serviceError, setServiceError] = useState<string | null>(null);
 
   const memberSearchRef = useRef<HTMLDivElement>(null);
   const personSearchRef = useRef<HTMLDivElement>(null);
@@ -160,22 +174,121 @@ const NewMovement: React.FC = () => {
 
   useEffect(() => {
     if (!selectedMember) {
-      setMemberHasCementerio(false);
       setFamilyPayment(false);
       setFamilyMembers([]);
       setSelectedFamilyMembers(new Set());
       return;
     }
+  }, [selectedMember]);
+
+  useEffect(() => {
+    if (concept !== "Cementerio") {
+      setCementeriosList([]);
+      setSelectedCementerios([]);
+      setCementerioSelectedYears(new Map());
+      return;
+    }
+    const ownerId = personType === "socio" ? selectedMember?.id : selectedPerson?.id;
+    if (!ownerId) {
+      setCementeriosList([]);
+      setSelectedCementerios([]);
+      setCementerioSelectedYears(new Map());
+      return;
+    }
     let mounted = true;
-    fetchMemberCemeteryCheck(selectedMember.id)
-      .then((result) => {
-        if (mounted) setMemberHasCementerio(result.hasCementerio);
+    fetchCementeriosByOwner(ownerId, personType === "socio")
+      .then((list) => {
+        if (mounted) {
+          setCementeriosList(list);
+          setSelectedCementerios([]);
+          setCementerioSelectedYears(new Map());
+        }
       })
       .catch(() => {
-        if (mounted) setMemberHasCementerio(false);
+        if (mounted) {
+          setCementeriosList([]);
+          setSelectedCementerios([]);
+          setCementerioSelectedYears(new Map());
+        }
       });
     return () => { mounted = false; };
-  }, [selectedMember]);
+  }, [concept, personType, selectedMember, selectedPerson, id]);
+
+  useEffect(() => {
+    if (concept !== "Cementerio") {
+      setCementerioOwnerIds(null);
+      return;
+    }
+    let mounted = true;
+    fetchCementerioOwnerIds()
+      .then((ids) => { if (mounted) setCementerioOwnerIds(ids); })
+      .catch(() => { if (mounted) setCementerioOwnerIds(null); });
+    return () => { mounted = false; };
+  }, [concept]);
+
+  function getAvailableYears(c: Cementerio): number[] {
+    const currentYear = new Date().getFullYear();
+    const ultimoPago = c.ultimoPago ? parseInt(c.ultimoPago, 10) : 0;
+    const years: number[] = [];
+    for (let y = ultimoPago + 1; y <= currentYear; y++) {
+      years.push(y);
+    }
+    return years;
+  }
+
+  function getFeeForCementerio(c: Cementerio): number {
+    if (!duesConfig) return 0;
+    const tipo = (c.tipo || "nicho").toLowerCase();
+    const isSocio = personType === "socio";
+    if (tipo === "urna") return isSocio ? duesConfig.urna_member_fee : duesConfig.urna_non_member_fee;
+    if (tipo === "bolsa") return isSocio ? duesConfig.bolsa_member_fee : duesConfig.bolsa_non_member_fee;
+    return isSocio ? duesConfig.nicho_member_fee : duesConfig.nicho_non_member_fee;
+  }
+
+  function toggleCementerioSelection(c: Cementerio) {
+    setSelectedCementerios((prev) => {
+      const exists = prev.find((x) => x.id === c.id);
+      if (exists) {
+        setCementerioSelectedYears((prev2) => {
+          const next = new Map(prev2);
+          next.delete(c.id);
+          return next;
+        });
+        return prev.filter((x) => x.id !== c.id);
+      }
+      const available = getAvailableYears(c);
+      setCementerioSelectedYears((prev2) => {
+        const next = new Map(prev2);
+        next.set(c.id, new Set(available.map(String)));
+        return next;
+      });
+      return [...prev, c];
+    });
+    setErrors((prev) => {
+      if (!prev.period) return prev;
+      const next = { ...prev };
+      delete next.period;
+      return next;
+    });
+  }
+
+  function toggleYearForCementerio(cementerioId: string, year: string) {
+    setCementerioSelectedYears((prev) => {
+      const next = new Map(prev);
+      const current = next.get(cementerioId) || new Set();
+      const updated = new Set(current);
+      if (updated.has(year)) updated.delete(year);
+      else updated.add(year);
+      next.set(cementerioId, updated);
+      return next;
+    });
+    setErrors((prev) => {
+      if (!prev.period) return prev;
+      const next = { ...prev };
+      delete next.period;
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!selectedMember || !familyPayment || concept !== "Cuota Socio") {
@@ -291,6 +404,19 @@ const NewMovement: React.FC = () => {
     return () => { mounted = false; };
   }, [id]);
 
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    fetchServiceRecordsByMovement(id)
+      .then((records) => {
+        if (mounted && records.length > 0 && records[0].service_date) {
+          setServiceDate(records[0].service_date);
+        }
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [id]);
+
   const selectedServiceAmount = useMemo(() => {
     if (concept !== "Servicios" || !servicio) return null;
     const found = serviciosFromApi.find((s) => s.name === servicio);
@@ -346,10 +472,13 @@ const NewMovement: React.FC = () => {
       const monthCount = unpaidPeriods.length > 0 ? unpaidPeriods.length : 1;
       const total = duesConfig.member_fee * count * monthCount;
       setImporteStr(total.toString().replace(".", ","));
-    } else if (concept === "Cementerio" && duesConfig) {
-      const unpaidPeriods = periods.filter((p) => !paidPeriods.has(p));
-      const monthCount = unpaidPeriods.length > 0 ? unpaidPeriods.length : 1;
-      const total = duesConfig.cemetery_fee * monthCount;
+    } else if (concept === "Cementerio" && duesConfig && selectedCementerios.length > 0) {
+      let total = 0;
+      for (const c of selectedCementerios) {
+        const years = cementerioSelectedYears.get(c.id);
+        const yearCount = years ? years.size : 0;
+        total += getFeeForCementerio(c) * yearCount;
+      }
       setImporteStr(total.toString().replace(".", ","));
     } else if (concept === "Servicios" && selectedServiceAmount !== null) {
       setImporteStr(selectedServiceAmount.toString().replace(".", ","));
@@ -360,13 +489,11 @@ const NewMovement: React.FC = () => {
       delete next.period;
       return next;
     });
-  }, [concept, duesConfig, selectedServiceAmount, familyPayment, selectedFamilyMembers, periods, paidPeriods]);
+  }, [concept, duesConfig, selectedServiceAmount, familyPayment, selectedFamilyMembers, periods, paidPeriods, selectedCementerios, cementerioSelectedYears, personType]);
 
   const socioConcepts = useMemo(() => {
-    const base = ["Cuota Socio", "Servicios"];
-    if (memberHasCementerio) base.push("Cementerio");
-    return base;
-  }, [memberHasCementerio]);
+    return ["Cuota Socio", "Servicios", "Cementerio"];
+  }, []);
 
   const personaConcepts = ["Servicios", "Cementerio"];
 
@@ -389,14 +516,19 @@ const NewMovement: React.FC = () => {
     }
   }, [showServicioSelect, servicio, serviciosFromApi]);
 
-  const shouldCreateDue = concept === "Cuota Socio" || concept === "Cementerio";
+  const shouldCreateDue = concept === "Cuota Socio" || (concept === "Cementerio" && selectedCementerios.length > 0);
 
   const mode = cajaOrigen === "caja_chica" ? "efectivo" : "transferencia";
 
   const memberResults = useMemo(() => {
+    let list = members;
+    if (concept === "Cementerio" && cementerioOwnerIds) {
+      const ids = new Set(cementerioOwnerIds.memberIds);
+      list = members.filter((m) => ids.has(m.id));
+    }
     if (memberSearch.trim()) {
       const q = memberSearch.toLowerCase();
-      return members
+      return list
         .filter(
           (m) =>
             m.nombre.toLowerCase().includes(q) ||
@@ -405,18 +537,23 @@ const NewMovement: React.FC = () => {
         )
         .slice(0, 10);
     }
-    return members.slice(0, 10);
-  }, [members, memberSearch]);
+    return list.slice(0, 10);
+  }, [members, memberSearch, concept, cementerioOwnerIds]);
 
   const personResults = useMemo(() => {
+    let list = persons;
+    if (concept === "Cementerio" && cementerioOwnerIds) {
+      const ids = new Set(cementerioOwnerIds.personIds);
+      list = persons.filter((p) => ids.has(p.id));
+    }
     if (personSearch.trim()) {
       const q = personSearch.toLowerCase();
-      return persons
+      return list
         .filter((p) => p.nombre.toLowerCase().includes(q) || p.documento.includes(q))
         .slice(0, 10);
     }
-    return persons.slice(0, 10);
-  }, [persons, personSearch]);
+    return list.slice(0, 10);
+  }, [persons, personSearch, concept, cementerioOwnerIds]);
 
   const importeNum = useMemo(() => {
     const cleaned = importeStr.replace(/[^0-9,]/g, "").replace(",", ".");
@@ -438,8 +575,20 @@ const NewMovement: React.FC = () => {
     if (!fecha) {
       errs.fecha = "Ingresá una fecha";
     }
-    if (shouldCreateDue && periods.length === 0) {
+    if (shouldCreateDue && concept === "Cuota Socio" && periods.length === 0) {
       errs.period = "Seleccioná al menos un mes";
+    }
+    if (concept === "Cementerio" && selectedCementerios.length === 0) {
+      errs.period = "Seleccioná al menos un nicho/urna/bolsa";
+    }
+    if (concept === "Cementerio" && selectedCementerios.length > 0) {
+      const allEmpty = selectedCementerios.every((c) => {
+        const years = cementerioSelectedYears.get(c.id);
+        return !years || years.size === 0;
+      });
+      if (allEmpty) {
+        errs.period = "Seleccioná al menos un año para pagar";
+      }
     }
     if (!importeNum || importeNum <= 0) {
       errs.importe = "Ingresá un importe válido mayor a cero";
@@ -463,7 +612,6 @@ const NewMovement: React.FC = () => {
   const handleClearMember = useCallback(() => {
     setSelectedMember(null);
     setMemberSearch("");
-    setMemberHasCementerio(false);
     setFamilyPayment(false);
     setFamilyMembers([]);
     setSelectedFamilyMembers(new Set());
@@ -531,6 +679,39 @@ const NewMovement: React.FC = () => {
             concept: conceptLabel,
             due: Object.keys(dueData).length > 0 ? dueData : undefined,
           });
+
+          const existingRecords = await fetchServiceRecordsByMovement(id);
+          const existingRecord = existingRecords.length > 0 ? existingRecords[0] : null;
+
+          if (concept === "Servicios" && servicio) {
+            const service = serviciosFromApi.find((s) => s.name === servicio);
+            if (service) {
+              if (existingRecord) {
+                await updateServiceRecord(existingRecord.id, {
+                  service_id: service.id,
+                  member_id: personType === "socio" ? selectedMember?.id ?? null : null,
+                  person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
+                  amount: importeNum,
+                  date: fecha,
+                  service_date: serviceDate,
+                  detail: descripcion || null,
+                });
+              } else {
+                await saveServiceRecord({
+                  service_id: service.id,
+                  member_id: personType === "socio" ? selectedMember?.id ?? null : null,
+                  person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
+                  movement_id: id,
+                  amount: importeNum,
+                  date: fecha,
+                  service_date: serviceDate,
+                  detail: descripcion || null,
+                });
+              }
+            }
+          } else if (existingRecord) {
+            await deleteServiceRecord(existingRecord.id);
+          }
         } else {
           const { id: movementId } = await savePayment({
             date: fecha,
@@ -543,14 +724,24 @@ const NewMovement: React.FC = () => {
 
           if (shouldCreateDue) {
             const dueType = concept === "Cementerio" ? "cementerio" : "socio";
-            const commonDue = {
-              type: dueType,
-              payment_date: fecha,
-              period: periods.length > 0 ? periods : null,
-            } as const;
-            if (dueType === "socio" && familyPayment && selectedMember && selectedFamilyMembers.size > 0) {
+            if (dueType === "cementerio") {
+              for (const c of selectedCementerios) {
+                const years = cementerioSelectedYears.get(c.id);
+                const yearPeriods = years ? Array.from(years).sort() : null;
+                await saveDue({
+                  type: "cementerio",
+                  payment_date: fecha,
+                  period: yearPeriods,
+                  member_id: personType === "socio" ? selectedMember?.id ?? null : null,
+                  person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
+                  movement_id: movementId,
+                });
+              }
+            } else if (familyPayment && selectedMember && selectedFamilyMembers.size > 0) {
               await saveDue({
-                ...commonDue,
+                type: "socio",
+                payment_date: fecha,
+                period: periods.length > 0 ? periods : null,
                 member_id: selectedMember.id,
                 movement_id: movementId,
                 family_group: selectedMember.nroFamilia.split("/")[0],
@@ -558,10 +749,28 @@ const NewMovement: React.FC = () => {
               });
             } else {
               await saveDue({
-                ...commonDue,
+                type: "socio",
+                payment_date: fecha,
+                period: periods.length > 0 ? periods : null,
                 member_id: personType === "socio" ? selectedMember?.id ?? null : null,
                 person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
                 movement_id: movementId,
+              });
+            }
+          }
+
+          if (concept === "Servicios" && servicio) {
+            const service = serviciosFromApi.find((s) => s.name === servicio);
+            if (service) {
+              await saveServiceRecord({
+                service_id: service.id,
+                member_id: personType === "socio" ? selectedMember?.id ?? null : null,
+                person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
+                movement_id: movementId,
+                amount: importeNum,
+                date: fecha,
+                service_date: serviceDate,
+                detail: descripcion || null,
               });
             }
           }
@@ -573,12 +782,15 @@ const NewMovement: React.FC = () => {
           setSuccess(true);
           setSelectedMember(null);
           setMemberSearch("");
-          setMemberHasCementerio(false);
           setFamilyPayment(false);
           setFamilyMembers([]);
           setSelectedFamilyMembers(new Set());
           setSelectedPerson(null);
           setPersonSearch("");
+          setSelectedCementerios([]);
+          setCementerioSelectedYears(new Map());
+          setCementeriosList([]);
+          setServiceDate(new Date().toISOString().split("T")[0]);
           setImporteStr("");
           setDescripcion("");
           setErrors({});
@@ -593,9 +805,9 @@ const NewMovement: React.FC = () => {
     },
     [
       isEditing, id, validate, showServicioSelect, servicio, concept, payerName,
-      descripcion, fecha, importeNum, mode, shouldCreateDue,
+      descripcion, fecha, serviceDate, importeNum, mode, shouldCreateDue,
       personType, selectedMember, selectedPerson, familyPayment, selectedFamilyMembers,
-      periods, navigate,
+      periods, navigate, serviciosFromApi,
     ]
   );
 
@@ -675,7 +887,21 @@ const NewMovement: React.FC = () => {
                 <select
                   className="form-control"
                   value={personType}
-                  onChange={(e) => setPersonType(e.target.value as "socio" | "persona")}
+                  onChange={(e) => {
+                    setPersonType(e.target.value as "socio" | "persona");
+                    setSelectedMember(null);
+                    setMemberSearch("");
+                    setFamilyPayment(false);
+                    setFamilyMembers([]);
+                    setSelectedFamilyMembers(new Set());
+                    setSelectedPerson(null);
+                    setPersonSearch("");
+                    setPeriods([]);
+                    setPaidPeriods(new Set());
+                    setSelectedCementerios([]);
+                    setCementerioSelectedYears(new Map());
+                    setCementeriosList([]);
+                  }}
                 >
                   <option value="socio">Socio</option>
                   <option value="persona">Persona</option>
@@ -702,19 +928,35 @@ const NewMovement: React.FC = () => {
                   <label>
                     Servicio <span className="required">*</span>
                   </label>
-                  <select
-                    className="form-control"
-                    value={servicio}
-                    onChange={(e) => setServicio(e.target.value)}
-                  >
-                    {serviciosFromApi.length === 0 ? (
-                      <option value="">No hay servicios disponibles</option>
-                    ) : (
-                      serviciosFromApi.map((s) => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                      ))
-                    )}
-                  </select>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <select
+                      className="form-control"
+                      value={servicio}
+                      onChange={(e) => setServicio(e.target.value)}
+                      style={{ flex: 1 }}
+                    >
+                      {serviciosFromApi.length === 0 ? (
+                        <option value="">No hay servicios disponibles</option>
+                      ) : (
+                        serviciosFromApi.map((s) => (
+                          <option key={s.id} value={s.name}>{s.name}</option>
+                        ))
+                      )}
+                    </select>
+                    <button
+                      type="button"
+                      className="add-service-btn"
+                      onClick={() => {
+                        setNewServiceName("");
+                        setNewServiceCost("");
+                        setServiceError(null);
+                        setShowNewServiceModal(true);
+                      }}
+                      title="Agregar nuevo servicio"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -915,8 +1157,89 @@ const NewMovement: React.FC = () => {
               </div>
             </div>
 
+              {concept === "Cementerio" && (
+                <div className="cementerio-section-full">
+                  <label className="cementerio-section-label">
+                    Cementerio <span className="required">*</span>
+                  </label>
+                  {cementeriosList.length === 0 ? (
+                    <p className="cementerio-empty-msg">
+                      No se encontraron nichos/urnas/bolsas para este titular.
+                    </p>
+                  ) : (
+                    <div className="cementerio-cards-grid">
+                      {cementeriosList.map((c) => {
+                        const isSelected = selectedCementerios.some((x) => x.id === c.id);
+                        const availableYears = getAvailableYears(c);
+                        const selectedYears = cementerioSelectedYears.get(c.id) || new Set();
+                        return (
+                          <div
+                            key={c.id}
+                            className={`cementerio-selectable-card${isSelected ? " cementerio-card-selected" : ""}`}
+                          >
+                            <label className="cementerio-card-header">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleCementerioSelection(c)}
+                              />
+                              <div className="cementerio-card-title">
+                                <span className="cementerio-card-nicho">{c.nicho}</span>
+                                <span className="cementerio-card-tipo">{c.tipo || "Nicho"}</span>
+                              </div>
+                            </label>
+                            <div className="cementerio-card-details">
+                              <div className="cementerio-card-row">
+                                <span className="cementerio-card-dlabel">Ocupante</span>
+                                <span className="cementerio-card-dvalue">{c.ocupante || "—"}</span>
+                              </div>
+                              <div className="cementerio-card-row">
+                                <span className="cementerio-card-dlabel">Año Gracia</span>
+                                <span className="cementerio-card-dvalue">{c.anioDeGracia || "—"}</span>
+                              </div>
+                              <div className="cementerio-card-row">
+                                <span className="cementerio-card-dlabel">Último Pago</span>
+                                <span className="cementerio-card-dvalue">{c.ultimoPago || "—"}</span>
+                              </div>
+                              <div className="cementerio-card-row">
+                                <span className="cementerio-card-dlabel">Nº Orden</span>
+                                <span className="cementerio-card-dvalue">{c.numeroOrden || "—"}</span>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <div className="cementerio-card-years">
+                                <span className="cementerio-card-years-label">Años a pagar:</span>
+                                {availableYears.length === 0 ? (
+                                  <span className="cementerio-al-day">Al día</span>
+                                ) : (
+                                  <div className="cementerio-years-chips">
+                                    {availableYears.map((y) => {
+                                      const ys = String(y);
+                                      return (
+                                        <button
+                                          key={y}
+                                          type="button"
+                                          className={`cementerio-year-chip${selectedYears.has(ys) ? " chip-active" : ""}`}
+                                          onClick={() => toggleYearForCementerio(c.id, ys)}
+                                        >
+                                          {y}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
             <div className="period-details-row">
-              {shouldCreateDue && (
+              {shouldCreateDue && concept === "Cuota Socio" && (
                 <div className="period-column">
                   <div className="period-field-group">
                     <label>
@@ -967,7 +1290,7 @@ const NewMovement: React.FC = () => {
               <div className="details-column">
                 <div className="form-group">
                   <label>
-                    Fecha <span className="required">*</span>
+                    {showServicioSelect ? "Fecha de pago" : "Fecha"} <span className="required">*</span>
                   </label>
                   <div className="input-with-icon date-input-wrap">
                     <input
@@ -1005,6 +1328,34 @@ const NewMovement: React.FC = () => {
                     <span className="field-error">{errors.fecha}</span>
                   )}
                 </div>
+
+                {showServicioSelect && (
+                  <div className="form-group">
+                    <label>Fecha del servicio</label>
+                    <div className="input-with-icon date-input-wrap">
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={serviceDate}
+                        onChange={(e) => setServiceDate(e.target.value)}
+                        id="service-date"
+                      />
+                      <button
+                        type="button"
+                        className="date-picker-btn"
+                        onClick={() => {
+                          const el = document.getElementById("service-date") as HTMLInputElement | null;
+                          if (el) {
+                            el.focus();
+                            el.showPicker?.();
+                          }
+                        }}
+                      >
+                        <Calendar size={18} />
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label>
@@ -1104,10 +1455,18 @@ const NewMovement: React.FC = () => {
               </div>
               <div className="summary-item">
                 <div className="summary-label">
-                  <Calendar size={16} /> <span>Fecha</span>
+                  <Calendar size={16} /> <span>{showServicioSelect ? "Fecha de pago" : "Fecha"}</span>
                 </div>
                 <div className="summary-value">{fecha || "—"}</div>
               </div>
+              {showServicioSelect && (
+                <div className="summary-item">
+                  <div className="summary-label">
+                    <Calendar size={16} /> <span>Fecha del servicio</span>
+                  </div>
+                  <div className="summary-value">{serviceDate || "—"}</div>
+                </div>
+              )}
               <div className="summary-item">
                 <div className="summary-label">
                   <DollarSign size={16} /> <span>Importe</span>
@@ -1220,6 +1579,84 @@ const NewMovement: React.FC = () => {
           )}
         </div>
       </div>
+
+      {showNewServiceModal && (
+        <div className="modal-overlay" onClick={() => setShowNewServiceModal(false)}>
+          <div className="modal-content" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Nuevo Servicio</h3>
+              <button className="modal-close" onClick={() => setShowNewServiceModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 16, padding: 20 }}>
+              {serviceError && (
+                <div className="error-banner" style={{ fontSize: 13 }}>
+                  <Info size={16} /> {serviceError}
+                </div>
+              )}
+              <div className="form-group">
+                <label>Nombre <span className="required">*</span></label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Nombre del servicio"
+                  value={newServiceName}
+                  onChange={(e) => setNewServiceName(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Costo <span className="required">*</span></label>
+                <div className="input-with-icon">
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="0,00"
+                    value={newServiceCost}
+                    onChange={(e) => setNewServiceCost(e.target.value.replace(/[^0-9,]/g, ""))}
+                  />
+                  <DollarSign size={18} className="input-icon" />
+                </div>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="btn-cancel" onClick={() => setShowNewServiceModal(false)} disabled={savingService}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn-save"
+                  disabled={savingService || !newServiceName.trim() || !newServiceCost}
+                  onClick={async () => {
+                    const cost = parseFloat(newServiceCost.replace(",", "."));
+                    if (!newServiceName.trim()) {
+                      setServiceError("Ingresá un nombre");
+                      return;
+                    }
+                    if (isNaN(cost) || cost <= 0) {
+                      setServiceError("Ingresá un costo válido");
+                      return;
+                    }
+                    setSavingService(true);
+                    setServiceError(null);
+                    try {
+                      const created = await saveService(newServiceName.trim(), cost);
+                      setServiciosFromApi((prev) => [...prev, created]);
+                      setServicio(created.name);
+                      setShowNewServiceModal(false);
+                    } catch (err) {
+                      setServiceError(err instanceof Error ? err.message : "Error al guardar servicio");
+                    } finally {
+                      setSavingService(false);
+                    }
+                  }}
+                >
+                  {savingService ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 };

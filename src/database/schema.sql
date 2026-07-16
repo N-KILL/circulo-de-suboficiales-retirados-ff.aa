@@ -130,15 +130,20 @@ CREATE INDEX IF NOT EXISTS idx_dues_person_id   ON dues (person_id);
 CREATE INDEX IF NOT EXISTS idx_dues_type        ON dues (type);
 
 CREATE TABLE IF NOT EXISTS pricing (
-    id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
-    member_fee          NUMERIC(12,2)   NOT NULL DEFAULT 0,
-    cemetery_fee        NUMERIC(12,2)   NOT NULL DEFAULT 0,
-    consideration_years INT             NOT NULL DEFAULT 0,
-    updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+    id                      UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    member_fee              NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    consideration_years     INT             NOT NULL DEFAULT 0,
+    nicho_member_fee        NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    nicho_non_member_fee    NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    urna_member_fee         NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    urna_non_member_fee     NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    bolsa_member_fee        NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    bolsa_non_member_fee    NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    updated_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO pricing (id, member_fee, cemetery_fee, consideration_years)
-VALUES ('00000000-0000-0000-0000-000000000002', 0, 0, 0)
+INSERT INTO pricing (id, member_fee, consideration_years)
+VALUES ('00000000-0000-0000-0000-000000000002', 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS services (
@@ -148,3 +153,22 @@ CREATE TABLE IF NOT EXISTS services (
     created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS service_records (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_id      UUID            REFERENCES services(id) ON DELETE SET NULL,
+    member_id       UUID            REFERENCES members(id) ON DELETE SET NULL,
+    person_id       UUID            REFERENCES persons(id) ON DELETE SET NULL,
+    movement_id     UUID            REFERENCES petty_cash(id) ON DELETE SET NULL,
+    amount          NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    date            DATE            NOT NULL,
+    service_date    DATE,
+    detail          TEXT,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_service_records_service_id   ON service_records (service_id);
+CREATE INDEX IF NOT EXISTS idx_service_records_member_id    ON service_records (member_id);
+CREATE INDEX IF NOT EXISTS idx_service_records_person_id    ON service_records (person_id);
+CREATE INDEX IF NOT EXISTS idx_service_records_movement_id  ON service_records (movement_id);

@@ -34,6 +34,39 @@ export type PersonRow = {
     created_at: string;
 };
 
+export type ServiceRecordRow = {
+    id: string;
+    service_id: string | null;
+    member_id: string | null;
+    person_id: string | null;
+    movement_id: string | null;
+    amount: number;
+    date: string;
+    detail: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
+export type ServiceRecordWithDetails = {
+    id: string;
+    service_id: string | null;
+    service_name: string | null;
+    service_amount: number | null;
+    member_id: string | null;
+    member_nombre: string | null;
+    member_numero_de_socio: string | null;
+    person_id: string | null;
+    person_nombre: string | null;
+    movement_id: string | null;
+    movement_amount: number | null;
+    amount: number;
+    date: string;
+    service_date: string | null;
+    detail: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
 export type MemberRow = {
     id: string;
     numero_de_socio: string;

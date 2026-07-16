@@ -103,10 +103,10 @@ const Movements: React.FC = () => {
   }, []);
 
   // ── Running balances ──────────────────────────────────
-  const movementsWithSaldo = useMemo(() => {
+  const { movementsWithSaldo, finalBanco, finalCajaChica } = useMemo(() => {
     let rb = initialBanco;
     let rc = initialCajaChica;
-    return rawMovements.map((m) => {
+    const items = rawMovements.map((m) => {
       if (m.type === "ingreso") {
         rb += m.amount;
         if (m.mode === "efectivo") rc += m.amount;
@@ -125,11 +125,12 @@ const Movements: React.FC = () => {
         concepto: m.detail,
         ingreso: m.type === "ingreso" ? formatCurrency(m.amount) : "-",
         egreso: m.type === "egreso" ? formatCurrency(m.amount) : "-",
-        saldoBanco: formatCurrency(rb),
-        saldoCajaChica: formatCurrency(rc),
+        saldoBanco: m.mode === "transferencia" ? formatCurrency(rb) : null,
+        saldoCajaChica: m.mode === "efectivo" ? formatCurrency(rc) : null,
         dateObj: new Date(m.date + "T12:00:00"),
       };
     });
+    return { movementsWithSaldo: items, finalBanco: rb, finalCajaChica: rc };
   }, [rawMovements, initialBanco, initialCajaChica]);
 
   // ── Filtered ──────────────────────────────────────────
@@ -203,14 +204,8 @@ const Movements: React.FC = () => {
   if (isLoading) return <div className="dashboard-loading">Cargando movimientos...</div>;
   if (error) return <div className="dashboard-loading" style={{ color: "var(--danger)" }}>Error: {error}</div>;
 
-  const ultimoSaldoBanco =
-    movementsWithSaldo.length > 0
-      ? movementsWithSaldo[movementsWithSaldo.length - 1].saldoBanco
-      : formatCurrency(initialBanco);
-  const ultimoSaldoCajaChica =
-    movementsWithSaldo.length > 0
-      ? movementsWithSaldo[movementsWithSaldo.length - 1].saldoCajaChica
-      : formatCurrency(initialCajaChica);
+  const ultimoSaldoBanco = formatCurrency(finalBanco);
+  const ultimoSaldoCajaChica = formatCurrency(finalCajaChica);
 
   return (
     <div className="treasury-container">
@@ -386,8 +381,8 @@ const Movements: React.FC = () => {
                     <td>{m.concepto}</td>
                     <td className="amount-ingreso">{m.ingreso}</td>
                     <td className="amount-egreso">{m.egreso}</td>
-                    {showSaldoColumns && <td className="amount-saldo">{m.saldoBanco}</td>}
-                    {showSaldoColumns && <td className="amount-saldo">{m.saldoCajaChica}</td>}
+                    {showSaldoColumns && <td className="amount-saldo">{m.saldoBanco ?? "—"}</td>}
+                    {showSaldoColumns && <td className="amount-saldo">{m.saldoCajaChica ?? "—"}</td>}
                   </tr>
                 ))
               )}

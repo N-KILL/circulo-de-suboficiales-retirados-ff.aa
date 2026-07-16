@@ -8,7 +8,7 @@ const QuickActions: React.FC = () => {
 
   const actions = [
     { label: "Movimientos", icon: ArrowRightLeft, variant: "azul", to: "/tesoreria/movimientos" },
-    { label: "Nuevo Ingreso", icon: ArrowDown, variant: "verde", to: "/tesoreria/ingresos/nuevo-pago" },
+    { label: "Nuevo Ingreso", icon: ArrowDown, variant: "verde", to: "/tesoreria/nuevo-movimiento" },
     { label: "Nuevo Egreso", icon: ArrowUp, variant: "naranja", to: "/tesoreria/egresos/nuevo-egreso" },
     { label: "Reporte Tesorería", icon: FileText, variant: "azul", to: undefined },
   ];

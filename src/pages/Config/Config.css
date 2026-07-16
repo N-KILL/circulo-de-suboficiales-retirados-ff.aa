@@ -110,3 +110,70 @@
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+.config-cemetery-section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    background: var(--gris-claro);
+}
+
+.config-cemetery-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+}
+
+.config-cemetery-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0 0 12px 0;
+    line-height: 1.4;
+}
+
+.config-cemetery-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.config-cemetery-header,
+.config-cemetery-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+}
+
+.config-cemetery-header {
+    margin-bottom: 4px;
+}
+
+.config-cemetery-row {
+    padding: 4px 0;
+}
+
+.config-cemetery-cell {
+    display: flex;
+    flex-direction: column;
+}
+
+.config-cemetery-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.config-cemetery-col-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--azul-armada);
+    text-align: center;
+}
+
+.config-cemetery-row-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}

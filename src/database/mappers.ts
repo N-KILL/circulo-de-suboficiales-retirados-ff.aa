@@ -1,5 +1,5 @@
-import type { Member, Person } from "../models/members";
-import type { MemberRow } from "./types";
+import type { Member, Person, ServiceRecord } from "../models/members";
+import type { MemberRow, ServiceRecordWithDetails } from "./types";
 
 // ── Sexo ──────────────────────────────────────────────
 const sexoToDisplay: Record<string, string> = {
@@ -165,5 +165,25 @@ export function rowToMember(row: MemberRow): Member {
         fallecido: row.fallecido,
         apoderado1: personFromRow(row, "apoderado1"),
         apoderado2: personFromRow(row, "apoderado2"),
+    };
+}
+
+export function rowToServiceRecord(row: ServiceRecordWithDetails): ServiceRecord {
+    return {
+        id: row.id,
+        serviceId: row.service_id,
+        serviceName: row.service_name,
+        serviceAmount: row.service_amount,
+        memberId: row.member_id,
+        memberNombre: row.member_nombre,
+        memberNumeroDeSocio: row.member_numero_de_socio,
+        personId: row.person_id,
+        personNombre: row.person_nombre,
+        movementId: row.movement_id,
+        movementAmount: row.movement_amount,
+        amount: row.amount,
+        date: row.date,
+        serviceDate: row.service_date,
+        detail: row.detail ?? "",
     };
 }

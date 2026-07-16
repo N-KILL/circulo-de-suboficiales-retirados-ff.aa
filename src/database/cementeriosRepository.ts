@@ -97,6 +97,32 @@ export function cementerioToRow(cementerio: Cementerio) {
     };
 }
 
+export async function getCementeriosByOwnerId(ownerId: string, isSocio: boolean): Promise<Cementerio[]> {
+    const sql = getSql();
+    const condition = isSocio
+        ? sql`c.socio_id = ${ownerId}`
+        : sql`c.persona_id = ${ownerId}`;
+    const rows = await sql`
+        SELECT c.*
+        FROM cementerios c
+        WHERE ${condition}
+        ORDER BY c.nicho, c.created_at
+    ` as CementerioRow[];
+    return rows.map(rowToCementerio);
+}
+
+export async function getCementerioOwnerIds(): Promise<{ memberIds: string[]; personIds: string[] }> {
+    const sql = getSql();
+    const rows = await sql`
+        SELECT DISTINCT socio_id, persona_id
+        FROM cementerios
+        WHERE socio_id IS NOT NULL OR persona_id IS NOT NULL
+    ` as { socio_id: string | null; persona_id: string | null }[];
+    const memberIds = [...new Set(rows.map((r) => r.socio_id).filter(Boolean))] as string[];
+    const personIds = [...new Set(rows.map((r) => r.persona_id).filter(Boolean))] as string[];
+    return { memberIds, personIds };
+}
+
 function formatDbError(error: unknown): string {
     if (error instanceof Error) return error.message;
     return String(error);

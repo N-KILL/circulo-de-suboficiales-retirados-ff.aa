@@ -9,12 +9,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return;
         }
         if (req.method === "POST") {
-            const { member_fee, cemetery_fee, consideration_years } = req.body;
-            if (member_fee === undefined || cemetery_fee === undefined) {
-                res.status(400).json({ error: "Faltan parámetros member_fee y/o cemetery_fee" });
+            const {
+                member_fee, consideration_years,
+                nicho_member_fee, nicho_non_member_fee,
+                urna_member_fee, urna_non_member_fee,
+                bolsa_member_fee, bolsa_non_member_fee,
+            } = req.body;
+            if (member_fee === undefined) {
+                res.status(400).json({ error: "Falta parámetro member_fee" });
                 return;
             }
-            const result = await upsertDuesConfig(member_fee, cemetery_fee, consideration_years);
+            const result = await upsertDuesConfig(
+                member_fee, consideration_years ?? 0,
+                nicho_member_fee ?? 0, nicho_non_member_fee ?? 0,
+                urna_member_fee ?? 0, urna_non_member_fee ?? 0,
+                bolsa_member_fee ?? 0, bolsa_non_member_fee ?? 0,
+            );
             res.status(200).json(result);
             return;
         }

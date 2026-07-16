@@ -11,6 +11,22 @@ export interface DueLink {
     paid_members: string[] | null;
 }
 
+export interface ServiceRecordLink {
+    id: string;
+    service_id: string | null;
+    service_name: string | null;
+    service_amount: number | null;
+    member_id: string | null;
+    member_nombre: string | null;
+    member_numero_de_socio: string | null;
+    person_id: string | null;
+    person_nombre: string | null;
+    amount: number;
+    date: string;
+    service_date: string | null;
+    detail: string | null;
+}
+
 export interface Movement {
     id: string;
     date: string;
@@ -20,6 +36,7 @@ export interface Movement {
     mode: "efectivo" | "transferencia";
     concept?: string | null;
     linked_due?: DueLink | null;
+    linked_service_records?: ServiceRecordLink[];
 }
 
 export async function fetchMovements(): Promise<Movement[]> {
