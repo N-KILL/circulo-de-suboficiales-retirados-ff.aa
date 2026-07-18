@@ -242,8 +242,19 @@ const NewMovement: React.FC = () => {
       if (!isNaN(num)) paidYears.add(String(num));
     }
 
-    const rawStart = c.anioDeGracia ? parseInt(c.anioDeGracia, 10) : NaN;
-    const startYear = (!isNaN(rawStart) && rawStart >= 2016) ? rawStart + 1 : 2016;
+    let startYear = 2016;
+    if (c.ultimoPago) {
+      const ultimoPagoNum = parseInt(c.ultimoPago, 10);
+      if (!isNaN(ultimoPagoNum)) {
+        startYear = ultimoPagoNum + 1;
+      }
+    }
+    if (c.anioDeGracia) {
+      const graciaNum = parseInt(c.anioDeGracia, 10);
+      if (!isNaN(graciaNum) && graciaNum + 1 > startYear) {
+        startYear = graciaNum + 1;
+      }
+    }
 
     const years: number[] = [];
     for (let y = startYear; y <= currentYear; y++) {

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Loader, Eye } from "lucide-react";
 import { fetchPersonById } from "../../../services/personsApi";
 import { fetchDuesByPerson } from "../../../services/duesApi";
+import { fetchCementerioMovimientosByMovement } from "../../../services/cementeriosApi";
 import type { Person } from "../../../models/members";
 import type { DueWithDetails } from "../../../services/duesApi";
 import "../../Treasury/TreasuryTables.css";
@@ -22,6 +23,7 @@ const DetallePersona: React.FC = () => {
   const [dues, setDues] = useState<DueWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cementerioGrouped, setCementerioGrouped] = useState<{ movement_id: string; nichos: string; dues: DueWithDetails[]; amount: number; payment_date: string; period: string[] | null }[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -42,6 +44,44 @@ const DetallePersona: React.FC = () => {
       });
     return () => { mounted = false; };
   }, [id]);
+
+  useEffect(() => {
+    if (dues.length === 0) { setCementerioGrouped([]); return; }
+    const movementIds = [...new Set(dues.filter((d) => d.movement_id).map((d) => d.movement_id!))];
+    if (movementIds.length === 0) { setCementerioGrouped([]); return; }
+    let mounted = true;
+    Promise.all(
+      movementIds.map(async (mid) => {
+        try {
+          const movimientos = await fetchCementerioMovimientosByMovement(mid);
+          const nichos = [...new Set(movimientos.map((m) => m.nicho))].join(", ");
+          const relatedDues = dues.filter((d) => d.movement_id === mid);
+          const totalAmount = relatedDues.reduce((sum, d) => sum + (d.amount ?? 0), 0);
+          return {
+            movement_id: mid,
+            nichos,
+            dues: relatedDues,
+            amount: totalAmount,
+            payment_date: relatedDues[0]?.payment_date ?? "",
+            period: relatedDues.flatMap((d) => d.period ?? []),
+          };
+        } catch {
+          const relatedDues = dues.filter((d) => d.movement_id === mid);
+          return {
+            movement_id: mid,
+            nichos: "—",
+            dues: relatedDues,
+            amount: relatedDues.reduce((sum, d) => sum + (d.amount ?? 0), 0),
+            payment_date: relatedDues[0]?.payment_date ?? "",
+            period: relatedDues.flatMap((d) => d.period ?? []),
+          };
+        }
+      })
+    ).then((groups) => {
+      if (mounted) setCementerioGrouped(groups.sort((a, b) => b.payment_date.localeCompare(a.payment_date)));
+    });
+    return () => { mounted = false; };
+  }, [dues]);
 
   if (loading) {
     return (
@@ -88,6 +128,7 @@ const DetallePersona: React.FC = () => {
             <table className="treasury-table">
               <thead>
                 <tr>
+                  <th>Nicho(s)</th>
                   <th>Fecha de Pago</th>
                   <th>Importe</th>
                   <th>Movimiento</th>
@@ -95,14 +136,15 @@ const DetallePersona: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {dues.map((d) => (
-                  <tr key={d.id}>
-                    <td>{d.payment_date}</td>
-                    <td className="amount-ingreso">{d.amount != null ? formatCurrency(d.amount) : "—"}</td>
-                    <td>{d.movement_id ? d.movement_id.slice(0, 8) + "…" : "—"}</td>
+                {cementerioGrouped.map((g) => (
+                  <tr key={g.movement_id}>
+                    <td style={{ fontWeight: 600 }}>{g.nichos}</td>
+                    <td>{g.payment_date}</td>
+                    <td className="amount-ingreso">{g.amount > 0 ? formatCurrency(g.amount) : "—"}</td>
+                    <td>{g.movement_id ? g.movement_id.slice(0, 8) + "…" : "—"}</td>
                     <td>
-                      {d.movement_id && (
-                        <button className="btn-view-detail" type="button" onClick={() => navigate(`/tesoreria/movimientos/detalle/${d.movement_id}`)}>
+                      {g.movement_id && (
+                        <button className="btn-view-detail" type="button" onClick={() => navigate(`/tesoreria/movimientos/detalle/${g.movement_id}`)}>
                           <Eye size={14} /> Ver detalles
                         </button>
                       )}

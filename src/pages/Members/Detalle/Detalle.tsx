@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Loader, Plus, X, Eye } from "lucide-react";
 import { fetchMemberById } from "../../../services/membersApi";
 import { fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
-import { fetchCementeriosByOwner } from "../../../services/cementeriosApi";
+import { fetchCementeriosByOwner, fetchCementerioMovimientosByMovement } from "../../../services/cementeriosApi";
 import PeriodPicker from "../../../components/period/PeriodPicker";
 import { formatCurrency, formatPeriodsDisplay } from "../../../utils/format";
 import type { Member } from "../../../models/members";
@@ -19,6 +19,7 @@ const DetalleSocio: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasNichos, setHasNichos] = useState(false);
+  const [cementerioGrouped, setCementerioGrouped] = useState<{ movement_id: string; nichos: string; dues: typeof cementerioDues; amount: number; payment_date: string; period: string[] | null }[]>([]);
 
   const [showModal, setShowModal] = useState(false);
   const [periods, setPeriods] = useState<string[]>([]);
@@ -41,6 +42,44 @@ const DetalleSocio: React.FC = () => {
 
   const socioDues = useMemo(() => dues.filter((d) => d.type === "socio"), [dues]);
   const cementerioDues = useMemo(() => dues.filter((d) => d.type === "cementerio"), [dues]);
+
+  useEffect(() => {
+    if (cementerioDues.length === 0) { setCementerioGrouped([]); return; }
+    const movementIds = [...new Set(cementerioDues.filter((d) => d.movement_id).map((d) => d.movement_id!))];
+    if (movementIds.length === 0) { setCementerioGrouped([]); return; }
+    let mounted = true;
+    Promise.all(
+      movementIds.map(async (mid) => {
+        try {
+          const movimientos = await fetchCementerioMovimientosByMovement(mid);
+          const nichos = [...new Set(movimientos.map((m) => m.nicho))].join(", ");
+          const relatedDues = cementerioDues.filter((d) => d.movement_id === mid);
+          const totalAmount = relatedDues.reduce((sum, d) => sum + (d.amount ?? 0), 0);
+          return {
+            movement_id: mid,
+            nichos,
+            dues: relatedDues,
+            amount: totalAmount,
+            payment_date: relatedDues[0]?.payment_date ?? "",
+            period: relatedDues.flatMap((d) => d.period ?? []),
+          };
+        } catch {
+          const relatedDues = cementerioDues.filter((d) => d.movement_id === mid);
+          return {
+            movement_id: mid,
+            nichos: "—",
+            dues: relatedDues,
+            amount: relatedDues.reduce((sum, d) => sum + (d.amount ?? 0), 0),
+            payment_date: relatedDues[0]?.payment_date ?? "",
+            period: relatedDues.flatMap((d) => d.period ?? []),
+          };
+        }
+      })
+    ).then((groups) => {
+      if (mounted) setCementerioGrouped(groups.sort((a, b) => b.payment_date.localeCompare(a.payment_date)));
+    });
+    return () => { mounted = false; };
+  }, [cementerioDues]);
 
   const familyGroupPrefix = useMemo(() => {
     if (!member?.nroFamilia) return null;
@@ -135,15 +174,16 @@ const DetalleSocio: React.FC = () => {
         {cementerioDues.length === 0 ? <p className="detalle-empty">No tiene cuotas de cementerio registradas.</p> : (
           <div className="table-wrapper">
             <table className="treasury-table">
-              <thead><tr><th>Periodo</th><th>Fecha de Pago</th><th>Importe</th><th>Movimiento</th><th></th></tr></thead>
+              <thead><tr><th>Nicho(s)</th><th>Periodo</th><th>Fecha de Pago</th><th>Importe</th><th>Movimiento</th><th></th></tr></thead>
               <tbody>
-                {cementerioDues.map((d) => (
-                  <tr key={d.id}>
-                    <td>{formatPeriodsDisplay(d.period)}</td>
-                    <td>{d.payment_date}</td>
-                    <td className="amount-ingreso">{d.amount != null ? formatCurrency(d.amount) : "\u2014"}</td>
-                    <td>{d.movement_id ? d.movement_id.slice(0, 8) + "\u2026" : "\u2014"}</td>
-                    <td>{d.movement_id && <button className="btn-view-detail" type="button" onClick={() => navigate(`/tesoreria/movimientos/detalle/${d.movement_id}`)}><Eye size={14} /> Ver detalles</button>}</td>
+                {cementerioGrouped.map((g) => (
+                  <tr key={g.movement_id}>
+                    <td style={{ fontWeight: 600 }}>{g.nichos}</td>
+                    <td>{formatPeriodsDisplay(g.period.length > 0 ? g.period : null)}</td>
+                    <td>{g.payment_date}</td>
+                    <td className="amount-ingreso">{g.amount > 0 ? formatCurrency(g.amount) : "\u2014"}</td>
+                    <td>{g.movement_id ? g.movement_id.slice(0, 8) + "\u2026" : "\u2014"}</td>
+                    <td>{g.movement_id && <button className="btn-view-detail" type="button" onClick={() => navigate(`/tesoreria/movimientos/detalle/${g.movement_id}`)}><Eye size={14} /> Ver detalles</button>}</td>
                   </tr>
                 ))}
               </tbody>

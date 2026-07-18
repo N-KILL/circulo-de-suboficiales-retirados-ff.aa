@@ -30,7 +30,7 @@ const SOCIO_TYPES = [
 ] as const;
 
 const DuesConfig: React.FC<DuesConfigProps> = (props) => {
-  const [memberFee, setMemberFee] = useState(props.initialMemberFee);
+  const [memberFee] = useState(props.initialMemberFee);
   const [considerationYears, setConsiderationYears] = useState(props.initialConsiderationYears);
   const [nichoMemberFee, setNichoMemberFee] = useState(props.initialNichoMemberFee);
   const [nichoNonMemberFee, setNichoNonMemberFee] = useState(props.initialNichoNonMemberFee);
