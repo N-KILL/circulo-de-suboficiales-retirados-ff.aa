@@ -4,7 +4,7 @@ import { savePerson } from "../services/personsApi";
 
 type PersonFormState = {
     form: Person;
-    setField: (key: keyof Person, value: any) => void;
+    setField: (key: keyof Person, value: Person[keyof Person]) => void;
     setForm: (person: Person) => void;
     save: () => Promise<void>;
     reset: () => void;
@@ -22,7 +22,7 @@ const emptyForm = (): Person => ({
 export const usePersonFormStore = create<PersonFormState>((set, get) => ({
     form: emptyForm(),
 
-    setField: (key: keyof Person, value: any) =>
+    setField: (key: keyof Person, value: Person[keyof Person]) =>
         set((state) => ({ form: { ...state.form, [key]: value } as Person })),
 
     setForm: (person: Person) => set(() => ({ form: { ...person } })),

@@ -117,7 +117,7 @@ export async function insertMovementsBatch(
         const batch = movements.slice(i, i + batchSize);
 
         const valueStrings: string[] = [];
-        const values: any[] = [];
+        const values: (string | number | null)[] = [];
 
         batch.forEach((m, idx) => {
             const baseIndex = idx * 6;

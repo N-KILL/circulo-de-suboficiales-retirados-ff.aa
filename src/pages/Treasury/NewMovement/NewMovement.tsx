@@ -1,23 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  Search,
-  Calendar,
-  DollarSign,
-  CreditCard,
-  CheckCircle,
-  Save,
-  Info,
-  User,
-  X,
-  Loader,
-  Landmark,
-  MapPin,
-  Phone,
-  Mail,
-  AlertTriangle,
-  ExternalLink,
-} from "lucide-react";
+import { DollarSign, Save, Loader } from "lucide-react";
 import { savePayment } from "../../../services/paymentsApi";
 import { fetchMembers, fetchMemberById } from "../../../services/membersApi";
 import { fetchAllPersons, fetchPersonById } from "../../../services/personsApi";
@@ -25,22 +8,25 @@ import { fetchMovementById, updateMovement } from "../../../services/movementsAp
 import { fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
 import { fetchDuesConfig } from "../../../services/duesConfigApi";
 import { fetchServices } from "../../../services/servicesApi";
-import { fetchCementeriosByOwner, fetchCementerioOwnerIds, saveCementerioMovimiento, updateCementerioRecord } from "../../../services/cementeriosApi";
+import { fetchCementeriosByOwner, fetchCementerioOwnerIds, fetchCementerioMovimientosByNicho, saveCementerioMovimiento, updateCementerioRecord } from "../../../services/cementeriosApi";
 import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
 import { saveServiceRecord, updateServiceRecord, fetchServiceRecordsByMovement, deleteServiceRecord } from "../../../services/serviceRecordsApi";
 import { saveService } from "../../../services/servicesApi";
+import { parseDateYMD } from "../../../utils/format";
+import Banner from "../../../components/ui/Banner";
+import DateInput from "../../../components/ui/DateInput";
+import MovementFormFields from "./MovementFormFields";
+import CementerioPicker from "./CementerioPicker";
+import FamilyPaymentSection from "./FamilyPaymentSection";
+import PeriodPicker from "../../../components/period/PeriodPicker";
+import MovementSummary from "./MovementSummary";
+import PersonInfoCard from "./PersonInfoCard";
+import NewServiceModal from "./NewServiceModal";
 import type { DuesConfig } from "../../../services/duesConfigApi";
 import type { ServiceItem } from "../../../services/servicesApi";
 import type { MembersDebtStatus } from "../../../services/membersDebtApi";
 import type { Member, Person, Cementerio } from "../../../models/members";
 import "./NewMovement.css";
-
-function toCurrency(val: number): string {
-  return `$ ${new Intl.NumberFormat("es-AR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(val)}`;
-}
 
 type FieldErrors = {
   socio?: string;
@@ -100,6 +86,7 @@ const NewMovement: React.FC = () => {
   const [selectedCementerios, setSelectedCementerios] = useState<Cementerio[]>([]);
   const [cementerioSelectedYears, setCementerioSelectedYears] = useState<Map<string, Set<string>>>(new Map());
   const [cementerioOwnerIds, setCementerioOwnerIds] = useState<{ memberIds: string[]; personIds: string[] } | null>(null);
+  const [cementerioPaidYears, setCementerioPaidYears] = useState<Map<string, Set<string>>>(new Map());
 
   const [showNewServiceModal, setShowNewServiceModal] = useState(false);
   const [newServiceName, setNewServiceName] = useState("");
@@ -109,6 +96,14 @@ const NewMovement: React.FC = () => {
 
   const memberSearchRef = useRef<HTMLDivElement>(null);
   const personSearchRef = useRef<HTMLDivElement>(null);
+
+  const [prevSelectedMember, setPrevSelectedMember] = useState(selectedMember);
+  const [prevConceptForCementerio, setPrevConceptForCementerio] = useState(concept);
+  const [prevConceptForOwnerIds, setPrevConceptForOwnerIds] = useState(concept);
+  const [prevOwnerKeyValue, setPrevOwnerKeyValue] = useState(`${personType}|${selectedMember?.id ?? ''}|${selectedPerson?.id ?? ''}`);
+  const [prevFamilyDeps, setPrevFamilyDeps] = useState(`${selectedMember?.id ?? ''}|${String(familyPayment)}|${concept}`);
+  const [prevPaidPeriodDeps, setPrevPaidPeriodDeps] = useState(`${selectedMember?.id ?? ''}|${concept}`);
+  const [prevPersonTypeForConcept, setPrevPersonTypeForConcept] = useState(personType);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -142,83 +137,96 @@ const NewMovement: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
-    setMembersLoading(true);
     fetchMembers()
-      .then((data) => {
-        if (mounted) {
-          setMembers(data);
-          setMembersLoading(false);
-        }
-      })
-      .catch(() => {
-        if (mounted) setMembersLoading(false);
-      });
+      .then((data) => { if (mounted) { setMembers(data); setMembersLoading(false); } })
+      .catch(() => { if (mounted) setMembersLoading(false); });
     return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    setPersonsLoading(true);
     fetchAllPersons()
-      .then((data) => {
-        if (mounted) {
-          setPersons(data);
-          setPersonsLoading(false);
-        }
-      })
-      .catch(() => {
-        if (mounted) setPersonsLoading(false);
-      });
+      .then((data) => { if (mounted) { setPersons(data); setPersonsLoading(false); } })
+      .catch(() => { if (mounted) setPersonsLoading(false); });
     return () => { mounted = false; };
   }, []);
 
-  useEffect(() => {
+  if (selectedMember !== prevSelectedMember) {
+    setPrevSelectedMember(selectedMember);
     if (!selectedMember) {
       setFamilyPayment(false);
       setFamilyMembers([]);
       setSelectedFamilyMembers(new Set());
-      return;
     }
-  }, [selectedMember]);
+  }
 
-  useEffect(() => {
+  if (concept !== prevConceptForCementerio) {
+    setPrevConceptForCementerio(concept);
     if (concept !== "Cementerio") {
       setCementeriosList([]);
       setSelectedCementerios([]);
       setCementerioSelectedYears(new Map());
-      return;
+      setCementerioPaidYears(new Map());
     }
-    const ownerId = personType === "socio" ? selectedMember?.id : selectedPerson?.id;
-    if (!ownerId) {
+  }
+
+  const ownerKey = `${personType}|${selectedMember?.id ?? ''}|${selectedPerson?.id ?? ''}`;
+  if (ownerKey !== prevOwnerKeyValue) {
+    setPrevOwnerKeyValue(ownerKey);
+    if (concept === "Cementerio" && !selectedMember && !selectedPerson) {
       setCementeriosList([]);
       setSelectedCementerios([]);
       setCementerioSelectedYears(new Map());
-      return;
+      setCementerioPaidYears(new Map());
     }
+  }
+
+  useEffect(() => {
+    if (concept !== "Cementerio") return;
+    const ownerId = personType === "socio" ? selectedMember?.id : selectedPerson?.id;
+    if (!ownerId) return;
     let mounted = true;
     fetchCementeriosByOwner(ownerId, personType === "socio")
-      .then((list) => {
-        if (mounted) {
-          setCementeriosList(list);
-          setSelectedCementerios([]);
-          setCementerioSelectedYears(new Map());
-        }
+      .then(async (list) => {
+        if (!mounted) return;
+        setCementeriosList(list);
+        setSelectedCementerios([]);
+        setCementerioSelectedYears(new Map());
+        const paidYearsMap = new Map<string, Set<string>>();
+        await Promise.all(
+          list.map(async (c) => {
+            try {
+              const movimientos = await fetchCementerioMovimientosByNicho(c.nicho);
+              const years = new Set<string>();
+              for (const m of movimientos) {
+                for (const y of m.anios_pagados) years.add(y);
+              }
+              paidYearsMap.set(c.nicho, years);
+            } catch { /* ignore */ }
+          })
+        );
+        if (mounted) setCementerioPaidYears(paidYearsMap);
       })
       .catch(() => {
         if (mounted) {
           setCementeriosList([]);
           setSelectedCementerios([]);
           setCementerioSelectedYears(new Map());
+          setCementerioPaidYears(new Map());
         }
       });
     return () => { mounted = false; };
   }, [concept, personType, selectedMember, selectedPerson, id]);
 
-  useEffect(() => {
+  if (concept !== prevConceptForOwnerIds) {
+    setPrevConceptForOwnerIds(concept);
     if (concept !== "Cementerio") {
       setCementerioOwnerIds(null);
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (concept !== "Cementerio") return;
     let mounted = true;
     fetchCementerioOwnerIds()
       .then((ids) => { if (mounted) setCementerioOwnerIds(ids); })
@@ -228,22 +236,45 @@ const NewMovement: React.FC = () => {
 
   function getAvailableYears(c: Cementerio): number[] {
     const currentYear = new Date().getFullYear();
-    const ultimoPago = c.ultimoPago ? parseInt(c.ultimoPago, 10) : 0;
+    const paidYears = new Set(cementerioPaidYears.get(c.nicho) || []);
+    if (c.ultimoPago) {
+      const num = parseInt(c.ultimoPago, 10);
+      if (!isNaN(num)) paidYears.add(String(num));
+    }
+
+    const rawStart = c.anioDeGracia ? parseInt(c.anioDeGracia, 10) : NaN;
+    const startYear = (!isNaN(rawStart) && rawStart >= 2016) ? rawStart + 1 : 2016;
+
     const years: number[] = [];
-    for (let y = ultimoPago + 1; y <= currentYear; y++) {
-      years.push(y);
+    for (let y = startYear; y <= currentYear; y++) {
+      if (!paidYears.has(String(y))) years.push(y);
     }
     return years;
   }
 
-  function getFeeForCementerio(c: Cementerio): number {
+  const getFeeForCementerio = useCallback((c: Cementerio): number => {
     if (!duesConfig) return 0;
     const tipo = (c.tipo || "nicho").toLowerCase();
     const isSocio = personType === "socio";
     if (tipo === "urna") return isSocio ? duesConfig.urna_member_fee : duesConfig.urna_non_member_fee;
     if (tipo === "bolsa") return isSocio ? duesConfig.bolsa_member_fee : duesConfig.bolsa_non_member_fee;
     return isSocio ? duesConfig.nicho_member_fee : duesConfig.nicho_non_member_fee;
-  }
+  }, [duesConfig, personType]);
+
+  const getMemberFee = useCallback((member: Member): number => {
+    if (!duesConfig) return 0;
+    const tipo = (member.tipoSocio || "").trim();
+    let base = 0;
+    if (tipo === "Activo") base = duesConfig.fee_act;
+    else if (tipo === "Activo Tipo A") base = duesConfig.fee_act_a;
+    else if (tipo === "Adherente") base = duesConfig.fee_adh;
+    else if (tipo === "Participante") base = duesConfig.fee_part;
+    else if (tipo === "Vitalicio") base = duesConfig.fee_vit;
+    else base = duesConfig.member_fee;
+    if (member.asistencial) base += duesConfig.asistencial_fee;
+    if (member.planSalud) base += duesConfig.plan_salud_fee;
+    return base;
+  }, [duesConfig]);
 
   function toggleCementerioSelection(c: Cementerio) {
     setSelectedCementerios((prev) => {
@@ -264,61 +295,79 @@ const NewMovement: React.FC = () => {
       });
       return [...prev, c];
     });
-    setErrors((prev) => {
-      if (!prev.period) return prev;
-      const next = { ...prev };
-      delete next.period;
-      return next;
-    });
+    setErrors((prev) => { if (!prev.period) return prev; const next = { ...prev }; delete next.period; return next; });
   }
 
-  function toggleYearForCementerio(cementerioId: string, year: string) {
+  function addCementerioYear(cementerioId: string) {
+    const c = selectedCementerios.find((x) => x.id === cementerioId);
+    if (!c) return;
+    const available = getAvailableYears(c);
+    const current = cementerioSelectedYears.get(cementerioId) || new Set();
+    const nextYear = available.find((y) => !current.has(String(y)));
+    if (!nextYear) return;
     setCementerioSelectedYears((prev) => {
       const next = new Map(prev);
-      const current = next.get(cementerioId) || new Set();
       const updated = new Set(current);
-      if (updated.has(year)) updated.delete(year);
-      else updated.add(year);
+      updated.add(String(nextYear));
       next.set(cementerioId, updated);
       return next;
     });
-    setErrors((prev) => {
-      if (!prev.period) return prev;
-      const next = { ...prev };
-      delete next.period;
-      return next;
-    });
+    setErrors((prev) => { if (!prev.period) return prev; const next = { ...prev }; delete next.period; return next; });
   }
 
-  useEffect(() => {
+  function removeCementerioYear(cementerioId: string) {
+    const current = cementerioSelectedYears.get(cementerioId);
+    if (!current || current.size === 0) return;
+    const sorted = Array.from(current).sort();
+    const lastYear = sorted[sorted.length - 1];
+    setCementerioSelectedYears((prev) => {
+      const next = new Map(prev);
+      const updated = new Set(current);
+      updated.delete(lastYear);
+      next.set(cementerioId, updated);
+      return next;
+    });
+    setErrors((prev) => { if (!prev.period) return prev; const next = { ...prev }; delete next.period; return next; });
+  }
+
+  const familyDeps = `${selectedMember?.id ?? ''}|${String(familyPayment)}|${concept}`;
+  if (familyDeps !== prevFamilyDeps) {
+    setPrevFamilyDeps(familyDeps);
     if (!selectedMember || !familyPayment || concept !== "Cuota Socio") {
       setFamilyMembers([]);
       setSelectedFamilyMembers(new Set());
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (!selectedMember || !familyPayment || concept !== "Cuota Socio") return;
     let mounted = true;
     fetchFamilyMembers(selectedMember.id)
       .then((members) => {
         if (mounted) {
-          setFamilyMembers(members);
+          const alive = members.filter((m) => !m.fallecido);
+          setFamilyMembers(alive);
           if (!id) {
             const initial = new Set<string>();
-            members.forEach((fm) => initial.add(fm.id));
+            alive.filter((fm) => !fm.fallecido && (fm.pagaPor || "").toUpperCase() === "TES").forEach((fm) => initial.add(fm.id));
             setSelectedFamilyMembers(initial);
           }
         }
       })
-      .catch(() => {
-        if (mounted) setFamilyMembers([]);
-      });
+      .catch(() => { if (mounted) setFamilyMembers([]); });
     return () => { mounted = false; };
   }, [selectedMember, familyPayment, concept, id]);
 
-  useEffect(() => {
+  const paidPeriodDeps = `${selectedMember?.id ?? ''}|${concept}`;
+  if (paidPeriodDeps !== prevPaidPeriodDeps) {
+    setPrevPaidPeriodDeps(paidPeriodDeps);
     if (!selectedMember || concept !== "Cuota Socio") {
       setPaidPeriods(new Set());
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (!selectedMember || concept !== "Cuota Socio") return;
     let mounted = true;
     fetchDuesByMember(selectedMember.id)
       .then((dues) => {
@@ -330,9 +379,7 @@ const NewMovement: React.FC = () => {
         }
         setPaidPeriods(all);
       })
-      .catch(() => {
-        if (mounted) setPaidPeriods(new Set());
-      });
+      .catch(() => { if (mounted) setPaidPeriods(new Set()); });
     return () => { mounted = false; };
   }, [selectedMember, concept, id]);
 
@@ -347,55 +394,40 @@ const NewMovement: React.FC = () => {
         setImporteStr(m.amount.toString().replace(".", ","));
         const colonIdx = m.detail?.indexOf(": ");
         setDescripcion(colonIdx && colonIdx > 0 ? m.detail.slice(colonIdx + 2) : "");
-
         if (m.concept) {
-          if (m.concept === "Cementerio" || m.concept.startsWith("Cementerio")) {
-            setConcept("Cementerio");
-          } else if (m.concept.startsWith("Servicios")) {
-            setConcept("Servicios");
-            const svcName = m.concept.replace("Servicios - ", "");
-            setServicio(svcName);
-          } else {
-            setConcept("Cuota Socio");
-          }
+          if (m.concept === "Cementerio" || m.concept.startsWith("Cementerio")) setConcept("Cementerio");
+          else if (m.concept.startsWith("Servicios")) { setConcept("Servicios"); setServicio(m.concept.replace("Servicios - ", "")); }
+          else setConcept("Cuota Socio");
         }
-
-        const due = (m as any).linked_due;
+        const due = m.linked_due;
         if (due) {
           if (due.period && Array.isArray(due.period) && due.period.length > 0) {
             setPeriods(due.period);
             const [y] = due.period[0].split("-");
             setPeriodYear(Number(y));
           }
-
           if (due.member_id) {
             setPersonType("socio");
             fetchMemberById(due.member_id).then((member) => {
               if (mounted) {
                 setSelectedMember(member);
                 setMemberSearch(member.nombre);
-                  if (member.nroFamilia) {
-                    fetchFamilyMembers(member.id)
-                      .then((fms) => {
-                        if (mounted && fms.length > 1) {
-                          setFamilyMembers(fms);
-                          const paidIds = (due.paid_members as string[]) || [];
-                          if (paidIds.length > 0) {
-                            setFamilyPayment(true);
-                            setSelectedFamilyMembers(new Set(paidIds));
-                          }
-                        }
-                      })
-                  }
+                if (member.nroFamilia) {
+                  fetchFamilyMembers(member.id).then((fms) => {
+                    if (mounted && fms.length > 1) {
+                      const alive = fms.filter((m) => !m.fallecido);
+                      setFamilyMembers(alive);
+                      const paidIds = (due.paid_members as string[]) || [];
+                      if (paidIds.length > 0) { setFamilyPayment(true); setSelectedFamilyMembers(new Set(paidIds)); }
+                    }
+                  });
+                }
               }
             }).catch(() => {});
           } else if (due.person_id) {
             setPersonType("persona");
             fetchPersonById(due.person_id).then((person) => {
-              if (mounted) {
-                setSelectedPerson(person);
-                setPersonSearch(person.nombre);
-              }
+              if (mounted) { setSelectedPerson(person); setPersonSearch(person.nombre); }
             }).catch(() => {});
           }
         }
@@ -408,11 +440,7 @@ const NewMovement: React.FC = () => {
     if (!id) return;
     let mounted = true;
     fetchServiceRecordsByMovement(id)
-      .then((records) => {
-        if (mounted && records.length > 0 && records[0].service_date) {
-          setServiceDate(records[0].service_date);
-        }
-      })
+      .then((records) => { if (mounted && records.length > 0 && records[0].service_date) setServiceDate(records[0].service_date); })
       .catch(() => {});
     return () => { mounted = false; };
   }, [id]);
@@ -422,20 +450,6 @@ const NewMovement: React.FC = () => {
     const found = serviciosFromApi.find((s) => s.name === servicio);
     return found ? found.amount : null;
   }, [concept, servicio, serviciosFromApi]);
-
-  function parseDateYMD(dateStr: string): Date | null {
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      const [y, m, d] = parts.map(Number);
-      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m - 1, d);
-    }
-    if (parts.length === 2) {
-      const [y, m] = parts.map(Number);
-      if (!isNaN(y) && !isNaN(m)) return new Date(y, m - 1, 1);
-    }
-    const fallback = new Date(dateStr);
-    return isNaN(fallback.getTime()) ? null : fallback;
-  }
 
   function calculateMonthsOwed(memberId: string): number | null {
     if (!debtStatus) return null;
@@ -458,19 +472,28 @@ const NewMovement: React.FC = () => {
     return periodStr;
   }
 
-
-
   function getLastPaidPeriod(memberId: string): string | null {
     if (!debtStatus) return null;
     return debtStatus.members[memberId] || null;
   }
 
-  useEffect(() => {
+  const importeCalcKey = `${concept}|${duesConfig?.member_fee ?? ''}|${duesConfig?.fee_act ?? ''}|${duesConfig?.fee_act_a ?? ''}|${duesConfig?.fee_adh ?? ''}|${duesConfig?.fee_part ?? ''}|${duesConfig?.fee_vit ?? ''}|${duesConfig?.asistencial_fee ?? ''}|${duesConfig?.plan_salud_fee ?? ''}|${selectedServiceAmount ?? ''}|${String(familyPayment)}|${[...selectedFamilyMembers].sort().join(',')}|${familyMembers.map((m) => m.id).join(',')}|${selectedMember?.id ?? ''}|${periods.join(',')}|${[...paidPeriods].sort().join(',')}|${selectedCementerios.map((c) => c.id).join(',')}|${[...cementerioSelectedYears.entries()].map(([k, v]) => `${k}:${[...v].sort()}`).join(',')}|${personType}`;
+  const [prevImporteCalcKey, setPrevImporteCalcKey] = useState(importeCalcKey);
+  if (prevImporteCalcKey !== importeCalcKey) {
+    setPrevImporteCalcKey(importeCalcKey);
     if (concept === "Cuota Socio" && duesConfig) {
       const unpaidPeriods = periods.filter((p) => !paidPeriods.has(p));
-      const count = familyPayment ? Math.max(selectedFamilyMembers.size, 1) : 1;
       const monthCount = unpaidPeriods.length > 0 ? unpaidPeriods.length : 1;
-      const total = duesConfig.member_fee * count * monthCount;
+      let total = 0;
+      if (familyPayment && selectedFamilyMembers.size > 0) {
+        for (const fmId of selectedFamilyMembers) {
+          const fm = familyMembers.find((m) => m.id === fmId);
+          if (fm) total += getMemberFee(fm);
+        }
+      } else if (selectedMember) {
+        total = getMemberFee(selectedMember);
+      }
+      total *= monthCount;
       setImporteStr(total.toString().replace(".", ","));
     } else if (concept === "Cementerio" && duesConfig && selectedCementerios.length > 0) {
       let total = 0;
@@ -483,61 +506,49 @@ const NewMovement: React.FC = () => {
     } else if (concept === "Servicios" && selectedServiceAmount !== null) {
       setImporteStr(selectedServiceAmount.toString().replace(".", ","));
     }
-    setErrors((prev) => {
-      if (!prev.period) return prev;
-      const next = { ...prev };
-      delete next.period;
-      return next;
-    });
-  }, [concept, duesConfig, selectedServiceAmount, familyPayment, selectedFamilyMembers, periods, paidPeriods, selectedCementerios, cementerioSelectedYears, personType]);
+    setErrors((prev) => { if (!prev.period) return prev; const next = { ...prev }; delete next.period; return next; });
+  }
 
-  const socioConcepts = useMemo(() => {
-    return ["Cuota Socio", "Servicios", "Cementerio"];
-  }, []);
-
+  const socioConcepts = useMemo(() => ["Cuota Socio", "Servicios", "Cementerio"], []);
   const personaConcepts = ["Servicios", "Cementerio"];
-
   const currentConcepts = personType === "socio" ? socioConcepts : personaConcepts;
 
-  useEffect(() => {
+  if (personType !== prevPersonTypeForConcept) {
+    setPrevPersonTypeForConcept(personType);
     if (!currentConcepts.includes(concept)) {
       setConcept(currentConcepts[0]);
     }
-  }, [personType, currentConcepts, concept]);
+  }
 
   const showServicioSelect = concept === "Servicios";
 
-  useEffect(() => {
+  const [prevShowServicioSelect, setPrevShowServicioSelect] = useState(showServicioSelect);
+  if (prevShowServicioSelect !== showServicioSelect) {
+    setPrevShowServicioSelect(showServicioSelect);
     if (showServicioSelect && !servicio && serviciosFromApi.length > 0) {
       setServicio(serviciosFromApi[0].name);
     }
     if (!showServicioSelect) {
       setServicio("");
     }
-  }, [showServicioSelect, servicio, serviciosFromApi]);
+  }
 
   const shouldCreateDue = concept === "Cuota Socio" || (concept === "Cementerio" && selectedCementerios.length > 0);
-
   const mode = cajaOrigen === "caja_chica" ? "efectivo" : "transferencia";
 
   const memberResults = useMemo(() => {
     let list = members;
-    if (concept === "Cementerio" && cementerioOwnerIds) {
+    if (concept === "Cuota Socio") {
+      list = members.filter((m) => !m.fallecido && (m.pagaPor || "").toUpperCase() === "TES");
+    } else if (concept === "Cementerio" && cementerioOwnerIds) {
       const ids = new Set(cementerioOwnerIds.memberIds);
       list = members.filter((m) => ids.has(m.id));
     }
     if (memberSearch.trim()) {
       const q = memberSearch.toLowerCase();
-      return list
-        .filter(
-          (m) =>
-            m.nombre.toLowerCase().includes(q) ||
-            m.documento.includes(q) ||
-            m.numeroDeSocio.includes(q)
-        )
-        .slice(0, 10);
+      return list.filter((m) => m.nombre.toLowerCase().includes(q) || m.documento.includes(q) || m.numeroDeSocio.includes(q)).slice(0, 20);
     }
-    return list.slice(0, 10);
+    return list;
   }, [members, memberSearch, concept, cementerioOwnerIds]);
 
   const personResults = useMemo(() => {
@@ -548,11 +559,9 @@ const NewMovement: React.FC = () => {
     }
     if (personSearch.trim()) {
       const q = personSearch.toLowerCase();
-      return list
-        .filter((p) => p.nombre.toLowerCase().includes(q) || p.documento.includes(q))
-        .slice(0, 10);
+      return list.filter((p) => p.nombre.toLowerCase().includes(q) || p.documento.includes(q)).slice(0, 20);
     }
-    return list.slice(0, 10);
+    return list;
   }, [persons, personSearch, concept, cementerioOwnerIds]);
 
   const importeNum = useMemo(() => {
@@ -566,47 +575,30 @@ const NewMovement: React.FC = () => {
 
   const validate = useCallback((): FieldErrors => {
     const errs: FieldErrors = {};
-    if (personType === "socio" && !selectedMember) {
-      errs.socio = "Seleccioná un socio";
-    }
-    if (personType === "persona" && !selectedPerson) {
-      errs.persona = "Seleccioná una persona";
-    }
-    if (!fecha) {
-      errs.fecha = "Ingresá una fecha";
-    }
-    if (shouldCreateDue && concept === "Cuota Socio" && periods.length === 0) {
-      errs.period = "Seleccioná al menos un mes";
-    }
-    if (concept === "Cementerio" && selectedCementerios.length === 0) {
-      errs.period = "Seleccioná al menos un nicho/urna/bolsa";
-    }
+    if (personType === "socio" && !selectedMember) errs.socio = "Seleccioná un socio";
+    if (personType === "persona" && !selectedPerson) errs.persona = "Seleccioná una persona";
+    if (!fecha) errs.fecha = "Ingresá una fecha";
+    if (shouldCreateDue && concept === "Cuota Socio" && periods.length === 0) errs.period = "Seleccioná al menos un mes";
+    if (concept === "Cementerio" && selectedCementerios.length === 0) errs.period = "Seleccioná al menos un nicho/urna/bolsa";
     if (concept === "Cementerio" && selectedCementerios.length > 0) {
       const allEmpty = selectedCementerios.every((c) => {
         const years = cementerioSelectedYears.get(c.id);
         return !years || years.size === 0;
       });
-      if (allEmpty) {
-        errs.period = "Seleccioná al menos un año para pagar";
-      }
+      if (allEmpty) errs.period = "Seleccioná al menos un año para pagar";
     }
-    if (!importeNum || importeNum <= 0) {
-      errs.importe = "Ingresá un importe válido mayor a cero";
-    }
+    if (!importeNum || importeNum <= 0) errs.importe = "Ingresá un importe válido mayor a cero";
     return errs;
-  }, [personType, selectedMember, selectedPerson, fecha, shouldCreateDue, periods, importeNum]);
+  }, [personType, selectedMember, selectedPerson, fecha, shouldCreateDue, periods, importeNum, cementerioSelectedYears, concept, selectedCementerios]);
 
-  const handleSelectMember = useCallback((m: Member) => {
-    setSelectedMember(m);
-    setMemberSearch(m.nombre);
+  const handleSelectMember = useCallback((m: Member | Person) => {
+    const member = m as Member;
+    setSelectedMember(member);
+    setMemberSearch(member.nombre);
     setShowMemberDropdown(false);
     setPeriods([]);
     setPaidPeriods(new Set());
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next.socio;
-      return next;
-    });
+    setErrors((prev) => { const next = { ...prev }; delete next.socio; return next; });
   }, []);
 
   const handleClearMember = useCallback(() => {
@@ -621,15 +613,12 @@ const NewMovement: React.FC = () => {
     setErrors((prev) => ({ ...prev, socio: "Seleccioná un socio" }));
   }, []);
 
-  const handleSelectPerson = useCallback((p: Person) => {
-    setSelectedPerson(p);
-    setPersonSearch(p.nombre);
+  const handleSelectPerson = useCallback((p: Member | Person) => {
+    const person = p as Person;
+    setSelectedPerson(person);
+    setPersonSearch(person.nombre);
     setShowPersonDropdown(false);
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next.persona;
-      return next;
-    });
+    setErrors((prev) => { const next = { ...prev }; delete next.persona; return next; });
   }, []);
 
   const handleClearPerson = useCallback(() => {
@@ -639,9 +628,61 @@ const NewMovement: React.FC = () => {
     setErrors((prev) => ({ ...prev, persona: "Seleccioná una persona" }));
   }, []);
 
-  const payerName = personType === "socio"
-    ? selectedMember?.nombre ?? ""
-    : selectedPerson?.nombre ?? "";
+  const handleToggleFamilyMember = useCallback((fmId: string) => {
+    setSelectedFamilyMembers((prev) => {
+      const next = new Set(prev);
+      if (next.has(fmId)) next.delete(fmId); else next.add(fmId);
+      return next;
+    });
+  }, []);
+
+  const handleTogglePeriod = useCallback((val: string) => {
+    setPeriods((prev) => {
+      if (prev.includes(val)) return prev.filter((p) => p !== val);
+      return [...prev, val].sort();
+    });
+    setErrors((prev) => { if (!prev.period) return prev; const next = { ...prev }; delete next.period; return next; });
+  }, []);
+
+  const handleSaveNewService = useCallback(async () => {
+    const cost = parseFloat(newServiceCost.replace(",", "."));
+    if (!newServiceName.trim()) { setServiceError("Ingresá un nombre"); return; }
+    if (isNaN(cost) || cost <= 0) { setServiceError("Ingresá un costo válido"); return; }
+    setSavingService(true);
+    setServiceError(null);
+    try {
+      const created = await saveService(newServiceName.trim(), cost);
+      setServiciosFromApi((prev) => [...prev, created]);
+      setServicio(created.name);
+      setShowNewServiceModal(false);
+    } catch (err) {
+      setServiceError(err instanceof Error ? err.message : "Error al guardar servicio");
+    } finally {
+      setSavingService(false);
+    }
+  }, [newServiceName, newServiceCost]);
+
+  const handlePersonTypeChange = useCallback((v: "socio" | "persona") => {
+    setPersonType(v);
+    setSelectedMember(null);
+    setMemberSearch("");
+    setFamilyPayment(false);
+    setFamilyMembers([]);
+    setSelectedFamilyMembers(new Set());
+    setSelectedPerson(null);
+    setPersonSearch("");
+    setPeriods([]);
+    setPaidPeriods(new Set());
+    setSelectedCementerios([]);
+    setCementerioSelectedYears(new Map());
+    setCementeriosList([]);
+    setCementerioPaidYears(new Map());
+  }, []);
+
+  const payerName = personType === "socio" ? selectedMember?.nombre ?? "" : selectedPerson?.nombre ?? "";
+  const originLabel = cajaOrigen === "caja_chica" ? "Caja Chica" : "Banco";
+  const formaPagoLabel = mode === "efectivo" ? "Efectivo" : "Transferencia";
+  const personTypeLabel = personType === "socio" ? "Socio" : "Persona";
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -656,14 +697,11 @@ const NewMovement: React.FC = () => {
       setSuccess(false);
 
       try {
-        const conceptLabel = showServicioSelect
-          ? `${concept} - ${servicio}`
-          : concept;
-
+        const conceptLabel = showServicioSelect ? `${concept} - ${servicio}` : concept;
         const detail = `${conceptLabel} - ${payerName}${descripcion ? `: ${descripcion}` : ""}`;
 
         if (isEditing && id) {
-          const dueData: Record<string, any> = {};
+          const dueData: Record<string, unknown> = {};
           if (shouldCreateDue) {
             dueData.period = periods.length > 0 ? periods : null;
             if (concept === "Cuota Socio" && familyPayment && selectedFamilyMembers.size > 0) {
@@ -671,11 +709,7 @@ const NewMovement: React.FC = () => {
             }
           }
           await updateMovement(id, {
-            date: fecha,
-            detail,
-            amount: importeNum,
-            type: "ingreso",
-            mode,
+            date: fecha, detail, amount: importeNum, type: "ingreso", mode,
             concept: conceptLabel,
             due: Object.keys(dueData).length > 0 ? dueData : undefined,
           });
@@ -686,40 +720,22 @@ const NewMovement: React.FC = () => {
           if (concept === "Servicios" && servicio) {
             const service = serviciosFromApi.find((s) => s.name === servicio);
             if (service) {
-              if (existingRecord) {
-                await updateServiceRecord(existingRecord.id, {
-                  service_id: service.id,
-                  member_id: personType === "socio" ? selectedMember?.id ?? null : null,
-                  person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
-                  amount: importeNum,
-                  date: fecha,
-                  service_date: serviceDate,
-                  detail: descripcion || null,
-                });
-              } else {
-                await saveServiceRecord({
-                  service_id: service.id,
-                  member_id: personType === "socio" ? selectedMember?.id ?? null : null,
-                  person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
-                  movement_id: id,
-                  amount: importeNum,
-                  date: fecha,
-                  service_date: serviceDate,
-                  detail: descripcion || null,
-                });
-              }
+              const serviceData = {
+                service_id: service.id,
+                member_id: personType === "socio" ? selectedMember?.id ?? null : null,
+                person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
+                amount: importeNum, date: fecha, service_date: serviceDate,
+                detail: descripcion || null,
+              };
+              if (existingRecord) await updateServiceRecord(existingRecord.id, serviceData);
+              else await saveServiceRecord({ ...serviceData, movement_id: id });
             }
           } else if (existingRecord) {
             await deleteServiceRecord(existingRecord.id);
           }
         } else {
           const { id: movementId } = await savePayment({
-            date: fecha,
-            detail,
-            amount: importeNum,
-            type: "ingreso",
-            mode,
-            concept: conceptLabel,
+            date: fecha, detail, amount: importeNum, type: "ingreso", mode, concept: conceptLabel,
           });
 
           if (shouldCreateDue) {
@@ -729,51 +745,42 @@ const NewMovement: React.FC = () => {
                 const years = cementerioSelectedYears.get(c.id);
                 const yearPeriods = years ? Array.from(years).sort() : null;
                 await saveDue({
-                  type: "cementerio",
-                  payment_date: fecha,
-                  period: yearPeriods,
+                  type: "cementerio", payment_date: fecha, period: yearPeriods,
                   member_id: personType === "socio" ? selectedMember?.id ?? null : null,
                   person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
                   movement_id: movementId,
                 });
-
                 const aniosPagados = years ? Array.from(years).sort() : [];
                 const maxYear = aniosPagados.length > 0 ? aniosPagados[aniosPagados.length - 1] : null;
                 await saveCementerioMovimiento({
-                  movement_id: movementId,
-                  cementerio_id: c.id,
-                  nicho: c.nicho,
-                  tipo: c.tipo || null,
-                  ocupante: c.ocupante || null,
+                  movement_id: movementId, cementerio_id: c.id, nicho: c.nicho,
+                  tipo: c.tipo || null, ocupante: c.ocupante || null,
                   anios_pagados: aniosPagados,
                   importe: getFeeForCementerio(c) * aniosPagados.length,
                   fecha_pago: fecha,
                   member_id: personType === "socio" ? selectedMember?.id ?? null : null,
                   person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
                 });
-
-                if (maxYear) {
-                  const patchData: Record<string, any> = {
-                    ultimoPago: maxYear,
-                    fechaDePago: fecha,
-                  };
-                  await updateCementerioRecord(c.id, patchData);
-                }
+                if (maxYear) await updateCementerioRecord(c.id, { ultimoPago: maxYear, fechaDePago: fecha });
+                setCementerioPaidYears((prev) => {
+                  const next = new Map(prev);
+                  const existing = new Set(next.get(c.nicho) || []);
+                  for (const y of aniosPagados) existing.add(y);
+                  next.set(c.nicho, existing);
+                  return next;
+                });
               }
             } else if (familyPayment && selectedMember && selectedFamilyMembers.size > 0) {
               await saveDue({
-                type: "socio",
-                payment_date: fecha,
+                type: "socio", payment_date: fecha,
                 period: periods.length > 0 ? periods : null,
-                member_id: selectedMember.id,
-                movement_id: movementId,
+                member_id: selectedMember.id, movement_id: movementId,
                 family_group: selectedMember.nroFamilia.split("/")[0],
                 paid_members: Array.from(selectedFamilyMembers),
               });
             } else {
               await saveDue({
-                type: "socio",
-                payment_date: fecha,
+                type: "socio", payment_date: fecha,
                 period: periods.length > 0 ? periods : null,
                 member_id: personType === "socio" ? selectedMember?.id ?? null : null,
                 person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
@@ -789,36 +796,22 @@ const NewMovement: React.FC = () => {
                 service_id: service.id,
                 member_id: personType === "socio" ? selectedMember?.id ?? null : null,
                 person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
-                movement_id: movementId,
-                amount: importeNum,
-                date: fecha,
-                service_date: serviceDate,
-                detail: descripcion || null,
+                movement_id: movementId, amount: importeNum, date: fecha,
+                service_date: serviceDate, detail: descripcion || null,
               });
             }
           }
         }
 
-        if (isEditing) {
-          navigate(`/tesoreria/movimientos/detalle/${id}`);
-        } else {
+        if (isEditing) navigate(`/tesoreria/movimientos/detalle/${id}`);
+        else {
           setSuccess(true);
-          setSelectedMember(null);
-          setMemberSearch("");
-          setFamilyPayment(false);
-          setFamilyMembers([]);
-          setSelectedFamilyMembers(new Set());
-          setSelectedPerson(null);
-          setPersonSearch("");
-          setSelectedCementerios([]);
-          setCementerioSelectedYears(new Map());
-          setCementeriosList([]);
-          setServiceDate(new Date().toISOString().split("T")[0]);
-          setImporteStr("");
-          setDescripcion("");
-          setErrors({});
-          setTouched({});
-          setApiError(null);
+          setSelectedMember(null); setMemberSearch(""); setFamilyPayment(false);
+          setFamilyMembers([]); setSelectedFamilyMembers(new Set());
+          setSelectedPerson(null); setPersonSearch("");
+          setSelectedCementerios([]); setCementerioSelectedYears(new Map());
+          setCementeriosList([]); setCementerioPaidYears(new Map()); setServiceDate(new Date().toISOString().split("T")[0]);
+          setImporteStr(""); setDescripcion(""); setErrors({}); setTouched({}); setApiError(null);
         }
       } catch (err) {
         setApiError(err instanceof Error ? err.message : "Error al guardar el movimiento");
@@ -826,46 +819,23 @@ const NewMovement: React.FC = () => {
         setSaving(false);
       }
     },
-    [
-      isEditing, id, validate, showServicioSelect, servicio, concept, payerName,
+    [isEditing, id, validate, showServicioSelect, servicio, concept, payerName,
       descripcion, fecha, serviceDate, importeNum, mode, shouldCreateDue,
       personType, selectedMember, selectedPerson, familyPayment, selectedFamilyMembers,
-      periods, navigate, serviciosFromApi,
-    ]
+      periods, navigate, serviciosFromApi, selectedCementerios, cementerioSelectedYears, getFeeForCementerio, getMemberFee, familyMembers]
   );
 
-  const originLabel = cajaOrigen === "caja_chica" ? "Caja Chica" : "Banco";
-  const formaPagoLabel = mode === "efectivo" ? "Efectivo" : "Transferencia";
-  const personTypeLabel = personType === "socio" ? "Socio" : "Persona";
+
+  const lastPaid = selectedMember ? getLastPaidPeriod(selectedMember.id) : null;
+  const lastPaidFormatted = lastPaid ? formatPeriod(lastPaid) : "";
+  const monthsOwed = selectedMember ? calculateMonthsOwed(selectedMember.id) : null;
 
   return (
     <form className="new-movement-container" onSubmit={handleSubmit} noValidate>
-      {success && (
-        <div className="success-banner">
-          <CheckCircle size={18} />
-          Movimiento registrado correctamente
-          <button type="button" className="success-close" onClick={() => setSuccess(false)}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-      {apiError && (
-        <div className="error-banner">
-          <Info size={18} />
-          {apiError}
-          <button type="button" className="success-close" onClick={() => setApiError(null)}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      {success && <Banner type="success" message="Movimiento registrado correctamente" onClose={() => setSuccess(false)} />}
+      {apiError && <Banner type="error" message={apiError} onClose={() => setApiError(null)} />}
       {errors.period && (
-        <div className="error-banner">
-          <Info size={18} />
-          <span>{errors.period}</span>
-          <button type="button" className="success-close" onClick={() => setErrors((prev) => { const n = { ...prev }; delete n.period; return n; })}>
-            <X size={16} />
-          </button>
-        </div>
+        <Banner type="error" message={errors.period!} onClose={() => setErrors((prev) => { const n = { ...prev }; delete n.period; return n; })} />
       )}
 
       <div className="new-movement-layout">
@@ -873,511 +843,85 @@ const NewMovement: React.FC = () => {
           <div className="card-custom">
             <h3 className="card-title">Datos del Movimiento</h3>
 
-            <div className="form-grid">
-              <div className="form-group">
-                <label>
-                  Origen del Movimiento <span className="required">*</span>
-                </label>
-                <select
-                  className="form-control"
-                  value={cajaOrigen}
-                  onChange={(e) => setCajaOrigen(e.target.value as "caja_chica" | "banco")}
-                >
-                  <option value="caja_chica">Caja Chica</option>
-                  <option value="banco">Banco</option>
-                </select>
-              </div>
+            <MovementFormFields
+              cajaOrigen={cajaOrigen} onCajaOrigenChange={setCajaOrigen}
+              personType={personType} onPersonTypeChange={handlePersonTypeChange}
+              concept={concept} onConceptChange={setConcept}
+              concepts={currentConcepts}
+              servicio={servicio} onServicioChange={setServicio}
+              serviciosFromApi={serviciosFromApi}
+              showServicioSelect={showServicioSelect}
+              onOpenNewService={() => { setNewServiceName(""); setNewServiceCost(""); setServiceError(null); setShowNewServiceModal(true); }}
+              memberSearch={memberSearch} onMemberSearchChange={(v) => { setMemberSearch(v); setShowMemberDropdown(true); if (selectedMember && v !== selectedMember.nombre) setSelectedMember(null); }}
+              memberResults={memberResults} selectedMember={selectedMember}
+              onSelectMember={handleSelectMember} onClearMember={handleClearMember}
+              showMemberDropdown={showMemberDropdown} onShowMemberDropdown={setShowMemberDropdown}
+              membersLoading={membersLoading}
+              personSearch={personSearch} onPersonSearchChange={(v) => { setPersonSearch(v); setShowPersonDropdown(true); if (selectedPerson && v !== selectedPerson.nombre) setSelectedPerson(null); }}
+              personResults={personResults} selectedPerson={selectedPerson}
+              onSelectPerson={handleSelectPerson} onClearPerson={handleClearPerson}
+              showPersonDropdown={showPersonDropdown} onShowPersonDropdown={setShowPersonDropdown}
+              personsLoading={personsLoading}
+              touched={touched} errors={errors} onTouchField={touchField}
+            />
 
-              <div className="form-group">
-                <label>
-                  Forma de Pago <span className="required">*</span>
-                </label>
-                <div className="input-with-icon">
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formaPagoLabel}
-                    readOnly
-                  />
-                  <CreditCard size={18} className="input-icon" />
-                </div>
-              </div>
+            {concept === "Cementerio" && (
+              <CementerioPicker
+                cementeriosList={cementeriosList}
+                selectedCementerios={selectedCementerios}
+                cementerioSelectedYears={cementerioSelectedYears}
+                onToggleSelection={toggleCementerioSelection}
+                onAddYear={addCementerioYear}
+                onRemoveYear={removeCementerioYear}
+                getAvailableYears={getAvailableYears}
+              />
+            )}
 
-              <div className="form-group">
-                <label>
-                  Quien realiza el pago <span className="required">*</span>
-                </label>
-                <select
-                  className="form-control"
-                  value={personType}
-                  onChange={(e) => {
-                    setPersonType(e.target.value as "socio" | "persona");
-                    setSelectedMember(null);
-                    setMemberSearch("");
-                    setFamilyPayment(false);
-                    setFamilyMembers([]);
-                    setSelectedFamilyMembers(new Set());
-                    setSelectedPerson(null);
-                    setPersonSearch("");
-                    setPeriods([]);
-                    setPaidPeriods(new Set());
-                    setSelectedCementerios([]);
-                    setCementerioSelectedYears(new Map());
-                    setCementeriosList([]);
-                  }}
-                >
-                  <option value="socio">Socio</option>
-                  <option value="persona">Persona</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>
-                  Concepto <span className="required">*</span>
-                </label>
-                <select
-                  className="form-control"
-                  value={concept}
-                  onChange={(e) => setConcept(e.target.value)}
-                >
-                  {currentConcepts.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              {showServicioSelect && (
-                <div className="form-group full-width">
-                  <label>
-                    Servicio <span className="required">*</span>
-                  </label>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <select
-                      className="form-control"
-                      value={servicio}
-                      onChange={(e) => setServicio(e.target.value)}
-                      style={{ flex: 1 }}
-                    >
-                      {serviciosFromApi.length === 0 ? (
-                        <option value="">No hay servicios disponibles</option>
-                      ) : (
-                        serviciosFromApi.map((s) => (
-                          <option key={s.id} value={s.name}>{s.name}</option>
-                        ))
-                      )}
-                    </select>
-                    <button
-                      type="button"
-                      className="add-service-btn"
-                      onClick={() => {
-                        setNewServiceName("");
-                        setNewServiceCost("");
-                        setServiceError(null);
-                        setShowNewServiceModal(true);
-                      }}
-                      title="Agregar nuevo servicio"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="form-group full-width">
-                <label>
-                  {personType === "socio" ? "Socio" : "Persona"} <span className="required">*</span>
-                </label>
-
-                {personType === "socio" ? (
-                  <div className="member-search-wrapper" ref={memberSearchRef}>
-                    <div className="input-with-icon">
-                      <input
-                        type="text"
-                        className={`form-control${touched.socio && errors.socio ? " input-error" : ""}`}
-                        placeholder={
-                          membersLoading
-                            ? "Cargando socios..."
-                            : "Buscar socio por nombre o DNI..."
-                        }
-                        value={memberSearch}
-                        onChange={(e) => {
-                          setMemberSearch(e.target.value);
-                          setShowMemberDropdown(true);
-                          if (selectedMember && e.target.value !== selectedMember.nombre) {
-                            setSelectedMember(null);
-                          }
-                        }}
-                        onFocus={() => setShowMemberDropdown(true)}
-                        onBlur={() => {
-                          if (!selectedMember) touchField("socio");
-                        }}
-                        disabled={membersLoading}
-                      />
-                      <Search size={18} className="input-icon" />
-                    </div>
-
-                    {showMemberDropdown && memberResults.length > 0 && !selectedMember && (
-                      <div className="member-dropdown">
-                        {memberResults.map((m) => (
-                          <button
-                            type="button"
-                            key={m.id}
-                            className="member-dropdown-item"
-                            onClick={() => handleSelectMember(m)}
-                          >
-                            <User size={16} />
-                            <div className="member-dropdown-info">
-                              <span className="member-dropdown-name">{m.nombre}</span>
-                              <span className="member-dropdown-detail">
-                                DNI {m.documento} · Nº {m.numeroDeSocio}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {selectedMember && (
-                      <div className="selected-user-card">
-                        <div className="user-info">
-                          <div className="user-avatar-small">
-                            <User size={20} />
-                          </div>
-                          <div className="user-details">
-                            <span className="user-name">{selectedMember.nombre}</span>
-                            <span className="user-dni">DNI {selectedMember.documento}</span>
-                          </div>
-                        </div>
-                        <div className="user-status">
-                          <span className="user-number">Nº Socio {selectedMember.numeroDeSocio}</span>
-                          <button type="button" className="clear-member-btn" onClick={handleClearMember}>
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedMember && concept === "Cuota Socio" && (
-                      <div className="family-payment-section">
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={familyPayment}
-                            onChange={(e) => setFamilyPayment(e.target.checked)}
-                          />
-                          Pago por grupo familiar
-                        </label>
-                        {familyPayment && familyMembers.length > 0 && (
-                          <div className="family-member-list">
-                            <p className="family-member-hint">Seleccioná los miembros del grupo familiar a pagar:</p>
-                            {familyMembers.map((fm) => {
-                              const isPayer = fm.id === selectedMember.id;
-                              return (
-                                <label key={fm.id} className={`family-member-item${isPayer ? " family-member-payer" : ""}`}>
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedFamilyMembers.has(fm.id)}
-                                    onChange={() => {
-                                      setSelectedFamilyMembers((prev) => {
-                                        const next = new Set(prev);
-                                        if (next.has(fm.id)) next.delete(fm.id);
-                                        else next.add(fm.id);
-                                        return next;
-                                      });
-                                    }}
-                                  />
-                                  <span>{fm.nombre}</span>
-                                  <span className="family-member-socio">Nº {fm.numeroDeSocio}</span>
-                                  {isPayer && <span className="family-member-badge">Paga</span>}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {familyPayment && familyMembers.length === 0 && (
-                          <p className="family-member-hint">No se encontraron miembros del grupo familiar.</p>
-                        )}
-                      </div>
-                    )}
-
-                    {touched.socio && errors.socio && (
-                      <span className="field-error">{errors.socio}</span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="member-search-wrapper" ref={personSearchRef}>
-                    <div className="input-with-icon">
-                      <input
-                        type="text"
-                        className={`form-control${touched.persona && errors.persona ? " input-error" : ""}`}
-                        placeholder={
-                          personsLoading
-                            ? "Cargando personas..."
-                            : "Buscar persona por nombre o DNI..."
-                        }
-                        value={personSearch}
-                        onChange={(e) => {
-                          setPersonSearch(e.target.value);
-                          setShowPersonDropdown(true);
-                          if (selectedPerson && e.target.value !== selectedPerson.nombre) {
-                            setSelectedPerson(null);
-                          }
-                        }}
-                        onFocus={() => setShowPersonDropdown(true)}
-                        onBlur={() => {
-                          if (!selectedPerson) touchField("persona");
-                        }}
-                        disabled={personsLoading}
-                      />
-                      <Search size={18} className="input-icon" />
-                    </div>
-
-                    {showPersonDropdown && personResults.length > 0 && !selectedPerson && (
-                      <div className="member-dropdown">
-                        {personResults.map((p) => (
-                          <button
-                            type="button"
-                            key={p.id}
-                            className="member-dropdown-item"
-                            onClick={() => handleSelectPerson(p)}
-                          >
-                            <User size={16} />
-                            <div className="member-dropdown-info">
-                              <span className="member-dropdown-name">{p.nombre}</span>
-                              <span className="member-dropdown-detail">
-                                {p.tipoDoc} {p.documento}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {selectedPerson && (
-                      <div className="selected-user-card">
-                        <div className="user-info">
-                          <div className="user-avatar-small">
-                            <User size={20} />
-                          </div>
-                          <div className="user-details">
-                            <span className="user-name">{selectedPerson.nombre}</span>
-                            <span className="user-dni">{selectedPerson.tipoDoc} {selectedPerson.documento}</span>
-                          </div>
-                        </div>
-                        <div className="user-status">
-                          <button type="button" className="clear-member-btn" onClick={handleClearPerson}>
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {touched.persona && errors.persona && (
-                      <span className="field-error">{errors.persona}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-              {concept === "Cementerio" && (
-                <div className="cementerio-section-full">
-                  <label className="cementerio-section-label">
-                    Cementerio <span className="required">*</span>
-                  </label>
-                  {cementeriosList.length === 0 ? (
-                    <p className="cementerio-empty-msg">
-                      No se encontraron nichos/urnas/bolsas para este titular.
-                    </p>
-                  ) : (
-                    <div className="cementerio-cards-grid">
-                      {cementeriosList.map((c) => {
-                        const isSelected = selectedCementerios.some((x) => x.id === c.id);
-                        const availableYears = getAvailableYears(c);
-                        const selectedYears = cementerioSelectedYears.get(c.id) || new Set();
-                        return (
-                          <div
-                            key={c.id}
-                            className={`cementerio-selectable-card${isSelected ? " cementerio-card-selected" : ""}`}
-                          >
-                            <label className="cementerio-card-header">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleCementerioSelection(c)}
-                              />
-                              <div className="cementerio-card-title">
-                                <span className="cementerio-card-nicho">{c.nicho}</span>
-                                <span className="cementerio-card-tipo">{c.tipo || "Nicho"}</span>
-                              </div>
-                            </label>
-                            <div className="cementerio-card-details">
-                              <div className="cementerio-card-row">
-                                <span className="cementerio-card-dlabel">Ocupante</span>
-                                <span className="cementerio-card-dvalue">{c.ocupante || "—"}</span>
-                              </div>
-                              <div className="cementerio-card-row">
-                                <span className="cementerio-card-dlabel">Año Gracia</span>
-                                <span className="cementerio-card-dvalue">{c.anioDeGracia || "—"}</span>
-                              </div>
-                              <div className="cementerio-card-row">
-                                <span className="cementerio-card-dlabel">Último Pago</span>
-                                <span className="cementerio-card-dvalue">{c.ultimoPago || "—"}</span>
-                              </div>
-                              <div className="cementerio-card-row">
-                                <span className="cementerio-card-dlabel">Nº Orden</span>
-                                <span className="cementerio-card-dvalue">{c.numeroOrden || "—"}</span>
-                              </div>
-                            </div>
-                            {isSelected && (
-                              <div className="cementerio-card-years">
-                                <span className="cementerio-card-years-label">Años a pagar:</span>
-                                {availableYears.length === 0 ? (
-                                  <span className="cementerio-al-day">Al día</span>
-                                ) : (
-                                  <div className="cementerio-years-chips">
-                                    {availableYears.map((y) => {
-                                      const ys = String(y);
-                                      return (
-                                        <button
-                                          key={y}
-                                          type="button"
-                                          className={`cementerio-year-chip${selectedYears.has(ys) ? " chip-active" : ""}`}
-                                          onClick={() => toggleYearForCementerio(c.id, ys)}
-                                        >
-                                          {y}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+            {selectedMember && concept === "Cuota Socio" && (
+              <FamilyPaymentSection
+                familyPayment={familyPayment}
+                onFamilyPaymentChange={setFamilyPayment}
+                familyMembers={familyMembers}
+                selectedFamilyMembers={selectedFamilyMembers}
+                onToggleFamilyMember={handleToggleFamilyMember}
+                selectedMemberId={selectedMember.id}
+                getMemberFee={getMemberFee}
+              />
+            )}
 
             <div className="period-details-row">
               {shouldCreateDue && concept === "Cuota Socio" && (
                 <div className="period-column">
-                  <div className="period-field-group">
-                    <label>
-                      Período <span className="required">*</span>
-                    </label>
-                    <div className="period-year-nav">
-                      <button type="button" className="period-year-btn" onClick={() => setPeriodYear((y) => y - 1)}>
-                        &lt;
-                      </button>
-                      <span className="period-year-label">{periodYear}</span>
-                      <button type="button" className="period-year-btn" onClick={() => setPeriodYear((y) => y + 1)}>
-                        &gt;
-                      </button>
-                    </div>
-                    <div className="period-months-grid">
-                      {["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"].map((name, i) => {
-                        const m = String(i + 1).padStart(2, "0");
-                        const val = `${periodYear}-${m}`;
-                        const active = periods.includes(val);
-                        return (
-                          <button
-                            key={val}
-                            type="button"
-                            className={`period-month-btn${active && !paidPeriods.has(val) ? " active" : ""}${paidPeriods.has(val) ? " paid" : ""}`}
-                            onClick={() => {
-                              if (paidPeriods.has(val)) return;
-                              setPeriods((prev) => {
-                                if (prev.includes(val)) return prev.filter((p) => p !== val);
-                                return [...prev, val].sort();
-                              });
-                              setErrors((prev) => {
-                                if (!prev.period) return prev;
-                                const next = { ...prev };
-                                delete next.period;
-                                return next;
-                              });
-                            }}
-                          >
-                            {name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <PeriodPicker
+                    periodYear={periodYear}
+                    onYearChange={setPeriodYear}
+                    periods={periods}
+                    onTogglePeriod={handleTogglePeriod}
+                    disabledPeriods={paidPeriods}
+                    required
+                  />
                 </div>
               )}
 
               <div className="details-column">
-                <div className="form-group">
-                  <label>
-                    {showServicioSelect ? "Fecha de pago" : "Fecha"} <span className="required">*</span>
-                  </label>
-                  <div className="input-with-icon date-input-wrap">
-                    <input
-                      type="date"
-                      className={`form-control${touched.fecha && errors.fecha ? " input-error" : ""}`}
-                      value={fecha}
-                      onChange={(e) => {
-                        setFecha(e.target.value);
-                        setErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.fecha;
-                          return next;
-                        });
-                      }}
-                      onBlur={() => {
-                        if (!fecha) touchField("fecha");
-                      }}
-                      id="movement-date"
-                    />
-                    <button
-                      type="button"
-                      className="date-picker-btn"
-                      onClick={() => {
-                        const el = document.getElementById("movement-date") as HTMLInputElement | null;
-                        if (el) {
-                          el.focus();
-                          el.showPicker?.();
-                        }
-                      }}
-                    >
-                      <Calendar size={18} />
-                    </button>
-                  </div>
-                  {touched.fecha && errors.fecha && (
-                    <span className="field-error">{errors.fecha}</span>
-                  )}
-                </div>
+                <DateInput
+                  label={showServicioSelect ? "Fecha de pago" : "Fecha"}
+                  required
+                  value={fecha}
+                  onChange={(v) => { setFecha(v); setErrors((prev) => { const next = { ...prev }; delete next.fecha; return next; }); }}
+                  id="movement-date"
+                  error={errors.fecha}
+                  touched={touched.fecha}
+                  onBlur={() => { if (!fecha) touchField("fecha"); }}
+                />
 
                 {showServicioSelect && (
-                  <div className="form-group">
-                    <label>Fecha del servicio</label>
-                    <div className="input-with-icon date-input-wrap">
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={serviceDate}
-                        onChange={(e) => setServiceDate(e.target.value)}
-                        id="service-date"
-                      />
-                      <button
-                        type="button"
-                        className="date-picker-btn"
-                        onClick={() => {
-                          const el = document.getElementById("service-date") as HTMLInputElement | null;
-                          if (el) {
-                            el.focus();
-                            el.showPicker?.();
-                          }
-                        }}
-                      >
-                        <Calendar size={18} />
-                      </button>
-                    </div>
-                  </div>
+                  <DateInput
+                    label="Fecha del servicio"
+                    value={serviceDate}
+                    onChange={setServiceDate}
+                    id="service-date"
+                  />
                 )}
 
                 <div className="form-group">
@@ -1391,15 +935,10 @@ const NewMovement: React.FC = () => {
                       placeholder="0,00"
                       value={importeStr}
                       onChange={(e) => {
-                        const raw = e.target.value;
-                        const cleaned = raw.replace(/[^0-9,]/g, "");
+                        const cleaned = e.target.value.replace(/[^0-9,]/g, "");
                         setImporteStr(cleaned);
                         if (parseFloat(cleaned.replace(",", ".")) > 0) {
-                          setErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.importe;
-                            return next;
-                          });
+                          setErrors((prev) => { const next = { ...prev }; delete next.importe; return next; });
                         }
                       }}
                       onBlur={() => touchField("importe")}
@@ -1439,247 +978,42 @@ const NewMovement: React.FC = () => {
         </div>
 
         <div className="new-movement-sidebar-section">
-          <div className="card-custom summary-card">
-            <h3 className="card-title">Resumen del Movimiento</h3>
-            <div className="summary-list">
-              <div className="summary-item">
-                <div className="summary-label">
-                  <Landmark size={16} /> <span>Origen</span>
-                </div>
-                <div className="summary-value">{originLabel}</div>
-              </div>
-              <div className="summary-item">
-                <div className="summary-label">
-                  <CreditCard size={16} /> <span>Forma de Pago</span>
-                </div>
-                <div className="summary-value">{formaPagoLabel}</div>
-              </div>
-              <div className="summary-item">
-                <div className="summary-label">
-                  <User size={16} /> <span>Tipo</span>
-                </div>
-                <div className="summary-value">{personTypeLabel}</div>
-              </div>
-              <div className="summary-item">
-                <div className="summary-label">
-                  <Info size={16} /> <span>Concepto</span>
-                </div>
-                <div className="summary-value">
-                  {showServicioSelect ? `${concept} - ${servicio}` : concept}
-                </div>
-              </div>
-              <div className="summary-item">
-                <div className="summary-label">
-                  <User size={16} /> <span>Paga</span>
-                </div>
-                <div className="summary-value">
-                  {payerName || "—"}
-                </div>
-              </div>
-              <div className="summary-item">
-                <div className="summary-label">
-                  <Calendar size={16} /> <span>{showServicioSelect ? "Fecha de pago" : "Fecha"}</span>
-                </div>
-                <div className="summary-value">{fecha || "—"}</div>
-              </div>
-              {showServicioSelect && (
-                <div className="summary-item">
-                  <div className="summary-label">
-                    <Calendar size={16} /> <span>Fecha del servicio</span>
-                  </div>
-                  <div className="summary-value">{serviceDate || "—"}</div>
-                </div>
-              )}
-              <div className="summary-item">
-                <div className="summary-label">
-                  <DollarSign size={16} /> <span>Importe</span>
-                </div>
-                <div className="summary-value highlight-green">
-                  {importeNum > 0 ? toCurrency(importeNum) : "—"}
-                </div>
-              </div>
-            </div>
+          <MovementSummary
+            originLabel={originLabel}
+            formaPagoLabel={formaPagoLabel}
+            personTypeLabel={personTypeLabel}
+            concept={concept}
+            servicio={servicio}
+            showServicioSelect={showServicioSelect}
+            payerName={payerName}
+            fecha={fecha}
+            serviceDate={serviceDate}
+            importeNum={importeNum}
+            showServiceDate={showServicioSelect}
+          />
 
-            <div className="summary-total">
-              <span>Total a Registrar</span>
-              <span className="total-amount">
-                {importeNum > 0 ? toCurrency(importeNum) : "—"}
-              </span>
-            </div>
-          </div>
-
-          {selectedMember && (
-            <div className="card-custom socio-info-card">
-              <h3 className="card-title">Información del Socio</h3>
-              <div className="socio-profile">
-                <div className="socio-avatar">
-                  <User size={32} />
-                </div>
-                <div className="socio-meta">
-                  <span className="socio-name">{selectedMember.nombre}</span>
-                  <span className="socio-sub">Nº Socio: {selectedMember.numeroDeSocio}</span>
-                  <span className="socio-sub">DNI: {selectedMember.documento}</span>
-                  {selectedMember.nroFamilia && (
-                    <span className="socio-sub" style={{ fontWeight: 600, color: "var(--azul-institucional)" }}>
-                      Grupo Familiar: {selectedMember.nroFamilia.split("/")[0]}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="socio-contact">
-                <div className="contact-item">
-                  <Phone size={16} /> <span>{selectedMember.telefono || "—"}</span>
-                </div>
-                <div className="contact-item">
-                  <Mail size={16} /> <span>{selectedMember.email || "—"}</span>
-                </div>
-                <div className="contact-item">
-                  <MapPin size={16} /> <span>{selectedMember.domicilio || "—"}</span>
-                </div>
-                      <div className="contact-item">
-                  <AlertTriangle size={16} /> <span>{"Estado deuda"}</span>
-                </div>
-              </div>
-
-              {(() => {
-                if (debtLoading) return null;
-                const monthsOwed = calculateMonthsOwed(selectedMember.id);
-                const canCalculate = monthsOwed !== null;
-                const lastPaid = getLastPaidPeriod(selectedMember.id);
-                const lastPaidFormatted = lastPaid ? formatPeriod(lastPaid) : "";
-                const showWarning = canCalculate && monthsOwed! > 0;
-                return (
-                  <div className={`debt-alert${showWarning ? " debt-alert-warning" : " debt-alert-ok"}`}>
-                    <div className="debt-alert-header">
-                      <AlertTriangle size={16} />
-                      <span>
-                        {canCalculate
-                          ? monthsOwed! > 0
-                            ? `Debe ${monthsOwed} ${monthsOwed === 1 ? "mes" : "meses"}`
-                            : `Al día (último pago: ${lastPaidFormatted})`
-                          : lastPaidFormatted
-                            ? `Último pago: ${lastPaidFormatted}`
-                            : "No disp."
-                        }
-                      </span>
-                    </div>
-                    <a
-                      href={`/socios/detalle/${selectedMember.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="debt-detail-btn"
-                    >
-                      Ver detalles
-                      <ExternalLink size={14} />
-                    </a>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {selectedPerson && (
-            <div className="card-custom socio-info-card">
-              <h3 className="card-title">Información de la Persona</h3>
-              <div className="socio-profile">
-                <div className="socio-avatar">
-                  <User size={32} />
-                </div>
-                <div className="socio-meta">
-                  <span className="socio-name">{selectedPerson.nombre}</span>
-                  <span className="socio-sub">{selectedPerson.tipoDoc}: {selectedPerson.documento}</span>
-                </div>
-              </div>
-              <div className="socio-contact">
-                <div className="contact-item">
-                  <Phone size={16} /> <span>{selectedPerson.telefono || "—"}</span>
-                </div>
-                <div className="contact-item">
-                  <MapPin size={16} /> <span>{selectedPerson.domicilio || "—"}</span>
-                </div>
-              </div>
-            </div>
-          )}
+          <PersonInfoCard
+            personType={personType}
+            selectedMember={selectedMember}
+            selectedPerson={selectedPerson}
+            debtLoading={debtLoading}
+            monthsOwed={monthsOwed}
+            lastPaidFormatted={lastPaidFormatted}
+          />
         </div>
       </div>
 
-      {showNewServiceModal && (
-        <div className="modal-overlay" onClick={() => setShowNewServiceModal(false)}>
-          <div className="modal-content" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Nuevo Servicio</h3>
-              <button className="modal-close" onClick={() => setShowNewServiceModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 16, padding: 20 }}>
-              {serviceError && (
-                <div className="error-banner" style={{ fontSize: 13 }}>
-                  <Info size={16} /> {serviceError}
-                </div>
-              )}
-              <div className="form-group">
-                <label>Nombre <span className="required">*</span></label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Nombre del servicio"
-                  value={newServiceName}
-                  onChange={(e) => setNewServiceName(e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label>Costo <span className="required">*</span></label>
-                <div className="input-with-icon">
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="0,00"
-                    value={newServiceCost}
-                    onChange={(e) => setNewServiceCost(e.target.value.replace(/[^0-9,]/g, ""))}
-                  />
-                  <DollarSign size={18} className="input-icon" />
-                </div>
-              </div>
-              <div className="form-actions">
-                <button type="button" className="btn-cancel" onClick={() => setShowNewServiceModal(false)} disabled={savingService}>
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="btn-save"
-                  disabled={savingService || !newServiceName.trim() || !newServiceCost}
-                  onClick={async () => {
-                    const cost = parseFloat(newServiceCost.replace(",", "."));
-                    if (!newServiceName.trim()) {
-                      setServiceError("Ingresá un nombre");
-                      return;
-                    }
-                    if (isNaN(cost) || cost <= 0) {
-                      setServiceError("Ingresá un costo válido");
-                      return;
-                    }
-                    setSavingService(true);
-                    setServiceError(null);
-                    try {
-                      const created = await saveService(newServiceName.trim(), cost);
-                      setServiciosFromApi((prev) => [...prev, created]);
-                      setServicio(created.name);
-                      setShowNewServiceModal(false);
-                    } catch (err) {
-                      setServiceError(err instanceof Error ? err.message : "Error al guardar servicio");
-                    } finally {
-                      setSavingService(false);
-                    }
-                  }}
-                >
-                  {savingService ? "Guardando..." : "Guardar"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <NewServiceModal
+        isOpen={showNewServiceModal}
+        onClose={() => setShowNewServiceModal(false)}
+        serviceName={newServiceName}
+        onServiceNameChange={setNewServiceName}
+        serviceCost={newServiceCost}
+        onServiceCostChange={setNewServiceCost}
+        serviceError={serviceError}
+        saving={savingService}
+        onSave={handleSaveNewService}
+      />
     </form>
   );
 };

@@ -8,6 +8,13 @@ export type DuesConfig = {
     urna_non_member_fee: number;
     bolsa_member_fee: number;
     bolsa_non_member_fee: number;
+    asistencial_fee: number;
+    plan_salud_fee: number;
+    fee_act: number;
+    fee_act_a: number;
+    fee_adh: number;
+    fee_part: number;
+    fee_vit: number;
 };
 
 export async function fetchDuesConfig(): Promise<DuesConfig | null> {
@@ -28,6 +35,13 @@ export async function saveDuesConfig(
     urna_non_member_fee: number = 0,
     bolsa_member_fee: number = 0,
     bolsa_non_member_fee: number = 0,
+    asistencial_fee: number = 0,
+    plan_salud_fee: number = 0,
+    fee_act: number = 0,
+    fee_act_a: number = 0,
+    fee_adh: number = 0,
+    fee_part: number = 0,
+    fee_vit: number = 0,
 ): Promise<DuesConfig> {
     const response = await fetch("/api/dues-config", {
         method: "POST",
@@ -37,6 +51,8 @@ export async function saveDuesConfig(
             nicho_member_fee, nicho_non_member_fee,
             urna_member_fee, urna_non_member_fee,
             bolsa_member_fee, bolsa_non_member_fee,
+            asistencial_fee, plan_salud_fee,
+            fee_act, fee_act_a, fee_adh, fee_part, fee_vit,
         }),
     });
     if (!response.ok) {

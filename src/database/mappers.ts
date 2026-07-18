@@ -35,7 +35,7 @@ const tipoSocioToDisplay: Record<string, string> = {
     'ACT "A"':    "Activo Tipo A",
     ADH:          "Adherente",
     HON:          "Honorario",
-    PART:         "Part",
+    PART:         "Participante",
     VIT:          "Vitalicio",
 };
 
@@ -44,7 +44,7 @@ const displayToTipoSocio: Record<string, string> = {
     "Activo Tipo A": 'ACT "A"',
     Adherente:      "ADH",
     Honorario:      "HON",
-    Part:           "PART",
+    Participante:  "PART",
     Vitalicio:      "VIT",
 };
 

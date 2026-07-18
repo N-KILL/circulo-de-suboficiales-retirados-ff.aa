@@ -424,3 +424,22 @@
   color: #fff;
   border-color: var(--azul-institucional);
 }
+
+.btn-view-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--azul-institucional);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.btn-view-detail:hover {
+  background: rgba(0, 0, 0, 0.05);
+  text-decoration: underline;
+}

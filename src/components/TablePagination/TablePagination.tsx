@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface TablePaginationProps {
@@ -24,9 +24,11 @@ const TablePagination: React.FC<TablePaginationProps> = ({
 
   const [inputVal, setInputVal] = useState(String(currentPage));
 
-  useEffect(() => {
+  const [prevPage, setPrevPage] = useState(currentPage);
+  if (currentPage !== prevPage) {
+    setPrevPage(currentPage);
     setInputVal(String(currentPage));
-  }, [currentPage]);
+  }
 
   const submitPage = () => {
     const pageNum = parseInt(inputVal, 10);

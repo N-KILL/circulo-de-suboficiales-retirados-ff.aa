@@ -82,7 +82,7 @@ export async function fetchMovementById(id: string): Promise<Movement> {
 
 export async function updateMovement(
     id: string,
-    data: Partial<Pick<Movement, "date" | "detail" | "amount" | "type" | "mode" | "concept">> & { due?: Record<string, any> }
+    data: Partial<Pick<Movement, "date" | "detail" | "amount" | "type" | "mode" | "concept">> & { due?: Record<string, unknown> }
 ): Promise<void> {
     const response = await fetch(`/api/movement?id=${encodeURIComponent(id)}`, {
         method: "PUT",

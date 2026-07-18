@@ -36,7 +36,7 @@ export async function getCementerioMovimientosByMovement(movementId: string): Pr
         WHERE cm.movement_id = ${movementId}
         ORDER BY cm.nicho, cm.created_at
     `;
-    return (rows as any[]).map((r) => ({
+    return (rows as unknown as CementerioMovimientoRecord[]).map((r) => ({
         id: r.id,
         movement_id: r.movement_id,
         cementerio_id: r.cementerio_id,
@@ -72,7 +72,7 @@ export async function getCementerioMovimientosByNicho(nicho: string): Promise<Ce
         WHERE cm.nicho = ${nicho}
         ORDER BY cm.fecha_pago DESC, cm.created_at DESC
     `;
-    return (rows as any[]).map((r) => ({
+    return (rows as unknown as CementerioMovimientoRecord[]).map((r) => ({
         id: r.id,
         movement_id: r.movement_id,
         cementerio_id: r.cementerio_id,

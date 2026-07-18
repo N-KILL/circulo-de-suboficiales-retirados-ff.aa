@@ -101,8 +101,8 @@ export async function insertDue(due: {
     return id;
 }
 
-async function mapDues(rows: any): Promise<DueWithDetails[]> {
-    return (rows as any[]).map((r: Record<string, unknown>) => ({
+async function mapDues(rows: unknown[]): Promise<DueWithDetails[]> {
+    return (rows as Record<string, unknown>[]).map((r) => ({
         ...r,
         period: parseJsonArray(r.period),
         paid_members: parsePaidMembers(r.paid_members),
@@ -135,7 +135,7 @@ export async function getDuesByMember(memberId: string): Promise<DueWithDetails[
            OR d.paid_members::jsonb ? ${memberId}
         ORDER BY d.payment_date DESC, d.created_at DESC
     `;
-    return mapDues(rows);
+    return mapDues(rows as unknown as Record<string, unknown>[]);
 }
 
 export async function getDuesByPerson(personId: string): Promise<DueWithDetails[]> {
@@ -163,7 +163,7 @@ export async function getDuesByPerson(personId: string): Promise<DueWithDetails[
         WHERE d.person_id = ${personId}
         ORDER BY d.payment_date DESC, d.created_at DESC
     `;
-    return mapDues(rows);
+    return mapDues(rows as unknown as Record<string, unknown>[]);
 }
 
 export async function getAllDues(): Promise<DueWithDetails[]> {
@@ -190,7 +190,7 @@ export async function getAllDues(): Promise<DueWithDetails[]> {
         LEFT JOIN petty_cash pc ON d.movement_id = pc.id
         ORDER BY d.payment_date DESC, d.created_at DESC
     `;
-    return mapDues(rows);
+    return mapDues(rows as unknown as Record<string, unknown>[]);
 }
 
 export async function getDueByMovementId(movementId: string): Promise<DueWithDetails | null> {
@@ -218,7 +218,7 @@ export async function getDueByMovementId(movementId: string): Promise<DueWithDet
         WHERE d.movement_id = ${movementId}
         LIMIT 1
     `;
-    const mapped = await mapDues(rows);
+    const mapped = await mapDues(rows as unknown as Record<string, unknown>[]);
     return mapped.length > 0 ? mapped[0] : null;
 }
 
@@ -227,7 +227,7 @@ export async function deleteDueByMovementId(movementId: string): Promise<boolean
     const result = await sql`
         DELETE FROM dues WHERE movement_id = ${movementId}
     `;
-    return (result as any)?.count > 0;
+    return ((result as unknown as Record<string, unknown>)?.count as number) > 0;
 }
 
 export async function updateDueByMovementId(

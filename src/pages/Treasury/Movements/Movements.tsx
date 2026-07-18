@@ -1,39 +1,26 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Search, ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw, X } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import TablePagination from "../../../components/TablePagination/TablePagination";
+import FiltersPanel from "../../../components/filters/FiltersPanel";
+import MonthFilter from "../../../components/filters/MonthFilter";
+import YearFilter from "../../../components/filters/YearFilter";
 import { fetchMovements, type Movement } from "../../../services/movementsApi";
 import { fetchInitialBalances } from "../../../services/initialBalancesApi";
 import { fetchCementerioMovimientosByNicho } from "../../../services/cementeriosApi";
+import { formatCurrency } from "../../../utils/format";
 import "../TreasuryTables.css";
-
-function formatCurrency(val: number): string {
-  const absVal = Math.abs(val);
-  const formatted = new Intl.NumberFormat("es-AR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(absVal);
-  return `${val < 0 ? "- " : ""}$ ${formatted}`;
-}
-
-const MONTHS = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
-];
 
 const Movements: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const nichoFilter = searchParams.get("nicho") || "";
 
-  // ── Raw data ──────────────────────────────────────────
   const [rawMovements, setRawMovements] = useState<Movement[]>([]);
   const [initialBanco, setInitialBanco] = useState(0);
   const [initialCajaChica, setInitialCajaChica] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Filters ───────────────────────────────────────────
   const [searchText, setSearchText] = useState("");
   const [selectedMonths, setSelectedMonths] = useState<number[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
@@ -44,10 +31,8 @@ const Movements: React.FC = () => {
   const [filtroIngreso, setFiltroIngreso] = useState(true);
   const [filtroEgreso, setFiltroEgreso] = useState(true);
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
-  const yearDropdownRef = useRef<HTMLDivElement>(null);
   const [nichoMovementIds, setNichoMovementIds] = useState<Set<string> | null>(null);
 
-  // ── Available years from data ─────────────────────────
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     for (const m of rawMovements) {
@@ -57,25 +42,14 @@ const Movements: React.FC = () => {
     return [...years].sort((a, b) => b - a);
   }, [rawMovements]);
 
-  // ── Click outside to close year dropdown ────────────────
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (yearDropdownRef.current && !yearDropdownRef.current.contains(e.target as Node)) {
-        setYearDropdownOpen(false);
-      }
-    };
-    if (yearDropdownOpen) {
-      document.addEventListener("mousedown", handler);
-    }
-    return () => document.removeEventListener("mousedown", handler);
-  }, [yearDropdownOpen, yearDropdownRef]);
+  const [prevNichoFilter, setPrevNichoFilter] = useState(nichoFilter);
+  if (prevNichoFilter !== nichoFilter) {
+    setPrevNichoFilter(nichoFilter);
+    setNichoMovementIds(null);
+  }
 
-  // ── Fetch nicho movement IDs when nichoFilter changes ──
   useEffect(() => {
-    if (!nichoFilter) {
-      setNichoMovementIds(null);
-      return;
-    }
+    if (!nichoFilter) return;
     let mounted = true;
     fetchCementerioMovimientosByNicho(nichoFilter)
       .then((records) => {
@@ -83,26 +57,18 @@ const Movements: React.FC = () => {
         const ids = new Set(records.map((r) => r.movement_id).filter(Boolean) as string[]);
         setNichoMovementIds(ids);
       })
-      .catch(() => {
-        if (mounted) setNichoMovementIds(new Set());
-      });
+      .catch(() => { if (mounted) setNichoMovementIds(new Set()); });
     return () => { mounted = false; };
   }, [nichoFilter]);
 
-  // ── Initial data fetch ────────────────────────────────
   useEffect(() => {
     let mounted = true;
-    setIsLoading(true);
-    setError(null);
-
     Promise.all([fetchMovements(), fetchInitialBalances()])
       .then(([data, balances]) => {
         if (!mounted) return;
         setRawMovements(data);
         setInitialBanco(balances?.banco ?? 0);
         setInitialCajaChica(balances?.caja_chica ?? 0);
-
-        // Default to latest month/year
         if (data.length > 0) {
           const last = data[data.length - 1];
           const d = new Date(last.date + "T12:00:00");
@@ -115,34 +81,27 @@ const Movements: React.FC = () => {
         }
         setIsLoading(false);
       })
-      .catch((err) => {
-        if (mounted) {
-          setError(err.message || "Error al cargar movimientos.");
-          setIsLoading(false);
-        }
-      });
-
+      .catch((err) => { if (mounted) { setError(err.message || "Error al cargar movimientos."); setIsLoading(false); } });
     return () => { mounted = false; };
   }, []);
 
-  // ── Running balances ──────────────────────────────────
   const { movementsWithSaldo, finalBanco, finalCajaChica } = useMemo(() => {
     let rb = initialBanco;
     let rc = initialCajaChica;
-    const items = rawMovements.map((m) => {
-      if (m.type === "ingreso") {
-        rb += m.amount;
-        if (m.mode === "efectivo") rc += m.amount;
-      } else if (m.type === "egreso") {
-        rb -= m.amount;
-        if (m.mode === "efectivo") rc -= m.amount;
-      }
+    const items: Array<{
+      id: string; date: string; fecha: string;
+      tipo: string; modalidad: string; concepto: string;
+      ingreso: string; egreso: string;
+      saldoBanco: string | null; saldoCajaChica: string | null;
+      dateObj: Date;
+    }> = [];
+    for (const m of rawMovements) {
+      if (m.type === "ingreso") { rb += m.amount; if (m.mode === "efectivo") rc += m.amount; }
+      else if (m.type === "egreso") { rb -= m.amount; if (m.mode === "efectivo") rc -= m.amount; }
       const parts = m.date.split("-");
       const fecha = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : m.date;
-      return {
-        id: m.id,
-        date: m.date,
-        fecha,
+      items.push({
+        id: m.id, date: m.date, fecha,
         tipo: m.type === "ingreso" ? "Ingreso" : m.type === "egreso" ? "Egreso" : "Transferencia",
         modalidad: m.mode === "efectivo" ? "Efectivo" : "Transferencia",
         concepto: m.detail,
@@ -151,67 +110,53 @@ const Movements: React.FC = () => {
         saldoBanco: m.mode === "transferencia" ? formatCurrency(rb) : null,
         saldoCajaChica: m.mode === "efectivo" ? formatCurrency(rc) : null,
         dateObj: new Date(m.date + "T12:00:00"),
-      };
-    });
+      });
+    }
     return { movementsWithSaldo: items, finalBanco: rb, finalCajaChica: rc };
   }, [rawMovements, initialBanco, initialCajaChica]);
 
-  // ── Filtered ──────────────────────────────────────────
   const filteredMovements = useMemo(() => {
     const search = searchText.toLowerCase().trim();
     const hasYear = selectedYears.length > 0;
     const hasMonth = selectedMonths.length > 0;
-
     return movementsWithSaldo
       .filter((m) => {
         if (nichoMovementIds && !nichoMovementIds.has(m.id)) return false;
-        // month/year
         if (hasYear || hasMonth) {
           const d = m.dateObj;
           if (hasYear && !selectedYears.includes(d.getFullYear())) return false;
           if (hasMonth && !selectedMonths.includes(d.getMonth())) return false;
         }
-        // caja
-        const modeMatch =
-          (cajaBanco && m.modalidad === "Transferencia") ||
-          (cajaChica && m.modalidad === "Efectivo");
+        const modeMatch = (cajaBanco && m.modalidad === "Transferencia") || (cajaChica && m.modalidad === "Efectivo");
         if (!cajaBanco && !cajaChica) return false;
         if (!modeMatch) return false;
-        // search
         if (search && !m.concepto.toLowerCase().includes(search)) return false;
-        // tipo
         if (m.tipo === "Transferencia") return false;
         if (m.tipo === "Ingreso" && !filtroIngreso) return false;
         if (m.tipo === "Egreso" && !filtroEgreso) return false;
         return true;
       })
       .reverse();
-  }, [movementsWithSaldo, searchText, selectedMonths, selectedYears,
-      cajaBanco, cajaChica, filtroIngreso, filtroEgreso, nichoMovementIds]);
+  }, [movementsWithSaldo, searchText, selectedMonths, selectedYears, cajaBanco, cajaChica, filtroIngreso, filtroEgreso, nichoMovementIds]);
 
-  // ── Pagination ────────────────────────────────────────
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(15);
   const totalItems = filteredMovements.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
 
-  useEffect(() => { setCurrentPage(1); }, [
-    searchText, selectedMonths, selectedYears,
-    cajaBanco, cajaChica, filtroIngreso, filtroEgreso,
-  ]);
+  const filterDeps = `${searchText}|${selectedMonths.join(',')}|${selectedYears.join(',')}|${cajaBanco}|${cajaChica}|${filtroIngreso}|${filtroEgreso}`;
+  const [prevFilterDeps, setPrevFilterDeps] = useState(filterDeps);
+  if (filterDeps !== prevFilterDeps) {
+    setPrevFilterDeps(filterDeps);
+    setCurrentPage(1);
+  }
 
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) setCurrentPage(totalPages);
-  }, [rowsPerPage, totalPages, currentPage]);
-
-  const startIndex = (currentPage - 1) * rowsPerPage;
+  const safePage = Math.min(Math.max(1, currentPage), totalPages || 1);
+  const startIndex = (safePage - 1) * rowsPerPage;
   const paginatedMovements = filteredMovements.slice(startIndex, startIndex + rowsPerPage);
 
-  // Toggle helpers
-  const toggleMonth = (m: number) =>
-    setSelectedMonths((prev) =>
-      prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
-    );
+  const toggleMonth = (m: number) => setSelectedMonths((prev) => prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]);
+  const toggleYear = (y: number) => setSelectedYears((prev) => prev.includes(y) ? prev.filter((x) => x !== y) : [...prev, y]);
 
   const clearFilters = () => {
     const now = new Date();
@@ -225,7 +170,6 @@ const Movements: React.FC = () => {
     setSearchParams({});
   };
 
-  // ── Render ────────────────────────────────────────────
   if (isLoading) return <div className="dashboard-loading">Cargando movimientos...</div>;
   if (error) return <div className="dashboard-loading" style={{ color: "var(--danger)" }}>Error: {error}</div>;
 
@@ -234,215 +178,75 @@ const Movements: React.FC = () => {
 
   return (
     <div className="treasury-container">
-      {/* Always-visible top row: search + toggle buttons */}
-      <div className="filters-panel filters-panel-stack">
-        <div className="filters-top-row">
+      <FiltersPanel
+        showFilters={showFilters}
+        onToggleFilters={() => setShowFilters((v) => !v)}
+        onClearFilters={clearFilters}
+        showSaldos={showSaldoColumns}
+        onToggleSaldos={() => setShowSaldoColumns((v) => !v)}
+        showSaldosLabel="Saldos"
+        nichoFilter={nichoFilter}
+        onClearNichoFilter={() => setSearchParams({})}
+        topContent={
           <div className="filter-group" style={{ flex: 1, minWidth: 0 }}>
             <span className="filter-group-label">Buscar</span>
             <div className="search-wrapper" style={{ width: "100%", minWidth: 0, marginRight: 0 }}>
-              <Search size={16} className="search-icon" />
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Buscar..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-              />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="search-icon"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+              <input type="text" className="search-input" placeholder="Buscar..." value={searchText} onChange={(e) => setSearchText(e.target.value)} />
             </div>
           </div>
-          <div className="filter-toggle-buttons" style={{ alignSelf: "flex-end", paddingBottom: 2 }}>
-            <button
-              className="toolbar-btn"
-              onClick={clearFilters}
-              title="Limpiar filtros"
-            >
-              <RotateCcw size={16} />
-              Limpiar
-            </button>
-            <button
-              className="toolbar-btn"
-              onClick={() => setShowSaldoColumns((v) => !v)}
-              title={showSaldoColumns ? "Ocultar columnas de saldo" : "Mostrar columnas de saldo"}
-            >
-              {showSaldoColumns ? <EyeOff size={16} /> : <Eye size={16} />}
-              Saldos
-            </button>
-            <button
-              className={`toolbar-btn ${showFilters ? "active" : ""}`}
-              onClick={() => setShowFilters((v) => !v)}
-            >
-              {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              Filtros
-            </button>
+        }
+      >
+        <div className="filters-bottom-left">
+          <div className="filter-group">
+            <span className="filter-group-label">Tipo</span>
+            <div className="filter-btns">
+              <button className={`filter-btn ${filtroIngreso ? "active" : ""}`} onClick={() => setFiltroIngreso((v) => !v)}>Ingreso</button>
+              <button className={`filter-btn ${filtroEgreso ? "active" : ""}`} onClick={() => setFiltroEgreso((v) => !v)}>Egreso</button>
+            </div>
+          </div>
+          <YearFilter availableYears={availableYears} selectedYears={selectedYears} onToggleYear={toggleYear} isOpen={yearDropdownOpen} onToggleOpen={() => setYearDropdownOpen((v) => !v)} />
+          <MonthFilter selectedMonths={selectedMonths} onToggleMonth={toggleMonth} />
         </div>
-        {nichoFilter && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "8px 12px", marginTop: 8,
-            background: "#e0f2fe", borderRadius: 8,
-            fontSize: 13, fontWeight: 600, color: "#0369a1",
-          }}>
-            <span>Filtrado por nicho: {nichoFilter}</span>
-            <button
-              onClick={() => setSearchParams({})}
-              style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: "#0369a1", padding: 2, display: "flex",
-              }}
-              title="Quitar filtro"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        )}
-      </div>
+        <div className="filters-bottom-right">
+          <button className={`caja-card-toggle-sm ${cajaBanco ? "active" : "inactive"}`} onClick={() => setCajaBanco((v) => !v)}>
+            <span className="caja-card-label">Banco</span>
+            <span className="caja-card-value">{ultimoSaldoBanco}</span>
+          </button>
+          <button className={`caja-card-toggle-sm ${cajaChica ? "active" : "inactive"}`} onClick={() => setCajaChica((v) => !v)}>
+            <span className="caja-card-label">Caja Chica</span>
+            <span className="caja-card-value">{ultimoSaldoCajaChica}</span>
+          </button>
+        </div>
+      </FiltersPanel>
 
-        {/* Collapsible extra filters */}
-        {showFilters && (
-          <div className="filters-bottom-row">
-            {/* Left: Tipo, Año, Mes */}
-            <div className="filters-bottom-left">
-              <div className="filter-group">
-                <span className="filter-group-label">Tipo</span>
-                <div className="filter-btns">
-                  <button
-                    className={`filter-btn ${filtroIngreso ? "active" : ""}`}
-                    onClick={() => setFiltroIngreso((v) => !v)}
-                  >
-                    Ingreso
-                  </button>
-                  <button
-                    className={`filter-btn ${filtroEgreso ? "active" : ""}`}
-                    onClick={() => setFiltroEgreso((v) => !v)}
-                  >
-                    Egreso
-                  </button>
-                </div>
-              </div>
-              <div className="filter-group" ref={yearDropdownRef}>
-                <span className="filter-group-label">Año</span>
-                <div className="multi-select-wrapper">
-                  <button
-                    className={`filter-select ${yearDropdownOpen ? "open" : ""}`}
-                    onClick={() => setYearDropdownOpen((v) => !v)}
-                  >
-                    {selectedYears.length === 0
-                      ? "Todos"
-                      : selectedYears.length === 1
-                        ? String(selectedYears[0])
-                        : `${selectedYears.length} seleccionados`}
-                    <ChevronDown size={14} />
-                  </button>
-                  {yearDropdownOpen && (
-                    <div className="multi-select-dropdown">
-                      {availableYears.map((y) => (
-                        <label key={y} className={`multi-select-option ${selectedYears.includes(y) ? "active" : ""}`}>
-                          <input
-                            type="checkbox"
-                            checked={selectedYears.includes(y)}
-                            onChange={() =>
-                              setSelectedYears((prev) =>
-                                prev.includes(y) ? prev.filter((x) => x !== y) : [...prev, y]
-                              )
-                            }
-                          />
-                          {y}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="filter-group filter-group-months">
-                <span className="filter-group-label">Mes</span>
-                <div className="filter-btns months-grid">
-                  {MONTHS.map((label, m) => (
-                    <button
-                      key={m}
-                      className={`filter-btn ${selectedMonths.includes(m) ? "active" : ""}`}
-                      onClick={() => toggleMonth(m)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Banco + Caja Chica stacked */}
-            <div className="filters-bottom-right">
-              <button
-                className={`caja-card-toggle-sm ${cajaBanco ? "active" : "inactive"}`}
-                onClick={() => setCajaBanco((v) => !v)}
-              >
-                <span className="caja-card-label">Banco</span>
-                <span className="caja-card-value">{ultimoSaldoBanco}</span>
-              </button>
-              <button
-                className={`caja-card-toggle-sm ${cajaChica ? "active" : "inactive"}`}
-                onClick={() => setCajaChica((v) => !v)}
-              >
-                <span className="caja-card-label">Caja Chica</span>
-                <span className="caja-card-value">{ultimoSaldoCajaChica}</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Table */}
       <div className="table-card">
         <div className="table-wrapper">
           <table className="treasury-table">
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Modalidad</th>
-                <th>Concepto</th>
-                <th>Ingreso</th>
-                <th>Egreso</th>
-                {showSaldoColumns && <th>Saldo Banco</th>}
-                {showSaldoColumns && <th>Saldo Caja Chica</th>}
+                <th>Fecha</th><th>Tipo</th><th>Modalidad</th><th>Concepto</th><th>Ingreso</th><th>Egreso</th>
+                {showSaldoColumns && <><th>Saldo Banco</th><th>Saldo Caja Chica</th></>}
               </tr>
             </thead>
             <tbody>
               {paginatedMovements.length === 0 ? (
-                <tr>
-                  <td colSpan={showSaldoColumns ? 8 : 6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
-                    No se encontraron movimientos con los filtros aplicados.
-                  </td>
-                </tr>
+                <tr><td colSpan={showSaldoColumns ? 8 : 6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No se encontraron movimientos con los filtros aplicados.</td></tr>
               ) : (
                 paginatedMovements.map((m, idx) => (
                   <tr key={idx} className="clickable-row" onClick={() => navigate(`/tesoreria/movimientos/detalle/${m.id}`)}>
                     <td>{m.fecha}</td>
-                    <td>
-                      <span className={`badge ${m.tipo === "Ingreso" ? "badge-ingreso" : "badge-egreso"}`}>
-                        {m.tipo}
-                      </span>
-                    </td>
-                    <td>{m.modalidad}</td>
-                    <td>{m.concepto}</td>
-                    <td className="amount-ingreso">{m.ingreso}</td>
-                    <td className="amount-egreso">{m.egreso}</td>
-                    {showSaldoColumns && <td className="amount-saldo">{m.saldoBanco ?? "—"}</td>}
-                    {showSaldoColumns && <td className="amount-saldo">{m.saldoCajaChica ?? "—"}</td>}
+                    <td><span className={`badge ${m.tipo === "Ingreso" ? "badge-ingreso" : "badge-egreso"}`}>{m.tipo}</span></td>
+                    <td>{m.modalidad}</td><td>{m.concepto}</td>
+                    <td className="amount-ingreso">{m.ingreso}</td><td className="amount-egreso">{m.egreso}</td>
+                    {showSaldoColumns && <><td className="amount-saldo">{m.saldoBanco ?? "\u2014"}</td><td className="amount-saldo">{m.saldoCajaChica ?? "\u2014"}</td></>}
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
-
-        <TablePagination
-          currentPage={currentPage}
-          totalItems={totalItems}
-          rowsPerPage={rowsPerPage}
-          itemLabel="movimientos"
-          onPageChange={setCurrentPage}
-          onRowsPerPageChange={(rows) => { setRowsPerPage(rows); setCurrentPage(1); }}
-        />
+        <TablePagination currentPage={currentPage} totalItems={totalItems} rowsPerPage={rowsPerPage} itemLabel="movimientos" onPageChange={setCurrentPage} onRowsPerPageChange={(rows) => { setRowsPerPage(rows); setCurrentPage(1); }} />
       </div>
     </div>
   );

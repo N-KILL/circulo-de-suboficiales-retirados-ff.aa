@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Loader } from "lucide-react";
+import { ArrowLeft, User, Loader, Eye } from "lucide-react";
 import { fetchPersonById } from "../../../services/personsApi";
 import { fetchDuesByPerson } from "../../../services/duesApi";
 import type { Person } from "../../../models/members";
@@ -26,7 +26,6 @@ const DetallePersona: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     let mounted = true;
-    setLoading(true);
     Promise.all([fetchPersonById(id), fetchDuesByPerson(id)])
       .then(([p, d]) => {
         if (mounted) {
@@ -92,6 +91,7 @@ const DetallePersona: React.FC = () => {
                   <th>Fecha de Pago</th>
                   <th>Importe</th>
                   <th>Movimiento</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -100,6 +100,13 @@ const DetallePersona: React.FC = () => {
                     <td>{d.payment_date}</td>
                     <td className="amount-ingreso">{d.amount != null ? formatCurrency(d.amount) : "—"}</td>
                     <td>{d.movement_id ? d.movement_id.slice(0, 8) + "…" : "—"}</td>
+                    <td>
+                      {d.movement_id && (
+                        <button className="btn-view-detail" type="button" onClick={() => navigate(`/tesoreria/movimientos/detalle/${d.movement_id}`)}>
+                          <Eye size={14} /> Ver detalles
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

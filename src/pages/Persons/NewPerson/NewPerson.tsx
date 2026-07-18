@@ -5,12 +5,13 @@ import "../../Members/NewMember/NewMember.css";
 import { usePersonFormStore } from "../../../store/personFormStore";
 import { fetchPersonById, deletePerson, fetchPersonMembers } from "../../../services/personsApi";
 import type { PersonMember } from "../../../services/personsApi";
+import type { Person } from "../../../models/members";
 
 const NewPerson: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(isEditing);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -26,23 +27,21 @@ const NewPerson: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      setLoading(true);
-      setFetchError(null);
-      setLinkedMembers([]);
+      let mounted = true;
       fetchPersonById(id)
-        .then((person) => setForm(person))
-        .catch((err) => setFetchError(err instanceof Error ? err.message : "Error al cargar persona"))
-        .finally(() => setLoading(false));
+        .then((person) => { if (mounted) { setFetchError(null); setForm(person); } })
+        .catch((err) => { if (mounted) setFetchError(err instanceof Error ? err.message : "Error al cargar persona") })
+        .finally(() => { if (mounted) setLoading(false); });
       fetchPersonMembers(id)
-        .then(setLinkedMembers)
-        .catch(() => {})
-        .finally(() => {});
+        .then((members) => { if (mounted) setLinkedMembers(members); })
+        .catch(() => { if (mounted) setLinkedMembers([]); });
+      return () => { mounted = false; };
     } else {
       reset();
     }
-  }, [id]);
+  }, [id, setForm, reset]);
 
-  const handleChange = (key: string, value: any) => setField(key as any, value);
+  const handleChange = (key: keyof Person, value: Person[keyof Person]) => setField(key, value);
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();

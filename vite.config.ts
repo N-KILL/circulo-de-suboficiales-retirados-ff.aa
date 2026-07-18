@@ -499,6 +499,8 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
                 nicho_member_fee, nicho_non_member_fee,
                 urna_member_fee, urna_non_member_fee,
                 bolsa_member_fee, bolsa_non_member_fee,
+                asistencial_fee, plan_salud_fee,
+                fee_act, fee_act_a, fee_adh, fee_part, fee_vit,
               } = body;
               if (member_fee === undefined) {
                 res.statusCode = 400;
@@ -511,6 +513,8 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
                 nicho_member_fee ?? 0, nicho_non_member_fee ?? 0,
                 urna_member_fee ?? 0, urna_non_member_fee ?? 0,
                 bolsa_member_fee ?? 0, bolsa_non_member_fee ?? 0,
+                asistencial_fee ?? 0, plan_salud_fee ?? 0,
+                fee_act ?? 0, fee_act_a ?? 0, fee_adh ?? 0, fee_part ?? 0, fee_vit ?? 0,
               );
               res.statusCode = 200;
               res.end(JSON.stringify(result));

@@ -49,7 +49,7 @@ export const useMembersStore = create<MembersFormState>((set, get) => ({
     ap1Search: '', ap1Visible: false,
     ap2Search: '', ap2Visible: false,
 
-    setField: (key: keyof Member, value: any) =>
+    setField: (key: keyof Member, value: Member[keyof Member]) =>
         set((state) => ({ form: { ...state.form, [key as string]: value } as Member })),
     setForm: (member: Member) => {
         const cp = (p: Person | null): Person | null => p ? { ...p } : null;

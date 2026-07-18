@@ -68,7 +68,7 @@ const Field: React.FC<FieldProps> = ({ label, value, onChange, isSelect, options
         if (!input) return;
         const prevType = input.type;
         input.type = "date";
-        const m = value.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+        const m = value.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
         if (m) input.value = `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
         const restore = () => { input.type = prevType; };
         input.addEventListener("change", () => {
@@ -144,8 +144,6 @@ const CementerioDetalle: React.FC = () => {
     useEffect(() => {
         if (!nicho) return;
         let mounted = true;
-        setIsLoading(true);
-        setError(null);
         fetchCementeriosByNicho(nicho)
             .then((items) => {
                 if (!mounted) return;
@@ -200,6 +198,7 @@ const CementerioDetalle: React.FC = () => {
         if (!window.confirm("¿Guardar cambios en este registro?")) return;
         setSavingId(id);
         try {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id: _, reducir, debeAnios, personaNombre, personaDomicilio, ...data } = record;
             await updateCementerioRecord(id, data);
             setSavingId(null);

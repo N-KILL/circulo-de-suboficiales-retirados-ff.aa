@@ -177,3 +177,22 @@
     font-weight: 600;
     color: var(--text);
 }
+
+.config-form-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.services-list {
+    margin-top: 16px;
+}
+
+.service-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+}

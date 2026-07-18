@@ -139,6 +139,13 @@ CREATE TABLE IF NOT EXISTS pricing (
     urna_non_member_fee     NUMERIC(12,2)   NOT NULL DEFAULT 0,
     bolsa_member_fee        NUMERIC(12,2)   NOT NULL DEFAULT 0,
     bolsa_non_member_fee    NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    asistencial_fee         NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    plan_salud_fee          NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    fee_act                 NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    fee_act_a               NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    fee_adh                 NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    fee_part                NUMERIC(12,2)   NOT NULL DEFAULT 0,
+    fee_vit                 NUMERIC(12,2)   NOT NULL DEFAULT 0,
     updated_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 

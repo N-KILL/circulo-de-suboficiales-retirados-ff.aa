@@ -98,7 +98,7 @@ export type MembersFormState = {
     ap1Visible: boolean;
     ap2Search: string;
     ap2Visible: boolean;
-    setField: (key: keyof Member, value: any) => void;
+    setField: (key: keyof Member, value: Member[keyof Member]) => void;
     setForm: (member: Member) => void;
     setApoderado1: (p: Person | null) => void;
     setApoderado2: (p: Person | null) => void;

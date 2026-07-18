@@ -203,7 +203,7 @@ export async function updateCementerio(
 ): Promise<void> {
     const sql = getSql();
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | boolean | null)[] = [];
     let idx = 1;
 
     if (data.nicho !== undefined) { fields.push(`nicho = $${idx++}`); values.push(data.nicho || null); }

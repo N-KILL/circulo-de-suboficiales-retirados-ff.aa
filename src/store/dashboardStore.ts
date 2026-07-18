@@ -98,8 +98,8 @@ function computeStats(
     const parts = m.date.split('-');
     const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : m.date;
     const modalidad = m.mode === 'efectivo' ? 'Efectivo' : 'Transferencia';
-    let subtitle = '';
-    let amountStr = '';
+    let subtitle: string;
+    let amountStr: string;
     if (m.type === 'ingreso') {
       subtitle = `Ingreso • ${modalidad}`;
       amountStr = formatCurrency(m.amount);

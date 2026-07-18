@@ -612,10 +612,65 @@ input[type="date"].form-control {
   border-color: #a5d6a7;
 }
 
+.family-member-name {
+  font-weight: 500;
+}
+
 .family-member-socio {
   font-size: 11px;
   color: var(--muted);
+}
+
+.family-member-tags {
+  display: flex;
+  gap: 4px;
   margin-left: auto;
+}
+
+.family-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.tag-tipo {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.tag-asistencial {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.tag-plan-salud {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.tag-haberes {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+.family-member-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.family-member-disabled input[type="checkbox"] {
+  accent-color: #999;
+}
+
+.family-member-fee {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--azul-armada);
+  min-width: 80px;
+  text-align: right;
 }
 
 .family-member-badge {
@@ -626,6 +681,21 @@ input[type="date"].form-control {
   padding: 1px 6px;
   border-radius: 4px;
   margin-left: 4px;
+}
+
+.family-member-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  background: #f0f4ff;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.family-member-total strong {
+  color: var(--azul-armada);
 }
 
 .period-field-group {
@@ -957,30 +1027,47 @@ input[type="date"].form-control {
   font-style: italic;
 }
 
-.cementerio-years-chips {
+.cementerio-year-selector {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  gap: 10px;
 }
 
-.cementerio-year-chip {
-  padding: 4px 12px;
+.cementerio-year-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   border: 1px solid var(--border);
-  border-radius: 20px;
   background: #fff;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--azul-armada);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.15s;
+  line-height: 1;
 }
 
-.cementerio-year-chip:hover {
-  border-color: var(--azul-institucional);
-}
-
-.cementerio-year-chip.chip-active {
+.cementerio-year-btn:hover:not(:disabled) {
   background: var(--azul-institucional);
   color: #fff;
   border-color: var(--azul-institucional);
+}
+
+.cementerio-year-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cementerio-year-display {
+  flex: 1;
+  text-align: center;
+}
+
+.cementerio-year-range-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--azul-armada);
 }
