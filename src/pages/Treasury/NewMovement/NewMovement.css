@@ -1081,3 +1081,37 @@ input[type="date"].form-control {
   font-weight: 600;
   color: var(--azul-armada);
 }
+
+.account-check-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fff8e1;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  margin-top: -4px;
+}
+
+.account-check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.account-check-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--azul-institucional);
+}
+
+.account-check-hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b45309;
+}

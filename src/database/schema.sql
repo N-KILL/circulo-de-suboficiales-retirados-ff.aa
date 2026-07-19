@@ -211,3 +211,19 @@ CREATE TABLE IF NOT EXISTS app_users (
 
 CREATE INDEX IF NOT EXISTS idx_app_users_auth_user_id ON app_users (auth_user_id);
 CREATE INDEX IF NOT EXISTS idx_app_users_role         ON app_users (role);
+
+CREATE TABLE IF NOT EXISTS debts (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    member_id       UUID            REFERENCES members(id) ON DELETE SET NULL,
+    person_id       UUID            REFERENCES persons(id) ON DELETE SET NULL,
+    type            VARCHAR(50)     NOT NULL,
+    description     TEXT,
+    amount          NUMERIC(12,2)   NOT NULL,
+    movement_id     UUID            REFERENCES petty_cash(id) ON DELETE SET NULL,
+    date            DATE            NOT NULL,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_debts_member_id  ON debts (member_id);
+CREATE INDEX IF NOT EXISTS idx_debts_person_id  ON debts (person_id);
+CREATE INDEX IF NOT EXISTS idx_debts_movement_id ON debts (movement_id);

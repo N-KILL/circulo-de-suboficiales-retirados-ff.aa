@@ -12,7 +12,8 @@ import { fetchCementeriosByOwner, fetchCementerioOwnerIds, fetchCementerioMovimi
 import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
 import { saveServiceRecord, updateServiceRecord, fetchServiceRecordsByMovement, deleteServiceRecord } from "../../../services/serviceRecordsApi";
 import { saveService } from "../../../services/servicesApi";
-import { parseDateYMD, todayLocal } from "../../../utils/format";
+import { saveDebt, fetchBalanceByMember, fetchBalanceByPerson } from "../../../services/debtsApi";
+import { parseDateYMD, todayLocal, formatCurrency } from "../../../utils/format";
 import Banner from "../../../components/ui/Banner";
 import DateInput from "../../../components/ui/DateInput";
 import MovementFormFields from "./MovementFormFields";
@@ -78,6 +79,8 @@ const NewMovement: React.FC = () => {
 
   const [debtStatus, setDebtStatus] = useState<MembersDebtStatus | null>(null);
   const [debtLoading, setDebtLoading] = useState(true);
+  const [accountBalance, setAccountBalance] = useState<number | null>(null);
+  const [accountLoading, setAccountLoading] = useState(false);
 
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -93,6 +96,8 @@ const NewMovement: React.FC = () => {
   const [newServiceCost, setNewServiceCost] = useState("");
   const [savingService, setSavingService] = useState(false);
   const [serviceError, setServiceError] = useState<string | null>(null);
+
+  const [anotarEnCuenta, setAnotarEnCuenta] = useState(false);
 
   const memberSearchRef = useRef<HTMLDivElement>(null);
   const personSearchRef = useRef<HTMLDivElement>(null);
@@ -150,6 +155,22 @@ const NewMovement: React.FC = () => {
       .catch(() => { if (mounted) setPersonsLoading(false); });
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    if (personType === "socio" && selectedMember) {
+      setAccountLoading(true);
+      fetchBalanceByMember(selectedMember.id)
+        .then((b) => { setAccountBalance(b); setAccountLoading(false); })
+        .catch(() => { setAccountBalance(null); setAccountLoading(false); });
+    } else if (personType === "persona" && selectedPerson) {
+      setAccountLoading(true);
+      fetchBalanceByPerson(selectedPerson.id)
+        .then((b) => { setAccountBalance(b); setAccountLoading(false); })
+        .catch(() => { setAccountBalance(null); setAccountLoading(false); });
+    } else {
+      setAccountBalance(null);
+    }
+  }, [personType, selectedMember?.id, selectedPerson?.id]);
 
   if (selectedMember !== prevSelectedMember) {
     setPrevSelectedMember(selectedMember);
@@ -488,7 +509,45 @@ const NewMovement: React.FC = () => {
     return debtStatus.members[memberId] || null;
   }
 
+  const importeNum = useMemo(() => {
+    const cleaned = importeStr.replace(/[^0-9,]/g, "").replace(",", ".");
+    return parseFloat(cleaned) || 0;
+  }, [importeStr]);
+
   const importeCalcKey = `${concept}|${duesConfig?.member_fee ?? ''}|${duesConfig?.fee_act ?? ''}|${duesConfig?.fee_act_a ?? ''}|${duesConfig?.fee_adh ?? ''}|${duesConfig?.fee_part ?? ''}|${duesConfig?.fee_vit ?? ''}|${duesConfig?.asistencial_fee ?? ''}|${duesConfig?.plan_salud_fee ?? ''}|${selectedServiceAmount ?? ''}|${String(familyPayment)}|${[...selectedFamilyMembers].sort().join(',')}|${familyMembers.map((m) => m.id).join(',')}|${selectedMember?.id ?? ''}|${periods.join(',')}|${[...paidPeriods].sort().join(',')}|${selectedCementerios.map((c) => c.id).join(',')}|${[...cementerioSelectedYears.entries()].map(([k, v]) => `${k}:${[...v].sort()}`).join(',')}|${personType}`;
+
+  const expectedAmount = useMemo(() => {
+    if (concept === "Cuota Socio" && duesConfig) {
+      const unpaidPeriods = periods.filter((p) => !paidPeriods.has(p));
+      const monthCount = unpaidPeriods.length > 0 ? unpaidPeriods.length : 1;
+      let total = 0;
+      if (familyPayment && selectedFamilyMembers.size > 0) {
+        for (const fmId of selectedFamilyMembers) {
+          const fm = familyMembers.find((m) => m.id === fmId);
+          if (fm) total += getMemberFee(fm);
+        }
+      } else if (selectedMember) {
+        total = getMemberFee(selectedMember);
+      }
+      return total * monthCount;
+    }
+    if (concept === "Cementerio" && duesConfig && selectedCementerios.length > 0) {
+      let total = 0;
+      for (const c of selectedCementerios) {
+        const years = cementerioSelectedYears.get(c.id);
+        const yearCount = years ? years.size : 0;
+        total += getFeeForCementerio(c) * yearCount;
+      }
+      return total;
+    }
+    if (concept === "Servicios" && selectedServiceAmount !== null) {
+      return selectedServiceAmount;
+    }
+    return null;
+  }, [concept, duesConfig, periods, paidPeriods, familyPayment, selectedFamilyMembers, familyMembers, selectedMember, selectedCementerios, cementerioSelectedYears, selectedServiceAmount, getMemberFee, getFeeForCementerio, importeCalcKey]);
+
+  const hasAmountDifference = expectedAmount !== null && importeNum >= 0 && Math.abs(importeNum - expectedAmount) > 0.01;
+
   const [prevImporteCalcKey, setPrevImporteCalcKey] = useState(importeCalcKey);
   if (prevImporteCalcKey !== importeCalcKey) {
     setPrevImporteCalcKey(importeCalcKey);
@@ -575,11 +634,6 @@ const NewMovement: React.FC = () => {
     return list;
   }, [persons, personSearch, concept, cementerioOwnerIds]);
 
-  const importeNum = useMemo(() => {
-    const cleaned = importeStr.replace(/[^0-9,]/g, "").replace(",", ".");
-    return parseFloat(cleaned) || 0;
-  }, [importeStr]);
-
   const touchField = useCallback((field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
   }, []);
@@ -598,9 +652,9 @@ const NewMovement: React.FC = () => {
       });
       if (allEmpty) errs.period = "Seleccioná al menos un año para pagar";
     }
-    if (!importeNum || importeNum <= 0) errs.importe = "Ingresá un importe válido mayor a cero";
+    if (importeNum === 0 && !anotarEnCuenta) errs.importe = "Ingresá un importe válido mayor a cero";
     return errs;
-  }, [personType, selectedMember, selectedPerson, fecha, shouldCreateDue, periods, importeNum, cementerioSelectedYears, concept, selectedCementerios]);
+  }, [personType, selectedMember, selectedPerson, fecha, shouldCreateDue, periods, importeNum, cementerioSelectedYears, concept, selectedCementerios, anotarEnCuenta]);
 
   const handleSelectMember = useCallback((m: Member | Person) => {
     const member = m as Member;
@@ -744,6 +798,22 @@ const NewMovement: React.FC = () => {
           } else if (existingRecord) {
             await deleteServiceRecord(existingRecord.id);
           }
+
+          if (anotarEnCuenta && expectedAmount !== null && hasAmountDifference) {
+            const diff = importeNum - expectedAmount;
+            const debtType = concept === "Cuota Socio" ? "cuota_socio"
+              : concept === "Cementerio" ? "cuota_cementerio"
+              : concept === "Servicios" ? "servicio" : "otro";
+            await saveDebt({
+              member_id: personType === "socio" ? selectedMember?.id ?? null : null,
+              person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
+              type: debtType,
+              description: `${conceptLabel} - ${diff > 0 ? "A favor" : "Deuda"}`,
+              amount: diff,
+              movement_id: id,
+              date: fecha,
+            });
+          }
         } else {
           const { id: movementId } = await savePayment({
             date: fecha, detail, amount: importeNum, type: "ingreso", mode, concept: conceptLabel,
@@ -812,6 +882,22 @@ const NewMovement: React.FC = () => {
               });
             }
           }
+
+          if (anotarEnCuenta && expectedAmount !== null && hasAmountDifference) {
+            const diff = importeNum - expectedAmount;
+            const debtType = concept === "Cuota Socio" ? "cuota_socio"
+              : concept === "Cementerio" ? "cuota_cementerio"
+              : concept === "Servicios" ? "servicio" : "otro";
+            await saveDebt({
+              member_id: personType === "socio" ? selectedMember?.id ?? null : null,
+              person_id: personType === "persona" ? selectedPerson?.id ?? null : null,
+              type: debtType,
+              description: `${conceptLabel} - ${diff > 0 ? "A favor" : "Deuda"}`,
+              amount: diff,
+              movement_id: movementId,
+              date: fecha,
+            });
+          }
         }
 
         if (isEditing) navigate(`/tesoreria/movimientos/detalle/${id}`);
@@ -823,6 +909,7 @@ const NewMovement: React.FC = () => {
           setSelectedCementerios([]); setCementerioSelectedYears(new Map());
           setCementeriosList([]); setCementerioPaidYears(new Map()); setServiceDate(todayLocal());
           setImporteStr(""); setDescripcion(""); setErrors({}); setTouched({}); setApiError(null);
+          setAnotarEnCuenta(false);
         }
       } catch (err) {
         setApiError(err instanceof Error ? err.message : "Error al guardar el movimiento");
@@ -833,7 +920,8 @@ const NewMovement: React.FC = () => {
     [isEditing, id, validate, showServicioSelect, servicio, concept, payerName,
       descripcion, fecha, serviceDate, importeNum, mode, shouldCreateDue,
       personType, selectedMember, selectedPerson, familyPayment, selectedFamilyMembers,
-      periods, navigate, serviciosFromApi, selectedCementerios, cementerioSelectedYears, getFeeForCementerio]
+      periods, navigate, serviciosFromApi, selectedCementerios, cementerioSelectedYears, getFeeForCementerio,
+      anotarEnCuenta, expectedAmount, hasAmountDifference]
   );
 
 
@@ -961,6 +1049,24 @@ const NewMovement: React.FC = () => {
                   )}
                 </div>
 
+                {hasAmountDifference && (
+                  <div className="form-group account-check-group">
+                    <label className="account-check-label">
+                      <input
+                        type="checkbox"
+                        checked={anotarEnCuenta}
+                        onChange={(e) => setAnotarEnCuenta(e.target.checked)}
+                      />
+                      <span>Anotar en cuenta</span>
+                    </label>
+                    <span className="account-check-hint">
+                      {importeNum < expectedAmount!
+                        ? `Deuda: ${formatCurrency(expectedAmount! - importeNum)}`
+                        : `A favor: ${formatCurrency(importeNum - expectedAmount!)}`}
+                    </span>
+                  </div>
+                )}
+
                 <div className="form-group">
                   <label>Descripción / Observaciones</label>
                   <textarea
@@ -1010,6 +1116,8 @@ const NewMovement: React.FC = () => {
             debtLoading={debtLoading}
             monthsOwed={monthsOwed}
             lastPaidFormatted={lastPaidFormatted}
+            accountBalance={accountBalance}
+            accountLoading={accountLoading}
           />
         </div>
       </div>

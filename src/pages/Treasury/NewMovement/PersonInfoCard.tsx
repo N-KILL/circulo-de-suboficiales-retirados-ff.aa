@@ -1,5 +1,6 @@
 import React from "react";
-import { User, Phone, Mail, MapPin, AlertTriangle, ExternalLink } from "lucide-react";
+import { User, Phone, Mail, MapPin, AlertTriangle, ExternalLink, Wallet } from "lucide-react";
+import { formatCurrency } from "../../../utils/format";
 import type { Member, Person } from "../../../models/members";
 
 interface PersonInfoCardProps {
@@ -9,6 +10,8 @@ interface PersonInfoCardProps {
   debtLoading: boolean;
   monthsOwed: number | null;
   lastPaidFormatted: string;
+  accountBalance: number | null;
+  accountLoading: boolean;
 }
 
 const PersonInfoCard: React.FC<PersonInfoCardProps> = ({
@@ -18,6 +21,8 @@ const PersonInfoCard: React.FC<PersonInfoCardProps> = ({
   debtLoading,
   monthsOwed,
   lastPaidFormatted,
+  accountBalance,
+  accountLoading,
 }) => {
   if (personType === "socio" && selectedMember) {
     const canCalculate = monthsOwed !== null;
@@ -82,6 +87,15 @@ const PersonInfoCard: React.FC<PersonInfoCardProps> = ({
             </a>
           </div>
         )}
+
+        {!accountLoading && accountBalance !== null && accountBalance !== 0 && (
+          <div className={`debt-alert${accountBalance < 0 ? " debt-alert-warning" : " debt-alert-ok"}`} style={{ marginTop: 8 }}>
+            <div className="debt-alert-header">
+              <Wallet size={16} />
+              <span>Cuenta corriente: {formatCurrency(accountBalance)}</span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -107,6 +121,15 @@ const PersonInfoCard: React.FC<PersonInfoCardProps> = ({
             <MapPin size={16} /> <span>{selectedPerson.domicilio || "\u2014"}</span>
           </div>
         </div>
+
+        {!accountLoading && accountBalance !== null && accountBalance !== 0 && (
+          <div className={`debt-alert${accountBalance < 0 ? " debt-alert-warning" : " debt-alert-ok"}`} style={{ marginTop: 8 }}>
+            <div className="debt-alert-header">
+              <Wallet size={16} />
+              <span>Cuenta corriente: {formatCurrency(accountBalance)}</span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

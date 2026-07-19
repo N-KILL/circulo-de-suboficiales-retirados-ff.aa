@@ -116,6 +116,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (method === "DELETE") {
+        const { reverseDebtsByMovementId } = await import("../src/database/debtsRepository.js");
+        await reverseDebtsByMovementId(id);
         await deleteDueByMovementId(id);
         await deleteServiceRecordsByMovement(id);
         await deleteCementerioMovimientosByMovement(id);
@@ -264,7 +266,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // POST /api/payment
     if (pathname === "/api/payment" && method === "POST") {
       const payment = req.body;
-      if (!payment?.date || !payment?.amount) {
+      if (!payment?.date || payment?.amount == null) {
         res.status(400).json({ error: "Faltan datos requeridos" });
         return;
       }
@@ -716,6 +718,88 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { updateVitalicios } = await import("../src/database/membersRepository.js");
       const count = await updateVitalicios();
       res.status(200).json({ updated: count });
+      return;
+    }
+
+    // /api/debts
+    if (pathname === "/api/debts") {
+      const {
+        getDebtsByMember,
+        getDebtsByPerson,
+        insertDebt,
+      } = await import("../src/database/debtsRepository.js");
+
+      if (method === "GET") {
+        const memberId = req.query.memberId as string | undefined;
+        const personId = req.query.personId as string | undefined;
+
+        if (memberId) {
+          const debts = await getDebtsByMember(memberId);
+          res.status(200).json(debts);
+          return;
+        }
+        if (personId) {
+          const debts = await getDebtsByPerson(personId);
+          res.status(200).json(debts);
+          return;
+        }
+        res.status(400).json({ error: "Falta el parámetro memberId o personId" });
+        return;
+      }
+
+      if (method === "POST") {
+        const body = req.body;
+        if (!body?.type || body.amount === undefined || !body?.date) {
+          res.status(400).json({ error: "Faltan datos requeridos (type, amount, date)" });
+          return;
+        }
+        if (!body.member_id && !body.person_id) {
+          res.status(400).json({ error: "Se requiere member_id o person_id" });
+          return;
+        }
+        const id = await insertDebt({
+          member_id: body.member_id ?? null,
+          person_id: body.person_id ?? null,
+          type: body.type,
+          description: body.description ?? null,
+          amount: body.amount,
+          movement_id: body.movement_id ?? null,
+          date: body.date,
+        });
+        res.status(200).json({ success: true, id });
+        return;
+      }
+
+      res.status(405).json({ error: "Método no permitido" });
+      return;
+    }
+
+    // /api/debts/balance
+    if (pathname === "/api/debts/balance") {
+      const {
+        getBalanceByMember,
+        getBalanceByPerson,
+      } = await import("../src/database/debtsRepository.js");
+
+      if (method === "GET") {
+        const memberId = req.query.memberId as string | undefined;
+        const personId = req.query.personId as string | undefined;
+
+        if (memberId) {
+          const balance = await getBalanceByMember(memberId);
+          res.status(200).json({ balance });
+          return;
+        }
+        if (personId) {
+          const balance = await getBalanceByPerson(personId);
+          res.status(200).json({ balance });
+          return;
+        }
+        res.status(400).json({ error: "Falta el parámetro memberId o personId" });
+        return;
+      }
+
+      res.status(405).json({ error: "Método no permitido" });
       return;
     }
 

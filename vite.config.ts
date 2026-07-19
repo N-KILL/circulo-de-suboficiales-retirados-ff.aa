@@ -37,8 +37,10 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isCementerioMovimientos = pathname === "/api/cementerio-movimientos";
         const isUsers = pathname === "/api/users";
         const isVitalicios = pathname === "/api/members/vitalicios";
+        const isDebts = pathname === "/api/debts";
+        const isDebtsBalance = pathname === "/api/debts/balance";
 
-        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios) {
+        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance) {
           next();
           return;
         }
@@ -155,6 +157,8 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
                 res.end(JSON.stringify({ error: "Falta el parámetro id" }));
                 return;
               }
+              const { reverseDebtsByMovementId } = await import("./src/database/debtsRepository");
+              await reverseDebtsByMovementId(id);
               await deleteDueByMovementId(id);
               await deleteServiceRecordsByMovement(id);
               await deleteCementerioMovimientosByMovement(id);
@@ -229,7 +233,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
           if (isPayment && req.method === "POST") {
             const body = await collectBody(req);
             const payment = JSON.parse(body);
-            if (!payment?.date || !payment?.amount) {
+            if (!payment?.date || payment?.amount == null) {
               res.statusCode = 400;
               res.end(JSON.stringify({ error: "Faltan datos requeridos" }));
               return;
@@ -856,6 +860,109 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               });
               res.statusCode = 200;
               res.end(JSON.stringify({ success: true, id }));
+              return;
+            }
+
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isDebts) {
+            const {
+              getDebtsByMember,
+              getDebtsByPerson,
+              insertDebt,
+            } = await import("./src/database/debtsRepository");
+
+            if (req.method === "GET") {
+              const memberId = url.searchParams.get("memberId");
+              const personId = url.searchParams.get("personId");
+
+              if (memberId) {
+                const debts = await getDebtsByMember(memberId);
+                res.statusCode = 200;
+                res.end(JSON.stringify(debts));
+                return;
+              }
+              if (personId) {
+                const debts = await getDebtsByPerson(personId);
+                res.statusCode = 200;
+                res.end(JSON.stringify(debts));
+                return;
+              }
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta el parámetro memberId o personId" }));
+              return;
+            }
+
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req));
+              if (!body?.type || body.amount === undefined || !body?.date) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan datos requeridos (type, amount, date)" }));
+                return;
+              }
+              if (!body.member_id && !body.person_id) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Se requiere member_id o person_id" }));
+                return;
+              }
+              const id = await insertDebt({
+                member_id: body.member_id ?? null,
+                person_id: body.person_id ?? null,
+                type: body.type,
+                description: body.description ?? null,
+                amount: body.amount,
+                movement_id: body.movement_id ?? null,
+                date: body.date,
+              });
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true, id }));
+              return;
+            }
+
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isDebtsBalance) {
+            const {
+              getBalanceByMember,
+              getBalanceByPerson,
+            } = await import("./src/database/debtsRepository");
+
+            if (req.method === "GET") {
+              const memberId = url.searchParams.get("memberId");
+              const personId = url.searchParams.get("personId");
+
+              if (memberId) {
+                const balance = await getBalanceByMember(memberId);
+                res.statusCode = 200;
+                res.end(JSON.stringify({ balance }));
+                return;
+              }
+              if (personId) {
+                const balance = await getBalanceByPerson(personId);
+                res.statusCode = 200;
+                res.end(JSON.stringify({ balance }));
+                return;
+              }
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta el parámetro memberId o personId" }));
               return;
             }
 

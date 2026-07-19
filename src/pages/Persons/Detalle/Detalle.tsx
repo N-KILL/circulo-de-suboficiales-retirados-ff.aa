@@ -4,6 +4,7 @@ import { ArrowLeft, User, Loader, Eye } from "lucide-react";
 import { fetchPersonById } from "../../../services/personsApi";
 import { fetchDuesByPerson } from "../../../services/duesApi";
 import { fetchCementerioMovimientosByMovement } from "../../../services/cementeriosApi";
+import AccountSection from "../../../components/account/AccountSection";
 import type { Person } from "../../../models/members";
 import type { DueWithDetails } from "../../../services/duesApi";
 import "../../Treasury/TreasuryTables.css";
@@ -162,6 +163,8 @@ const DetallePersona: React.FC = () => {
           </div>
         )}
       </div>
+
+      <AccountSection personId={id} />
     </div>
   );
 };

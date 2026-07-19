@@ -6,6 +6,7 @@ import { fetchMemberById } from "../../../services/membersApi";
 import { fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
 import { fetchCementeriosByOwner, fetchCementerioMovimientosByMovement } from "../../../services/cementeriosApi";
 import PeriodPicker from "../../../components/period/PeriodPicker";
+import AccountSection from "../../../components/account/AccountSection";
 import { formatCurrency, formatPeriodsDisplay, todayLocal } from "../../../utils/format";
 import type { Member } from "../../../models/members";
 import type { DueWithDetails } from "../../../services/duesApi";
@@ -208,6 +209,8 @@ const DetalleSocio: React.FC = () => {
         )}
       </div>
       )}
+
+      <AccountSection memberId={id} />
 
       {showModal && canModify && (
         <div className="family-picker-overlay">
