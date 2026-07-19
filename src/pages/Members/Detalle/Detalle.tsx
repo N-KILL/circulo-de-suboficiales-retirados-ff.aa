@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Loader, Plus, X, Eye } from "lucide-react";
+import { useAuthStore } from "../../../store/authStore";
 import { fetchMemberById } from "../../../services/membersApi";
 import { fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
 import { fetchCementeriosByOwner, fetchCementerioMovimientosByMovement } from "../../../services/cementeriosApi";
 import PeriodPicker from "../../../components/period/PeriodPicker";
-import { formatCurrency, formatPeriodsDisplay } from "../../../utils/format";
+import { formatCurrency, formatPeriodsDisplay, todayLocal } from "../../../utils/format";
 import type { Member } from "../../../models/members";
 import type { DueWithDetails } from "../../../services/duesApi";
 import "../../Treasury/TreasuryTables.css";
@@ -14,12 +15,13 @@ import "./Detalle.css";
 const DetalleSocio: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const canModify = user?.role !== "secretario";
   const [member, setMember] = useState<Member | null>(null);
   const [dues, setDues] = useState<DueWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasNichos, setHasNichos] = useState(false);
-  const [cementerioGrouped, setCementerioGrouped] = useState<{ movement_id: string; nichos: string; dues: typeof cementerioDues; amount: number; payment_date: string; period: string[] | null }[]>([]);
 
   const [showModal, setShowModal] = useState(false);
   const [periods, setPeriods] = useState<string[]>([]);
@@ -43,13 +45,18 @@ const DetalleSocio: React.FC = () => {
   const socioDues = useMemo(() => dues.filter((d) => d.type === "socio"), [dues]);
   const cementerioDues = useMemo(() => dues.filter((d) => d.type === "cementerio"), [dues]);
 
+  const cementerioMovementIds = useMemo(() => {
+    if (cementerioDues.length === 0) return [];
+    return [...new Set(cementerioDues.filter((d) => d.movement_id).map((d) => d.movement_id!))];
+  }, [cementerioDues]);
+
+  const [cementerioAsync, setCementerioAsync] = useState<{ movement_id: string; nichos: string; dues: typeof cementerioDues; amount: number; payment_date: string; period: string[] | null }[]>([]);
+
   useEffect(() => {
-    if (cementerioDues.length === 0) { setCementerioGrouped([]); return; }
-    const movementIds = [...new Set(cementerioDues.filter((d) => d.movement_id).map((d) => d.movement_id!))];
-    if (movementIds.length === 0) { setCementerioGrouped([]); return; }
+    if (cementerioMovementIds.length === 0) return;
     let mounted = true;
     Promise.all(
-      movementIds.map(async (mid) => {
+      cementerioMovementIds.map(async (mid) => {
         try {
           const movimientos = await fetchCementerioMovimientosByMovement(mid);
           const nichos = [...new Set(movimientos.map((m) => m.nicho))].join(", ");
@@ -76,10 +83,12 @@ const DetalleSocio: React.FC = () => {
         }
       })
     ).then((groups) => {
-      if (mounted) setCementerioGrouped(groups.sort((a, b) => b.payment_date.localeCompare(a.payment_date)));
+      if (mounted) setCementerioAsync(groups.sort((a, b) => b.payment_date.localeCompare(a.payment_date)));
     });
     return () => { mounted = false; };
-  }, [cementerioDues]);
+  }, [cementerioDues, cementerioMovementIds]);
+
+  const cementerioGrouped = cementerioMovementIds.length === 0 ? [] : cementerioAsync;
 
   const familyGroupPrefix = useMemo(() => {
     if (!member?.nroFamilia) return null;
@@ -93,7 +102,7 @@ const DetalleSocio: React.FC = () => {
     setSelectedFamily(new Set(id ? [id] : []));
     setShowModal(true);
     if (familyGroupPrefix) {
-      try { const fMembers = await fetchFamilyMembers(id); setFamilyMembers(fMembers.filter((m) => !m.fallecido)); }
+      try { const fMembers = await fetchFamilyMembers(id); setFamilyMembers(fMembers.filter((m) => !m.fallecido && !m.fechaBaja)); }
       catch { setFamilyMembers([]); }
     } else { setFamilyMembers([]); }
   }, [id, familyGroupPrefix]);
@@ -103,7 +112,7 @@ const DetalleSocio: React.FC = () => {
     setSavingMark(true);
     try {
       await saveDue({
-        type: "socio", payment_date: new Date().toISOString().split("T")[0], period: periods, member_id: id,
+        type: "socio", payment_date: todayLocal(), period: periods, member_id: id,
         family_group: familyGroupPrefix ?? undefined,
         paid_members: familyGroupPrefix ? Array.from(selectedFamily) : undefined,
       });
@@ -124,7 +133,7 @@ const DetalleSocio: React.FC = () => {
       <div className="detalle-card">
         <div className="detalle-header">
           <div className="detalle-avatar"><User size={40} /></div>
-          <div className="detalle-title"><h2>{member.nombre}</h2><span className="detalle-sub">Nº Socio {member.numeroDeSocio}</span></div>
+          <div className="detalle-title"><h2>{member.nombre}</h2><span className="detalle-sub">Nº Socio {member.numeroDeSocio}{member.fechaBaja && <span style={{ marginLeft: 8, color: "#dc2626", fontWeight: 700 }}>(Dado de baja)</span>}</span></div>
         </div>
         <div className="detalle-info-grid">
           <div className="info-item"><span className="info-label">Documento</span><span>{member.tipoDoc} {member.documento}</span></div>
@@ -135,13 +144,20 @@ const DetalleSocio: React.FC = () => {
           <div className="info-item"><span className="info-label">Localidad</span><span>{member.localidad || "\u2014"}</span></div>
           <div className="info-item"><span className="info-label">Tipo Socio</span><span>{member.tipoSocio || "\u2014"}</span></div>
           <div className="info-item"><span className="info-label">Estado</span><span>{member.estado || "\u2014"}</span></div>
+          <div className="info-item"><span className="info-label">Paga por</span><span>{member.pagaPor || "\u2014"}</span></div>
+          <div className="info-item"><span className="info-label">Fecha Nac. (Edad)</span><span>{member.fechaNac || "\u2014"}{member.edad ? ` (${member.edad})` : ""}</span></div>
+          <div className="info-item"><span className="info-label">Residencia</span><span>{member.residencia || "\u2014"}</span></div>
+          <div className="info-item"><span className="info-label">Plan Salud</span><span>{member.planSalud ? "Sí" : "No"}</span></div>
+          <div className="info-item"><span className="info-label">Asistencial</span><span>{member.asistencial ? "Sí" : "No"}</span></div>
+          <div className="info-item"><span className="info-label">Fecha Ingreso</span><span>{member.fechaIngreso || "\u2014"}</span></div>
+          <div className="info-item"><span className="info-label">Fecha Baja</span><span>{member.fechaBaja || "\u2014"}{member.fechaBaja && member.motivoBaja ? ` (${member.motivoBaja})` : ""}</span></div>
         </div>
       </div>
 
       <div className="detalle-card">
         <div className="detalle-section-header">
           <h3 className="detalle-section-title">Cuotas de Socio</h3>
-          <button className="btn-register-period" onClick={openModal}><Plus size={16} /> Modificar registro cuotas</button>
+          {canModify && <button className="btn-register-period" onClick={openModal}><Plus size={16} /> Modificar registro cuotas</button>}
         </div>
         {socioDues.length === 0 ? <p className="detalle-empty">No tiene cuotas de socio registradas.</p> : (
           <div className="table-wrapper">
@@ -193,7 +209,7 @@ const DetalleSocio: React.FC = () => {
       </div>
       )}
 
-      {showModal && (
+      {showModal && canModify && (
         <div className="family-picker-overlay">
           <div className="family-picker-modal">
             <div className="family-picker-modal-header">

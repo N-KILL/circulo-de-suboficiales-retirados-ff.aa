@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Loader, Eye } from "lucide-react";
 import { fetchPersonById } from "../../../services/personsApi";
@@ -23,7 +23,6 @@ const DetallePersona: React.FC = () => {
   const [dues, setDues] = useState<DueWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cementerioGrouped, setCementerioGrouped] = useState<{ movement_id: string; nichos: string; dues: DueWithDetails[]; amount: number; payment_date: string; period: string[] | null }[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -45,13 +44,18 @@ const DetallePersona: React.FC = () => {
     return () => { mounted = false; };
   }, [id]);
 
+  const cementerioMovementIds = useMemo(() => {
+    if (dues.length === 0) return [];
+    return [...new Set(dues.filter((d) => d.movement_id).map((d) => d.movement_id!))];
+  }, [dues]);
+
+  const [cementerioAsync, setCementerioAsync] = useState<{ movement_id: string; nichos: string; dues: DueWithDetails[]; amount: number; payment_date: string; period: string[] | null }[]>([]);
+
   useEffect(() => {
-    if (dues.length === 0) { setCementerioGrouped([]); return; }
-    const movementIds = [...new Set(dues.filter((d) => d.movement_id).map((d) => d.movement_id!))];
-    if (movementIds.length === 0) { setCementerioGrouped([]); return; }
+    if (cementerioMovementIds.length === 0) return;
     let mounted = true;
     Promise.all(
-      movementIds.map(async (mid) => {
+      cementerioMovementIds.map(async (mid) => {
         try {
           const movimientos = await fetchCementerioMovimientosByMovement(mid);
           const nichos = [...new Set(movimientos.map((m) => m.nicho))].join(", ");
@@ -78,10 +82,12 @@ const DetallePersona: React.FC = () => {
         }
       })
     ).then((groups) => {
-      if (mounted) setCementerioGrouped(groups.sort((a, b) => b.payment_date.localeCompare(a.payment_date)));
+      if (mounted) setCementerioAsync(groups.sort((a, b) => b.payment_date.localeCompare(a.payment_date)));
     });
     return () => { mounted = false; };
-  }, [dues]);
+  }, [dues, cementerioMovementIds]);
+
+  const cementerioGrouped = cementerioMovementIds.length === 0 ? [] : cementerioAsync;
 
   if (loading) {
     return (

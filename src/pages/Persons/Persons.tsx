@@ -4,10 +4,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import "../Treasury/TreasuryTables.css";
 import { usePersonsListStore } from "../../store/personsListStore";
+import { useAuthStore } from "../../store/authStore";
 
 const Persons: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuthStore();
+  const isSecretario = user?.role === "secretario";
 
   const allPersons = usePersonsListStore((s) => s.allPersons);
   const searchText = usePersonsListStore((s) => s.searchText);
@@ -45,13 +48,15 @@ const Persons: React.FC = () => {
     <div className="treasury-container">
       <div className="treasury-header-row">
         <h2></h2>
-        <button
-          className="header-btn"
-          onClick={() => navigate("/personas/nuevo")}
-        >
-          <UserPlus size={16} />
-          Agregar persona
-        </button>
+        {!isSecretario && (
+          <button
+            className="header-btn"
+            onClick={() => navigate("/personas/nuevo")}
+          >
+            <UserPlus size={16} />
+            Agregar persona
+          </button>
+        )}
       </div>
 
       <div className="filters-bar">
@@ -110,7 +115,7 @@ const Persons: React.FC = () => {
                 paginated.map((p) => (
                   <tr
                     key={p.id}
-                    onClick={() => navigate(`/personas/editar/${p.id}`)}
+                    onClick={() => navigate(isSecretario ? `/personas/detalle/${p.id}` : `/personas/editar/${p.id}`)}
                     style={{ cursor: "pointer" }}
                   >
                     <td>{p.nombre}</td>

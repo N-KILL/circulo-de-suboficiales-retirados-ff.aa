@@ -196,3 +196,42 @@
     border-bottom: 1px solid var(--border);
     gap: 8px;
 }
+
+.config-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 520px;
+}
+
+.config-menu-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.config-menu-card:hover {
+    border-color: var(--azul-institucional);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.config-menu-text h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--azul-armada);
+    margin: 0 0 4px 0;
+}
+
+.config-menu-text p {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.4;
+}

@@ -64,7 +64,7 @@
 
 .detalle-info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
 }
 
@@ -353,7 +353,13 @@
   font-style: italic;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .detalle-info-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
   .detalle-info-grid {
     grid-template-columns: 1fr;
   }

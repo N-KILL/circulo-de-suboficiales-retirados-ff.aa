@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchMovements } from '../services/movementsApi';
 import { fetchInitialBalances } from '../services/initialBalancesApi';
+import { formatRecordDate } from '../utils/format';
 import type { Movement } from '../services/movementsApi';
 
 export type Transaction = {
@@ -95,8 +96,7 @@ function computeStats(
   // Recent transactions
   const sliced = filtered.slice(-15).reverse();
   const transactions: Transaction[] = sliced.map((m) => {
-    const parts = m.date.split('-');
-    const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : m.date;
+    const formattedDate = formatRecordDate(m.date);
     const modalidad = m.mode === 'efectivo' ? 'Efectivo' : 'Transferencia';
     let subtitle: string;
     let amountStr: string;

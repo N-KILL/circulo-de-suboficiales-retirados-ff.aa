@@ -2,7 +2,7 @@ export interface PaymentData {
   date: string;
   detail: string;
   amount: number;
-  type: "ingreso";
+  type: "ingreso" | "egreso";
   mode: "efectivo" | "transferencia";
   concept?: string | null;
 }

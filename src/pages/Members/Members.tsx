@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Search, UserPlus, Home, Eye } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { Search, UserPlus, Home, Eye, ChevronDown, RefreshCw } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import "../Treasury/TreasuryTables.css";
 import { useMembersListStore } from "../../store/membersListStore";
+import { useAuthStore } from "../../store/authStore";
 import { fetchMembersDebtStatus } from "../../services/membersDebtApi";
 
 function monthsOwed(lastPeriod: string | null): number {
@@ -14,12 +15,24 @@ function monthsOwed(lastPeriod: string | null): number {
   return (now.getFullYear() - end.getFullYear()) * 12 + (now.getMonth() - end.getMonth());
 }
 
+const ESTADO_OPTIONS = [
+  { key: "activos", label: "Activos" },
+  { key: "fallecidos", label: "Fallecidos" },
+  { key: "baja", label: "Dados de baja" },
+] as const;
+
 const Members: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuthStore();
+  const isSecretario = user?.role === "secretario";
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const tipoSocioDropdownRef = useRef<HTMLDivElement>(null);
 
   const searchText = useMembersListStore((s) => s.searchText);
+  const showActivos = useMembersListStore((s) => s.showActivos);
   const showFallecidos = useMembersListStore((s) => s.showFallecidos);
+  const showBaja = useMembersListStore((s) => s.showBaja);
   const pagaPorFilter = useMembersListStore((s) => s.pagaPorFilter);
   const currentPage = useMembersListStore((s) => s.currentPage);
   const rowsPerPage = useMembersListStore((s) => s.rowsPerPage);
@@ -28,8 +41,12 @@ const Members: React.FC = () => {
   const error = useMembersListStore((s) => s.error);
   const loadMembers = useMembersListStore((s) => s.loadMembers);
   const setSearchText = useMembersListStore((s) => s.setSearchText);
+  const setShowActivos = useMembersListStore((s) => s.setShowActivos);
   const setShowFallecidos = useMembersListStore((s) => s.setShowFallecidos);
+  const setShowBaja = useMembersListStore((s) => s.setShowBaja);
   const setPagaPorFilter = useMembersListStore((s) => s.setPagaPorFilter);
+  const tipoSocioFilter = useMembersListStore((s) => s.tipoSocioFilter);
+  const setTipoSocioFilter = useMembersListStore((s) => s.setTipoSocioFilter);
   const setCurrentPage = useMembersListStore((s) => s.setCurrentPage);
   const setRowsPerPage = useMembersListStore((s) => s.setRowsPerPage);
 
@@ -39,6 +56,68 @@ const Members: React.FC = () => {
   const [showDebtorsOnly, setShowDebtorsOnly] = useState(false);
   const [hideOldDebt, setHideOldDebt] = useState(false);
   const [debtSortDir, setDebtSortDir] = useState<"asc" | "desc" | null>(null);
+  const [estadoDropdownOpen, setEstadoDropdownOpen] = useState(false);
+  const [tipoSocioDropdownOpen, setTipoSocioDropdownOpen] = useState(false);
+  const [updatingVitalicios, setUpdatingVitalicios] = useState(false);
+  const [lastVitaliciosUpdate, setLastVitaliciosUpdate] = useState<string | null>(() => {
+    try { return localStorage.getItem("lastVitaliciosUpdate"); } catch { return null; }
+  });
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setEstadoDropdownOpen(false);
+      }
+      if (tipoSocioDropdownRef.current && !tipoSocioDropdownRef.current.contains(e.target as Node)) {
+        setTipoSocioDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleEstado = (key: string) => {
+    if (key === "activos") setShowActivos(!showActivos);
+    else if (key === "fallecidos") setShowFallecidos(!showFallecidos);
+    else if (key === "baja") setShowBaja(!showBaja);
+  };
+
+  const tipoSocioOptions = useMemo(() => {
+    const values = new Set<string>();
+    allMembers.forEach((m) => { if (m.tipoSocio) values.add(m.tipoSocio); });
+    return Array.from(values).sort();
+  }, [allMembers]);
+
+  const handleActualizarVitalicios = useCallback(async () => {
+    if (!window.confirm("Se cambiarán a Vitalicios todos los socios activos con más de 35 años. ¿Continuar?")) return;
+    setUpdatingVitalicios(true);
+    try {
+      const res = await fetch("/api/members/vitalicios", { method: "PATCH" });
+      if (res.ok) {
+        const data = await res.json();
+        const now = new Date().toLocaleString("es-AR");
+        localStorage.setItem("lastVitaliciosUpdate", now);
+        setLastVitaliciosUpdate(now);
+        alert(`Se actualizaron ${data.updated} socios a Vitalicio.`);
+        void loadMembers();
+      } else {
+        alert("Error al actualizar socios.");
+      }
+    } catch {
+      alert("Error al actualizar socios.");
+    } finally {
+      setUpdatingVitalicios(false);
+    }
+  }, [loadMembers]);
+
+  const activeCount = [showActivos, showFallecidos, showBaja].filter(Boolean).length;
+  const estadoLabel = activeCount === 3
+    ? "Todos"
+    : activeCount === 0
+      ? "Ninguno"
+      : ESTADO_OPTIONS.filter((o) =>
+          o.key === "activos" ? showActivos : o.key === "fallecidos" ? showFallecidos : showBaja
+        ).map((o) => o.label).join(", ");
 
   useEffect(() => {
     void loadMembers();
@@ -78,11 +157,16 @@ const Members: React.FC = () => {
         m.nombre.toLowerCase().includes(s) ||
         m.documento.includes(s) ||
         m.numeroDeSocio.includes(s);
-      const matchFallecido = showFallecidos ? true : !m.fallecido;
+      const isActivo = !m.fallecido && !m.fechaBaja;
+      const matchEstado =
+        (showActivos && isActivo) ||
+        (showFallecidos && m.fallecido) ||
+        (showBaja && !!m.fechaBaja);
       const matchPagaPor = !pagaPorFilter || m.pagaPor === pagaPorFilter;
+      const matchTipoSocio = !tipoSocioFilter || m.tipoSocio === tipoSocioFilter;
       const matchDebtor = !showDebtorsOnly || item.monthsOwed > 0 || item.noData;
       const matchOldDebt = !hideOldDebt || maxMonths <= 0 || item.monthsOwed <= maxMonths;
-      return matchSearch && matchFallecido && matchPagaPor && matchDebtor && matchOldDebt;
+      return matchSearch && matchEstado && matchPagaPor && matchTipoSocio && matchDebtor && matchOldDebt;
     }).sort((a, b) => {
       if (debtSortDir === "asc") {
         return (a.monthsOwed - b.monthsOwed);
@@ -94,7 +178,7 @@ const Members: React.FC = () => {
       const nb = parseInt(b.member.numeroDeSocio.replace(/\D/g, ""), 10) || 0;
       return na - nb;
     });
-  }, [membersWithDebt, searchText, showFallecidos, pagaPorFilter, showDebtorsOnly, hideOldDebt, considerationYears, debtSortDir]);
+  }, [membersWithDebt, searchText, showActivos, showFallecidos, showBaja, pagaPorFilter, showDebtorsOnly, hideOldDebt, considerationYears, debtSortDir, tipoSocioFilter]);
 
   const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
@@ -106,13 +190,31 @@ const Members: React.FC = () => {
     <div className="treasury-container">
       <div className="treasury-header-row">
         <h2></h2>
-        <button
-          className="header-btn"
-          onClick={() => navigate("/socios/nuevo")}
-        >
-          <UserPlus size={16} />
-          Agregar socio
-        </button>
+        {!isSecretario && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="header-btn"
+              onClick={handleActualizarVitalicios}
+              disabled={updatingVitalicios}
+              title="Cambiar a Vitalicio a todos los activos con más de 35 años"
+            >
+              <RefreshCw size={16} className={updatingVitalicios ? "spin" : ""} />
+              Actualizar vitalicios
+            </button>
+            {lastVitaliciosUpdate && (
+              <span style={{ fontSize: 12, color: "var(--muted)", alignSelf: "center", whiteSpace: "nowrap" }}>
+                Última vez: {lastVitaliciosUpdate}
+              </span>
+            )}
+            <button
+              className="header-btn"
+              onClick={() => navigate("/socios/nuevo")}
+            >
+              <UserPlus size={16} />
+              Agregar socio
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="filters-bar">
@@ -127,19 +229,69 @@ const Members: React.FC = () => {
           />
         </div>
 
-        <div
-          className="filter-item"
-          style={{ display: "flex", alignItems: "center", gap: 8 }}
-        >
-          <input
-            id="fallecidos"
-            type="checkbox"
-            checked={showFallecidos}
-            onChange={(e) => setShowFallecidos(e.target.checked)}
-          />
-          <label htmlFor="fallecidos" style={{ userSelect: "none" }}>
-            Mostrar fallecidos
-          </label>
+        <div className="filter-item" ref={dropdownRef} style={{ position: "relative" }}>
+          <button
+            onClick={() => setEstadoDropdownOpen((prev) => !prev)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 10px",
+              borderRadius: 6,
+              border: "1px solid var(--border)",
+              fontSize: "0.875rem",
+              background: "white",
+              cursor: "pointer",
+              color: "var(--text)",
+            }}
+          >
+            Estado: {estadoLabel}
+            <ChevronDown size={14} />
+          </button>
+          {estadoDropdownOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                marginTop: 4,
+                background: "#fff",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                zIndex: 100,
+                minWidth: 180,
+                padding: "6px 0",
+              }}
+            >
+              {ESTADO_OPTIONS.map((opt) => {
+                const checked = opt.key === "activos" ? showActivos : opt.key === "fallecidos" ? showFallecidos : showBaja;
+                return (
+                  <label
+                    key={opt.key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      fontSize: 14,
+                      userSelect: "none",
+                    }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleEstado(opt.key)}
+                      style={{ accentColor: "var(--azul-institucional)" }}
+                    />
+                    {opt.label}
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div
@@ -188,6 +340,92 @@ const Members: React.FC = () => {
             <option key={opt} value={opt}>{opt}</option>
           ))}
         </select>
+
+        <div className="filter-item" ref={tipoSocioDropdownRef} style={{ position: "relative" }}>
+          <button
+            onClick={() => setTipoSocioDropdownOpen((prev) => !prev)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 10px",
+              borderRadius: 6,
+              border: "1px solid var(--border)",
+              fontSize: "0.875rem",
+              background: "white",
+              cursor: "pointer",
+              color: "var(--text)",
+            }}
+          >
+            Tipo: {tipoSocioFilter || "Todos"}
+            <ChevronDown size={14} />
+          </button>
+          {tipoSocioDropdownOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                marginTop: 4,
+                background: "#fff",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                zIndex: 100,
+                minWidth: 180,
+                padding: "6px 0",
+              }}
+            >
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  userSelect: "none",
+                  fontWeight: !tipoSocioFilter ? 600 : 400,
+                }}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <input
+                  type="radio"
+                  name="tipoSocio"
+                  checked={!tipoSocioFilter}
+                  onChange={() => setTipoSocioFilter("")}
+                  style={{ accentColor: "var(--azul-institucional)" }}
+                />
+                Todos
+              </label>
+              {tipoSocioOptions.map((opt) => (
+                <label
+                  key={opt}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 12px",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    userSelect: "none",
+                    fontWeight: tipoSocioFilter === opt ? 600 : 400,
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <input
+                    type="radio"
+                    name="tipoSocio"
+                    checked={tipoSocioFilter === opt}
+                    onChange={() => setTipoSocioFilter(opt)}
+                    style={{ accentColor: "var(--azul-institucional)" }}
+                  />
+                  {opt}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="table-card">
@@ -271,7 +509,7 @@ const Members: React.FC = () => {
                 paginated.map(({ member: m, monthsOwed: owed }) => (
                   <tr
                     key={m.id}
-                    onClick={() => navigate(`/socios/editar/${m.id}`, { state: { member: m } })}
+                    onClick={() => navigate(isSecretario ? `/socios/detalle/${m.id}` : `/socios/editar/${m.id}`, { state: { member: m } })}
                     style={{ cursor: "pointer" }}
                   >
                     <td>{m.numeroDeSocio}</td>

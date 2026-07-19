@@ -7,7 +7,7 @@ import { SortIcon, type SortField, type SortDir } from "./types";
 import { PAGA_POR_LABEL } from "./constants";
 
 interface CementerioTableProps {
-  paginated: CementerioGridItem[];
+  paginated: (CementerioGridItem & { reducible: boolean })[];
   sortField: SortField;
   sortDir: SortDir;
   onSort: (field: SortField) => void;
@@ -58,12 +58,15 @@ const CementerioTable: React.FC<CementerioTableProps> = ({
               <th className="sortable-th col-anios" onClick={() => onSort("anios")}>
                 Años desde Último Pago <SortIcon field="anios" currentSort={sortField} currentDir={sortDir} />
               </th>
+              <th className="sortable-th col-reducible" onClick={() => onSort("reducible")}>
+                Reducible <SortIcon field="reducible" currentSort={sortField} currentDir={sortDir} />
+              </th>
             </tr>
           </thead>
           <tbody>
             {paginated.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                <td colSpan={8} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                   No se encontraron resultados.
                 </td>
               </tr>
@@ -82,6 +85,13 @@ const CementerioTable: React.FC<CementerioTableProps> = ({
                   <td className="col-paga-por">{PAGA_POR_LABEL[item.pagaPor.toUpperCase()] || item.pagaPor}</td>
                   <td className="col-fecha">{item.fechaDePago}</td>
                   <td className="col-anios">{(() => { const v = calcYearsAgo(item.fechaDePago); return v < 0 ? "—" : v; })()}</td>
+                  <td className="col-reducible">
+                    {item.reducible ? (
+                      <span style={{ color: "var(--verde-exito)", fontWeight: 600 }}>Sí</span>
+                    ) : (
+                      <span style={{ color: "var(--muted)" }}>—</span>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

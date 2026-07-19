@@ -21,6 +21,7 @@ const ServiceHistory: React.FC = () => {
     const [selectedYears, setSelectedYears] = useState<number[]>([]);
     const [showFilters, setShowFilters] = useState(true);
     const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
+    const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(15);
     const [selectedRecord, setSelectedRecord] = useState<ServiceRecordItem | null>(null);
@@ -99,7 +100,7 @@ const ServiceHistory: React.FC = () => {
             >
                 <div className="filters-bottom-left">
                     <YearFilter availableYears={availableYears} selectedYears={selectedYears} onToggleYear={toggleYear} isOpen={yearDropdownOpen} onToggleOpen={() => setYearDropdownOpen((v) => !v)} />
-                    <MonthFilter selectedMonths={selectedMonths} onToggleMonth={toggleMonth} />
+                    <MonthFilter selectedMonths={selectedMonths} onToggleMonth={toggleMonth} isOpen={monthDropdownOpen} onToggleOpen={() => setMonthDropdownOpen((v) => !v)} />
                 </div>
             </FiltersPanel>
 

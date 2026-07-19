@@ -8,6 +8,8 @@ export interface CementerioGridItem {
     pagaPor: string;
     ultimoPago: string;
     fechaDePago: string;
+    tipo: string;
+    fechaFallecimiento: string;
 }
 
 export interface CementerioDetalleRecord extends Cementerio {

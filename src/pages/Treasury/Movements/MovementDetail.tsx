@@ -95,7 +95,7 @@ const MovementDetail: React.FC = () => {
 
                 <div className="movement-detail-grid">
                     <div className="detail-field"><span className="detail-label">ID</span><span className="detail-value mono">{movement.id}</span></div>
-                    <div className="detail-field"><span className="detail-label">Fecha</span><span className="detail-value">{movement.date}</span></div>
+                    <div className="detail-field"><span className="detail-label">Fecha</span><span className="detail-value">{formatRecordDate(movement.date)}</span></div>
                     <div className="detail-field full-width"><span className="detail-label">Detalle</span><span className="detail-value">{movement.detail || "\u2014"}</span></div>
                     <div className="detail-field"><span className="detail-label">Tipo</span><span className={`badge ${movement.type === "ingreso" ? "badge-ingreso" : movement.type === "egreso" ? "badge-egreso" : "badge-transferencia"}`}>{typeLabel}</span></div>
                     <div className="detail-field"><span className="detail-label">Modalidad</span><span className="detail-value">{modeLabel}</span></div>

@@ -136,6 +136,8 @@ export type CementerioGridItem = {
     pagaPor: string;
     ultimoPago: string;
     fechaDePago: string;
+    tipo: string;
+    fechaFallecimiento: string;
 };
 
 export async function getAllCementeriosGrid(): Promise<CementerioGridItem[]> {
@@ -148,6 +150,8 @@ export async function getAllCementeriosGrid(): Promise<CementerioGridItem[]> {
         paga_por: string;
         ultimo_pago: string;
         fecha_de_pago: string;
+        tipo: string;
+        fecha_fallecimiento: string;
     };
     const rows = await sql`
         SELECT
@@ -157,7 +161,9 @@ export async function getAllCementeriosGrid(): Promise<CementerioGridItem[]> {
             MAX(c.telefono) AS telefono,
             MAX(c.paga_por) AS paga_por,
             MAX(c.ultimo_pago) AS ultimo_pago,
-            MAX(c.fecha_de_pago) AS fecha_de_pago
+            MAX(c.fecha_de_pago) AS fecha_de_pago,
+            MAX(c.tipo) AS tipo,
+            MAX(c.fecha_fallecimiento) AS fecha_fallecimiento
         FROM cementerios c
         LEFT JOIN persons p ON c.persona_id = p.id
         LEFT JOIN members m ON c.socio_id = m.id
@@ -172,6 +178,8 @@ export async function getAllCementeriosGrid(): Promise<CementerioGridItem[]> {
         pagaPor: r.paga_por ?? "",
         ultimoPago: r.ultimo_pago ?? "",
         fechaDePago: r.fecha_de_pago ?? "",
+        tipo: r.tipo ?? "",
+        fechaFallecimiento: r.fecha_fallecimiento ?? "",
     }));
 }
 

@@ -198,3 +198,16 @@ CREATE TABLE IF NOT EXISTS cementerio_movimientos (
 CREATE INDEX IF NOT EXISTS idx_cm_movement_id   ON cementerio_movimientos (movement_id);
 CREATE INDEX IF NOT EXISTS idx_cm_cementerio_id ON cementerio_movimientos (cementerio_id);
 CREATE INDEX IF NOT EXISTS idx_cm_nicho         ON cementerio_movimientos (nicho);
+
+CREATE TABLE IF NOT EXISTS app_users (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    auth_user_id    TEXT            NOT NULL UNIQUE,
+    email           VARCHAR(255)    NOT NULL,
+    name            VARCHAR(255),
+    role            VARCHAR(20)     NOT NULL DEFAULT 'secretario' CHECK (role IN ('owner', 'admin', 'secretario')),
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_users_auth_user_id ON app_users (auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_app_users_role         ON app_users (role);

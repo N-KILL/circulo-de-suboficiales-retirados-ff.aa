@@ -11,6 +11,8 @@ interface CementerioFiltersProps {
   filtroAnios: number | null;
   onStepperDown: () => void;
   onStepperUp: () => void;
+  filtroReducible: boolean;
+  onFiltroReducibleChange: (v: boolean) => void;
   onClearFilters: () => void;
   showFilters: boolean;
   onToggleFilters: () => void;
@@ -24,6 +26,8 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
   filtroAnios,
   onStepperDown,
   onStepperUp,
+  filtroReducible,
+  onFiltroReducibleChange,
   onClearFilters,
   showFilters,
   onToggleFilters,
@@ -80,6 +84,23 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
               <button className="stepper-btn" onClick={onStepperDown}>-</button>
               <span className="stepper-value">{filtroAnios !== null ? filtroAnios : "Cualq."}</span>
               <button className="stepper-btn" onClick={onStepperUp}>+</button>
+            </div>
+          </div>
+          <div className="filter-group">
+            <span className="filter-group-label">Reducible</span>
+            <div className="filter-btns">
+              <button
+                className={`filter-btn ${!filtroReducible ? "active" : ""}`}
+                onClick={() => onFiltroReducibleChange(false)}
+              >
+                Todos
+              </button>
+              <button
+                className={`filter-btn ${filtroReducible ? "active" : ""}`}
+                onClick={() => onFiltroReducibleChange(true)}
+              >
+                Solo reducibles
+              </button>
             </div>
           </div>
         </div>

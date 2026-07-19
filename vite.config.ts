@@ -35,8 +35,10 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isServices = pathname === "/api/services";
         const isServiceRecords = pathname === "/api/service-records";
         const isCementerioMovimientos = pathname === "/api/cementerio-movimientos";
+        const isUsers = pathname === "/api/users";
+        const isVitalicios = pathname === "/api/members/vitalicios";
 
-        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos) {
+        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios) {
           next();
           return;
         }
@@ -237,7 +239,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               date: payment.date,
               detail: payment.detail,
               amount: payment.amount,
-              type: "ingreso",
+              type: payment.type || "ingreso",
               mode: payment.mode,
               concept: payment.concept ?? null,
             });
@@ -725,6 +727,75 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
 
             res.statusCode = 405;
             res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isUsers) {
+            if (req.method === "GET") {
+              const { getAllAppUsers } = await import("./src/database/usersRepository");
+              const users = await getAllAppUsers();
+              res.statusCode = 200;
+              res.end(JSON.stringify(users));
+              return;
+            }
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req));
+              const { auth_user_id, email, name, role } = body;
+              if (!auth_user_id || !email) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan auth_user_id y/o email" }));
+                return;
+              }
+              const { upsertAppUser } = await import("./src/database/usersRepository");
+              const user = await upsertAppUser(auth_user_id, email, name ?? null, role ?? "secretario");
+              res.statusCode = 200;
+              res.end(JSON.stringify(user));
+              return;
+            }
+            if (req.method === "PATCH") {
+              const body = JSON.parse(await collectBody(req));
+              const { auth_user_id, role } = body;
+              if (!auth_user_id || !role) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan auth_user_id y/o role" }));
+                return;
+              }
+              const { updateAppUserRole } = await import("./src/database/usersRepository");
+              const user = await updateAppUserRole(auth_user_id, role);
+              if (!user) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: "Usuario no encontrado" }));
+                return;
+              }
+              res.statusCode = 200;
+              res.end(JSON.stringify(user));
+              return;
+            }
+            if (req.method === "DELETE") {
+              const authUserId = url.searchParams.get("auth_user_id");
+              if (!authUserId) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el parámetro auth_user_id" }));
+                return;
+              }
+              const { deleteAppUser } = await import("./src/database/usersRepository");
+              await deleteAppUser(authUserId);
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true }));
+              return;
+            }
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+          }
+
+          if (isVitalicios && req.method === "PATCH") {
+            const { updateVitalicios } = await import("./src/database/membersRepository");
+            const count = await updateVitalicios();
+            res.statusCode = 200;
+            res.end(JSON.stringify({ updated: count }));
             return;
           }
 

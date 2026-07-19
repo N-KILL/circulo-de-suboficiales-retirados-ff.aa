@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { RefreshCw } from "lucide-react";
 import { fetchCementeriosGrid, type CementerioGridItem } from "../../../services/cementeriosApi";
 import { calcYearsAgo } from "../../../utils/format";
 import { type SortField, type SortDir } from "./types";
@@ -6,6 +7,22 @@ import CementerioFilters from "./CementerioFilters";
 import CementerioTable from "./CementerioTable";
 import "../TreasuryTables.css";
 
+function esReducible(tipo: string, fechaFallecimiento: string): boolean {
+    if (tipo.toUpperCase() !== "F") return false;
+    if (!fechaFallecimiento) return false;
+    const parts = fechaFallecimiento.split("-");
+    if (parts.length !== 3) return false;
+    let year: number;
+    if (parts[0].length === 4) {
+        year = parseInt(parts[0], 10);
+    } else if (parts[2].length === 4) {
+        year = parseInt(parts[2], 10);
+    } else {
+        return false;
+    }
+    if (isNaN(year)) return false;
+    return new Date().getFullYear() - year >= 25;
+}
 
 const Cementerio: React.FC = () => {
     const [data, setData] = useState<CementerioGridItem[]>([]);
@@ -14,13 +31,18 @@ const Cementerio: React.FC = () => {
     const [searchText, setSearchText] = useState("");
     const [filtroPagaPor, setFiltroPagaPor] = useState<string>("");
     const [filtroAnios, setFiltroAnios] = useState<number | null>(null);
+    const [filtroReducible, setFiltroReducible] = useState(false);
     const [showFilters, setShowFilters] = useState(true);
     const [sortField, setSortField] = useState<SortField>("nicho");
     const [sortDir, setSortDir] = useState<SortDir>("asc");
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(15);
+    const [updatingReducibles, setUpdatingReducibles] = useState(false);
+    const [lastReducibleUpdate, setLastReducibleUpdate] = useState<string | null>(() => {
+        try { return localStorage.getItem("lastReducibleUpdate"); } catch { return null; }
+    });
 
-    const filterDeps = `${searchText}|${filtroPagaPor}|${filtroAnios}|${sortField}|${sortDir}`;
+    const filterDeps = `${searchText}|${filtroPagaPor}|${filtroAnios}|${filtroReducible}|${sortField}|${sortDir}`;
     const [prevFilterDeps, setPrevFilterDeps] = useState(filterDeps);
     if (filterDeps !== prevFilterDeps) {
         setPrevFilterDeps(filterDeps);
@@ -53,10 +75,21 @@ const Cementerio: React.FC = () => {
         }
     };
 
+    const dataWithReducible = useMemo(() => {
+        return data.map((d) => ({
+            ...d,
+            reducible: esReducible(d.tipo, d.fechaFallecimiento),
+        }));
+    }, [data]);
+
+    const reducibleCount = useMemo(() => {
+        return dataWithReducible.filter((d) => d.reducible).length;
+    }, [dataWithReducible]);
+
     const filtered = useMemo(() => {
         const q = searchText.toLowerCase().trim();
 
-        return data.filter((d) => {
+        return dataWithReducible.filter((d) => {
             if (q && !d.nicho.toLowerCase().includes(q) &&
                 !d.arrendatario.toLowerCase().includes(q) &&
                 !d.telefono.includes(q)) return false;
@@ -65,9 +98,10 @@ const Cementerio: React.FC = () => {
                 const anos = calcYearsAgo(d.fechaDePago);
                 if (anos !== filtroAnios) return false;
             }
+            if (filtroReducible && !d.reducible) return false;
             return true;
         });
-    }, [data, searchText, filtroPagaPor, filtroAnios]);
+    }, [dataWithReducible, searchText, filtroPagaPor, filtroAnios, filtroReducible]);
 
     const sorted = useMemo(() => {
         const list = [...filtered];
@@ -88,6 +122,10 @@ const Cementerio: React.FC = () => {
                     if (vb < 0) return -1;
                     return (va - vb) * dir;
                 }
+                case "reducible": {
+                    if (a.reducible === b.reducible) return 0;
+                    return a.reducible ? -1 * dir : dir;
+                }
                 default: return 0;
             }
         });
@@ -105,6 +143,7 @@ const Cementerio: React.FC = () => {
         setSearchText("");
         setFiltroPagaPor("");
         setFiltroAnios(null);
+        setFiltroReducible(false);
     };
 
     const stepperDown = () => {
@@ -115,11 +154,42 @@ const Cementerio: React.FC = () => {
         setFiltroAnios((prev) => (prev === null ? 0 : prev + 1));
     };
 
+    const handleActualizarReducibles = () => {
+        setUpdatingReducibles(true);
+        const now = new Date().toLocaleString("es-AR");
+        localStorage.setItem("lastReducibleUpdate", now);
+        setLastReducibleUpdate(now);
+        setFiltroReducible(true);
+        setTimeout(() => setUpdatingReducibles(false), 500);
+    };
+
     if (isLoading) return <div className="dashboard-loading">Cargando cementerio...</div>;
     if (error) return <div className="dashboard-loading" style={{ color: "var(--danger)" }}>Error: {error}</div>;
 
     return (
         <div className="treasury-container">
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <button
+                    className="header-btn"
+                    onClick={handleActualizarReducibles}
+                    disabled={updatingReducibles}
+                    title="Mostrar nichos en féretro con 25+ años que pueden reducirse"
+                >
+                    <RefreshCw size={16} className={updatingReducibles ? "spin" : ""} />
+                    Actualizar reducibles
+                </button>
+                {lastReducibleUpdate && (
+                    <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                        Última vez: {lastReducibleUpdate}
+                    </span>
+                )}
+                {reducibleCount > 0 && (
+                    <span style={{ fontSize: 12, color: "var(--azul-armada)", fontWeight: 600 }}>
+                        {reducibleCount} nicho{reducibleCount !== 1 ? "s" : ""} reducible{reducibleCount !== 1 ? "s" : ""}
+                    </span>
+                )}
+            </div>
+
             <CementerioFilters
                 searchText={searchText}
                 onSearchChange={setSearchText}
@@ -128,6 +198,8 @@ const Cementerio: React.FC = () => {
                 filtroAnios={filtroAnios}
                 onStepperDown={stepperDown}
                 onStepperUp={stepperUp}
+                filtroReducible={filtroReducible}
+                onFiltroReducibleChange={setFiltroReducible}
                 onClearFilters={clearFilters}
                 showFilters={showFilters}
                 onToggleFilters={() => setShowFilters((v) => !v)}

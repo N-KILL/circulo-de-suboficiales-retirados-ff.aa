@@ -55,7 +55,7 @@ const isHome = location.pathname === "/";
             <div className="footer-left">
               <img src={logo} alt="Logo" className="footer-logo-img" />
               <span>
-                Circulo de Suboficiales Retirados de las Fuerzas Armadas de la Nación "Honor y Patria"
+                Círculo de Suboficiales Retirados de las Fuerzas Armadas de la Nación "Honor y Patria"
               </span>
             </div>
             <div className="footer-right">

@@ -1,0 +1,154 @@
+.usuarios-page {
+    padding: 24px;
+    max-width: 960px;
+}
+
+.usuarios-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 50vh;
+    gap: 12px;
+    color: var(--muted, #6b7280);
+}
+
+.usuarios-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.usuarios-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text, #111);
+    margin: 0;
+}
+
+.usuarios-table-wrapper {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+.usuarios-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.usuarios-table th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted, #6b7280);
+    background: var(--bg, #f3f6f9);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.usuarios-table td {
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--text, #111);
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.usuarios-self {
+    background: #f9fafb;
+}
+
+.usuarios-empty {
+    text-align: center;
+    color: var(--muted, #6b7280);
+    padding: 32px 16px !important;
+}
+
+.usuarios-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.usuarios-badge-owner {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.usuarios-badge-admin {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.usuarios-badge-secretario {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.usuarios-role-select {
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+    color: var(--text, #111);
+}
+
+.usuarios-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.usuarios-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.usuarios-edit {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.usuarios-edit:hover {
+    background: #e5e7eb;
+}
+
+.usuarios-delete {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.usuarios-delete:hover {
+    background: #fee2e2;
+}
+
+.usuarios-save {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.usuarios-save:hover {
+    background: #d1fae5;
+}
+
+.usuarios-cancel {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.usuarios-cancel:hover {
+    background: #e5e7eb;
+}

@@ -273,7 +273,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         date: payment.date,
         detail: payment.detail,
         amount: payment.amount,
-        type: "ingreso",
+        type: payment.type || "ingreso",
         mode: payment.mode,
         concept: payment.concept ?? null,
       });
@@ -657,6 +657,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       res.status(405).json({ error: "Método no permitido" });
+      return;
+    }
+
+    // GET /api/users
+    if (pathname === "/api/users" && method === "GET") {
+      const { getAllAppUsers } = await import("../src/database/usersRepository.js");
+      const users = await getAllAppUsers();
+      res.status(200).json(users);
+      return;
+    }
+
+    // POST /api/users
+    if (pathname === "/api/users" && method === "POST") {
+      const { auth_user_id, email, name, role } = req.body;
+      if (!auth_user_id || !email) {
+        res.status(400).json({ error: "Faltan auth_user_id y/o email" });
+        return;
+      }
+      const { upsertAppUser } = await import("../src/database/usersRepository.js");
+      const user = await upsertAppUser(auth_user_id, email, name ?? null, role ?? "secretario");
+      res.status(200).json(user);
+      return;
+    }
+
+    // PATCH /api/users
+    if (pathname === "/api/users" && method === "PATCH") {
+      const { auth_user_id, role } = req.body;
+      if (!auth_user_id || !role) {
+        res.status(400).json({ error: "Faltan auth_user_id y/o role" });
+        return;
+      }
+      const { updateAppUserRole } = await import("../src/database/usersRepository.js");
+      const user = await updateAppUserRole(auth_user_id, role);
+      if (!user) {
+        res.status(404).json({ error: "Usuario no encontrado" });
+        return;
+      }
+      res.status(200).json(user);
+      return;
+    }
+
+    // DELETE /api/users
+    if (pathname === "/api/users" && method === "DELETE") {
+      const authUserId = req.query.auth_user_id as string | undefined;
+      if (!authUserId) {
+        res.status(400).json({ error: "Falta el parámetro auth_user_id" });
+        return;
+      }
+      const { deleteAppUser } = await import("../src/database/usersRepository.js");
+      await deleteAppUser(authUserId);
+      res.status(200).json({ success: true });
+      return;
+    }
+
+    // PATCH /api/members/vitalicios
+    if (pathname === "/api/members/vitalicios" && method === "PATCH") {
+      const { updateVitalicios } = await import("../src/database/membersRepository.js");
+      const count = await updateVitalicios();
+      res.status(200).json({ updated: count });
       return;
     }
 

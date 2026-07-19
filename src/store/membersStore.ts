@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import type { Person, Member, MembersFormState } from "../models/members";
 import { saveMember } from "../services/membersApi";
-
-const todayIso = () => new Date().toISOString().split('T')[0];
+import { todayLocal } from "../utils/format";
 
 const emptyForm = (): Member => ({
     id: crypto.randomUUID(),
@@ -29,7 +28,7 @@ const emptyForm = (): Member => ({
     fuerza: '',
     grado: '',
     estado: '',
-    fechaIngreso: todayIso(),
+    fechaIngreso: todayLocal(),
     fechaBaja: '',
     motivoBaja: '',
     cobraIAF: 'No',

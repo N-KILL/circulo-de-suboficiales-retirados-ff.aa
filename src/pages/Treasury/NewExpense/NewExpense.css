@@ -1,0 +1,11 @@
+.highlight-red {
+  color: var(--rojo-alerta);
+}
+
+.summary-total-expense {
+  background: #fef2f2;
+}
+
+.total-amount-expense {
+  color: var(--rojo-alerta);
+}

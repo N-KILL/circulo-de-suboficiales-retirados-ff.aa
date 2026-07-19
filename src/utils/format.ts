@@ -1,3 +1,25 @@
+export function todayLocal(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function toDisplayDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  return dateStr;
+}
+
+export function fromDisplayDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  return dateStr;
+}
+
 export function toCurrency(val: number): string {
   return `$ ${new Intl.NumberFormat("es-AR", {
     minimumFractionDigits: 2,
@@ -29,7 +51,7 @@ export function formatPeriodsDisplay(periods: string[] | null): string {
 
 export function formatRecordDate(dateStr: string): string {
   const parts = dateStr.split("-");
-  return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+  return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : dateStr;
 }
 
 export function parseMoney(v: string): number {
@@ -39,8 +61,17 @@ export function parseMoney(v: string): number {
 export function parseDateYMD(dateStr: string): Date | null {
   const parts = dateStr.split("-");
   if (parts.length === 3) {
-    const [y, m, d] = parts.map(Number);
-    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m - 1, d);
+    const nums = parts.map(Number);
+    if (nums.some(isNaN)) {
+      const fallback = new Date(dateStr);
+      return isNaN(fallback.getTime()) ? null : fallback;
+    }
+    if (parts[0].length === 4) {
+      const [y, m, d] = nums;
+      return new Date(y, m - 1, d);
+    }
+    const [d, m, y] = nums;
+    return new Date(y, m - 1, d);
   }
   if (parts.length === 2) {
     const [y, m] = parts.map(Number);

@@ -12,7 +12,7 @@ import { fetchCementeriosByOwner, fetchCementerioOwnerIds, fetchCementerioMovimi
 import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
 import { saveServiceRecord, updateServiceRecord, fetchServiceRecordsByMovement, deleteServiceRecord } from "../../../services/serviceRecordsApi";
 import { saveService } from "../../../services/servicesApi";
-import { parseDateYMD } from "../../../utils/format";
+import { parseDateYMD, todayLocal } from "../../../utils/format";
 import Banner from "../../../components/ui/Banner";
 import DateInput from "../../../components/ui/DateInput";
 import MovementFormFields from "./MovementFormFields";
@@ -64,8 +64,8 @@ const NewMovement: React.FC = () => {
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [showPersonDropdown, setShowPersonDropdown] = useState(false);
 
-  const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
-  const [serviceDate, setServiceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [fecha, setFecha] = useState(todayLocal());
+  const [serviceDate, setServiceDate] = useState(todayLocal());
   const [importeStr, setImporteStr] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [periods, setPeriods] = useState<string[]>([]);
@@ -267,15 +267,15 @@ const NewMovement: React.FC = () => {
     if (!duesConfig) return 0;
     const tipo = (c.tipo || "nicho").toLowerCase();
     const isSocio = personType === "socio";
-    if (tipo === "urna") return isSocio ? duesConfig.urna_member_fee : duesConfig.urna_non_member_fee;
-    if (tipo === "bolsa") return isSocio ? duesConfig.bolsa_member_fee : duesConfig.bolsa_non_member_fee;
+    if (tipo === "u" || tipo === "urna") return isSocio ? duesConfig.urna_member_fee : duesConfig.urna_non_member_fee;
+    if (tipo === "b" || tipo === "bolsa") return isSocio ? duesConfig.bolsa_member_fee : duesConfig.bolsa_non_member_fee;
     return isSocio ? duesConfig.nicho_member_fee : duesConfig.nicho_non_member_fee;
   }, [duesConfig, personType]);
 
   const getMemberFee = useCallback((member: Member): number => {
     if (!duesConfig) return 0;
     const tipo = (member.tipoSocio || "").trim();
-    let base = 0;
+    let base: number;
     if (tipo === "Activo") base = duesConfig.fee_act;
     else if (tipo === "Activo Tipo A") base = duesConfig.fee_act_a;
     else if (tipo === "Adherente") base = duesConfig.fee_adh;
@@ -356,7 +356,7 @@ const NewMovement: React.FC = () => {
     fetchFamilyMembers(selectedMember.id)
       .then((members) => {
         if (mounted) {
-          const alive = members.filter((m) => !m.fallecido);
+          const alive = members.filter((m) => !m.fallecido && !m.fechaBaja);
           setFamilyMembers(alive);
           if (!id) {
             const initial = new Set<string>();
@@ -426,7 +426,7 @@ const NewMovement: React.FC = () => {
                 if (member.nroFamilia) {
                   fetchFamilyMembers(member.id).then((fms) => {
                     if (mounted && fms.length > 1) {
-                      const alive = fms.filter((m) => !m.fallecido);
+                      const alive = fms.filter((m) => !m.fallecido && !m.fechaBaja);
                       setFamilyMembers(alive);
                       const paidIds = (due.paid_members as string[]) || [];
                       if (paidIds.length > 0) { setFamilyPayment(true); setSelectedFamilyMembers(new Set(paidIds)); }
@@ -548,12 +548,12 @@ const NewMovement: React.FC = () => {
   const mode = cajaOrigen === "caja_chica" ? "efectivo" : "transferencia";
 
   const memberResults = useMemo(() => {
-    let list = members;
+    let list = members.filter((m) => !m.fechaBaja);
     if (concept === "Cuota Socio") {
-      list = members.filter((m) => !m.fallecido && (m.pagaPor || "").toUpperCase() === "TES");
+      list = list.filter((m) => !m.fallecido && (m.pagaPor || "").toUpperCase() === "TES");
     } else if (concept === "Cementerio" && cementerioOwnerIds) {
       const ids = new Set(cementerioOwnerIds.memberIds);
-      list = members.filter((m) => ids.has(m.id));
+      list = list.filter((m) => ids.has(m.id));
     }
     if (memberSearch.trim()) {
       const q = memberSearch.toLowerCase();
@@ -821,7 +821,7 @@ const NewMovement: React.FC = () => {
           setFamilyMembers([]); setSelectedFamilyMembers(new Set());
           setSelectedPerson(null); setPersonSearch("");
           setSelectedCementerios([]); setCementerioSelectedYears(new Map());
-          setCementeriosList([]); setCementerioPaidYears(new Map()); setServiceDate(new Date().toISOString().split("T")[0]);
+          setCementeriosList([]); setCementerioPaidYears(new Map()); setServiceDate(todayLocal());
           setImporteStr(""); setDescripcion(""); setErrors({}); setTouched({}); setApiError(null);
         }
       } catch (err) {
@@ -833,7 +833,7 @@ const NewMovement: React.FC = () => {
     [isEditing, id, validate, showServicioSelect, servicio, concept, payerName,
       descripcion, fecha, serviceDate, importeNum, mode, shouldCreateDue,
       personType, selectedMember, selectedPerson, familyPayment, selectedFamilyMembers,
-      periods, navigate, serviciosFromApi, selectedCementerios, cementerioSelectedYears, getFeeForCementerio, getMemberFee, familyMembers]
+      periods, navigate, serviciosFromApi, selectedCementerios, cementerioSelectedYears, getFeeForCementerio]
   );
 
 

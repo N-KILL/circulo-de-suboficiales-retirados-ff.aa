@@ -1,6 +1,14 @@
 import React from "react";
 import type { Cementerio } from "../../../models/members";
 
+const TIPO_LABEL: Record<string, string> = {
+  F: "Féretro",
+  VF: "Vacío Féretro",
+  B: "Bolsa",
+  U: "Urna",
+  UV: "Vacío Urna",
+};
+
 interface CementerioPickerProps {
   cementeriosList: Cementerio[];
   selectedCementerios: Cementerio[];
@@ -53,7 +61,7 @@ const CementerioPicker: React.FC<CementerioPickerProps> = ({
                   />
                   <div className="cementerio-card-title">
                     <span className="cementerio-card-nicho">{c.nicho}</span>
-                    <span className="cementerio-card-tipo">{c.tipo || "Nicho"}</span>
+                    <span className="cementerio-card-tipo">{TIPO_LABEL[c.tipo || ""] || c.tipo || "Nicho"}</span>
                   </div>
                 </label>
                 <div className="cementerio-card-details">

@@ -286,3 +286,17 @@ export async function getFamilyMembers(memberId: string): Promise<Member[]> {
     `) as MemberRow[];
     return rows.map(rowToMember);
 }
+
+export async function updateVitalicios(): Promise<number> {
+    const sql = getSql();
+    const result = await sql`
+        UPDATE members
+        SET tipo_socio = 'VIT', updated_at = NOW()
+        WHERE fallecido = FALSE
+          AND (fecha_baja IS NULL OR fecha_baja = '')
+          AND tipo_socio IS DISTINCT FROM 'VIT'
+          AND edad ~ '^[0-9]+$'
+          AND CAST(edad AS INTEGER) > 35
+    `;
+    return (result as { rowCount: number }).rowCount ?? 0;
+}

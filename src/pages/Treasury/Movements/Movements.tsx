@@ -7,7 +7,7 @@ import YearFilter from "../../../components/filters/YearFilter";
 import { fetchMovements, type Movement } from "../../../services/movementsApi";
 import { fetchInitialBalances } from "../../../services/initialBalancesApi";
 import { fetchCementerioMovimientosByNicho } from "../../../services/cementeriosApi";
-import { formatCurrency } from "../../../utils/format";
+import { formatCurrency, formatRecordDate } from "../../../utils/format";
 import "../TreasuryTables.css";
 
 const Movements: React.FC = () => {
@@ -31,6 +31,7 @@ const Movements: React.FC = () => {
   const [filtroIngreso, setFiltroIngreso] = useState(true);
   const [filtroEgreso, setFiltroEgreso] = useState(true);
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
+  const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
   const [nichoMovementIds, setNichoMovementIds] = useState<Set<string> | null>(null);
 
   const availableYears = useMemo(() => {
@@ -98,8 +99,7 @@ const Movements: React.FC = () => {
     for (const m of rawMovements) {
       if (m.type === "ingreso") { rb += m.amount; if (m.mode === "efectivo") rc += m.amount; }
       else if (m.type === "egreso") { rb -= m.amount; if (m.mode === "efectivo") rc -= m.amount; }
-      const parts = m.date.split("-");
-      const fecha = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : m.date;
+      const fecha = formatRecordDate(m.date);
       items.push({
         id: m.id, date: m.date, fecha,
         tipo: m.type === "ingreso" ? "Ingreso" : m.type === "egreso" ? "Egreso" : "Transferencia",
@@ -206,7 +206,7 @@ const Movements: React.FC = () => {
             </div>
           </div>
           <YearFilter availableYears={availableYears} selectedYears={selectedYears} onToggleYear={toggleYear} isOpen={yearDropdownOpen} onToggleOpen={() => setYearDropdownOpen((v) => !v)} />
-          <MonthFilter selectedMonths={selectedMonths} onToggleMonth={toggleMonth} />
+          <MonthFilter selectedMonths={selectedMonths} onToggleMonth={toggleMonth} isOpen={monthDropdownOpen} onToggleOpen={() => setMonthDropdownOpen((v) => !v)} />
         </div>
         <div className="filters-bottom-right">
           <button className={`caja-card-toggle-sm ${cajaBanco ? "active" : "inactive"}`} onClick={() => setCajaBanco((v) => !v)}>
