@@ -196,7 +196,7 @@ const DetalleSocio: React.FC = () => {
                 {cementerioGrouped.map((g) => (
                   <tr key={g.movement_id}>
                     <td style={{ fontWeight: 600 }}>{g.nichos}</td>
-                    <td>{formatPeriodsDisplay(g.period.length > 0 ? g.period : null)}</td>
+                    <td>{formatPeriodsDisplay(g.period && g.period.length > 0 ? g.period : null)}</td>
                     <td>{g.payment_date}</td>
                     <td className="amount-ingreso">{g.amount > 0 ? formatCurrency(g.amount) : "\u2014"}</td>
                     <td>{g.movement_id ? g.movement_id.slice(0, 8) + "\u2026" : "\u2014"}</td>
