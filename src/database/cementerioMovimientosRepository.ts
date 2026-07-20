@@ -88,6 +88,48 @@ export async function getCementerioMovimientosByNicho(nicho: string): Promise<Ce
     }));
 }
 
+export async function getCementerioMovimientosByNichoAndArrendatario(
+    nicho: string,
+    memberId: string | null,
+    personId: string | null,
+): Promise<CementerioMovimientoRecord[]> {
+    const sql = getSql();
+    const rows = await sql`
+        SELECT
+            cm.id::text,
+            cm.movement_id::text,
+            cm.cementerio_id::text,
+            cm.nicho,
+            cm.tipo,
+            cm.ocupante,
+            cm.anios_pagados,
+            cm.importe::float,
+            cm.fecha_pago::text,
+            cm.member_id::text,
+            cm.person_id::text,
+            cm.created_at::text
+        FROM cementerio_movimientos cm
+        WHERE cm.nicho = ${nicho}
+          AND cm.member_id IS NOT DISTINCT FROM ${memberId}
+          AND cm.person_id IS NOT DISTINCT FROM ${personId}
+        ORDER BY cm.fecha_pago DESC, cm.created_at DESC
+    `;
+    return (rows as unknown as CementerioMovimientoRecord[]).map((r) => ({
+        id: r.id,
+        movement_id: r.movement_id,
+        cementerio_id: r.cementerio_id,
+        nicho: r.nicho ?? "",
+        tipo: r.tipo ?? null,
+        ocupante: r.ocupante ?? null,
+        anios_pagados: r.anios_pagados ?? [],
+        importe: r.importe ?? 0,
+        fecha_pago: r.fecha_pago ?? "",
+        member_id: r.member_id,
+        person_id: r.person_id,
+        created_at: r.created_at,
+    }));
+}
+
 export async function insertCementerioMovimiento(data: {
     movement_id: string;
     cementerio_id: string;
@@ -122,4 +164,30 @@ export async function hasCementerioMovimientosByNicho(nicho: string): Promise<bo
     const sql = getSql();
     const rows = await sql`SELECT 1 FROM cementerio_movimientos WHERE nicho = ${nicho} LIMIT 1` as unknown[];
     return rows.length > 0;
+}
+
+export type CementerioPagoInfo = {
+    nicho: string;
+    memberId: string | null;
+    personId: string | null;
+    ultimaFechaPago: string;
+};
+
+export async function getCementerioPagosMap(): Promise<CementerioPagoInfo[]> {
+    const sql = getSql();
+    const rows = await sql`
+        SELECT
+            nicho,
+            member_id,
+            person_id,
+            MAX(fecha_pago) AS ultima_fecha_pago
+        FROM cementerio_movimientos
+        GROUP BY nicho, member_id, person_id
+    ` as { nicho: string; member_id: string | null; person_id: string | null; ultima_fecha_pago: string }[];
+    return rows.map((r) => ({
+        nicho: r.nicho ?? "",
+        memberId: r.member_id ?? null,
+        personId: r.person_id ?? null,
+        ultimaFechaPago: r.ultima_fecha_pago ?? "",
+    }));
 }

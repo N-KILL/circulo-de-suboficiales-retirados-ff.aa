@@ -11,8 +11,13 @@ interface CementerioFiltersProps {
   filtroAnios: number | null;
   onStepperDown: () => void;
   onStepperUp: () => void;
-  filtroReducible: boolean;
-  onFiltroReducibleChange: (v: boolean) => void;
+  filtroReducible: "ocultar" | "todo" | "solo";
+  onFiltroReducibleChange: (v: "ocultar" | "todo" | "solo") => void;
+  debtFilterActive: boolean;
+  onDebtFilterActiveChange: (v: boolean) => void;
+  debtFilterYears: number;
+  onDebtStepperDown: () => void;
+  onDebtStepperUp: () => void;
   onClearFilters: () => void;
   showFilters: boolean;
   onToggleFilters: () => void;
@@ -28,6 +33,11 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
   onStepperUp,
   filtroReducible,
   onFiltroReducibleChange,
+  debtFilterActive,
+  onDebtFilterActiveChange,
+  debtFilterYears,
+  onDebtStepperDown,
+  onDebtStepperUp,
   onClearFilters,
   showFilters,
   onToggleFilters,
@@ -73,7 +83,7 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
                   className={`filter-btn ${filtroPagaPor === opt ? "active" : ""}`}
                   onClick={() => onFiltroPagaPorChange(opt)}
                 >
-                  {opt === "" ? "Todos" : PAGA_POR_LABEL[opt]}
+                  {opt === "" ? "TODOS" : PAGA_POR_LABEL[opt]}
                 </button>
               ))}
             </div>
@@ -82,24 +92,48 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
             <span className="filter-group-label">Años desde último pago</span>
             <div className="stepper-wrapper">
               <button className="stepper-btn" onClick={onStepperDown}>-</button>
-              <span className="stepper-value">{filtroAnios !== null ? filtroAnios : "Cualq."}</span>
+              <span className="stepper-value">{filtroAnios !== null ? filtroAnios : "TODOS"}</span>
               <button className="stepper-btn" onClick={onStepperUp}>+</button>
+            </div>
+          </div>
+          <div className="filter-group">
+            <span className="filter-group-label">Ocultar deuda desde</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="stepper-wrapper">
+                <button className="stepper-btn" onClick={onDebtStepperDown}>-</button>
+                <span className="stepper-value">{debtFilterYears}</span>
+                <button className="stepper-btn" onClick={onDebtStepperUp}>+</button>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>
+                <input
+                  type="checkbox"
+                  checked={debtFilterActive}
+                  onChange={(e) => onDebtFilterActiveChange(e.target.checked)}
+                />
+                ACTIVO
+              </label>
             </div>
           </div>
           <div className="filter-group">
             <span className="filter-group-label">Reducible</span>
             <div className="filter-btns">
               <button
-                className={`filter-btn ${!filtroReducible ? "active" : ""}`}
-                onClick={() => onFiltroReducibleChange(false)}
+                className={`filter-btn ${filtroReducible === "todo" ? "active" : ""}`}
+                onClick={() => onFiltroReducibleChange("todo")}
               >
-                Todos
+                TODO
               </button>
               <button
-                className={`filter-btn ${filtroReducible ? "active" : ""}`}
-                onClick={() => onFiltroReducibleChange(true)}
+                className={`filter-btn ${filtroReducible === "solo" ? "active" : ""}`}
+                onClick={() => onFiltroReducibleChange("solo")}
               >
-                Solo reducibles
+                SOLO REDUCIBLES
+              </button>
+              <button
+                className={`filter-btn ${filtroReducible === "ocultar" ? "active" : ""}`}
+                onClick={() => onFiltroReducibleChange("ocultar")}
+              >
+                OCULTAR
               </button>
             </div>
           </div>

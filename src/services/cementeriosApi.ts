@@ -2,8 +2,9 @@ import type { Cementerio } from "../models/members";
 
 export interface CementerioGridItem {
     nicho: string;
-    cantOcupantes: number;
     arrendatario: string;
+    socioId: string | null;
+    personaId: string | null;
     telefono: string;
     pagaPor: string;
     ultimoPago: string;
@@ -114,10 +115,13 @@ export async function fetchCementerioMovimientosByMovement(
 
 export async function fetchCementerioMovimientosByNicho(
     nicho: string,
+    memberId?: string | null,
+    personId?: string | null,
 ): Promise<CementerioMovimientoRecord[]> {
-    const response = await fetch(
-        `/api/cementerio-movimientos?nicho=${encodeURIComponent(nicho)}`,
-    );
+    let url = `/api/cementerio-movimientos?nicho=${encodeURIComponent(nicho)}`;
+    if (memberId) url += `&memberId=${encodeURIComponent(memberId)}`;
+    if (personId) url += `&personId=${encodeURIComponent(personId)}`;
+    const response = await fetch(url);
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "No se pudieron cargar los movimientos de cementerio");
@@ -134,6 +138,22 @@ export async function hasCementerioMovimientosByNicho(
     if (!response.ok) return false;
     const data = (await response.json()) as { exists: boolean };
     return data.exists;
+}
+
+export type CementerioPagoInfo = {
+    nicho: string;
+    memberId: string | null;
+    personId: string | null;
+    ultimaFechaPago: string;
+};
+
+export async function fetchCementerioPagosMap(): Promise<CementerioPagoInfo[]> {
+    const response = await fetch("/api/cementerio-movimientos?pagosMap=true");
+    if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "No se pudo cargar el mapa de pagos");
+    }
+    return response.json() as Promise<CementerioPagoInfo[]>;
 }
 
 export async function saveCementerioMovimiento(data: {

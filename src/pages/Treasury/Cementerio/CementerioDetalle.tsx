@@ -5,7 +5,7 @@ import type { Cementerio } from "../../../models/members";
 import {
     fetchCementeriosByNicho,
     updateCementerioRecord,
-    hasCementerioMovimientosByNicho,
+    fetchCementerioMovimientosByNicho,
     type CementerioDetalleRecord,
 } from "../../../services/cementeriosApi";
 import "./Cementerio.css";
@@ -134,7 +134,7 @@ const CementerioDetalle: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [savingId, setSavingId] = useState<string | null>(null);
     const [arrendatarioFilter, setArrendatarioFilter] = useState<Set<string> | null>(null);
-    const [hasMovimientos, setHasMovimientos] = useState(false);
+    const [movimientosByArrendatario, setMovimientosByArrendatario] = useState<Map<string, boolean>>(new Map());
 
     useEffect(() => {
         document.querySelector(".content")?.classList.add("custom-scroll");
@@ -160,9 +160,27 @@ const CementerioDetalle: React.FC = () => {
     }, [nicho]);
 
     useEffect(() => {
-        if (!nicho) return;
-        hasCementerioMovimientosByNicho(nicho).then(setHasMovimientos).catch(() => setHasMovimientos(false));
-    }, [nicho]);
+        if (!nicho || records.length === 0) return;
+        const arrendatarios = new Map<string, { socioId: string | null; personaId: string | null }>();
+        for (const r of records) {
+            const key = r.personaId ?? r.socioId ?? "__sin_arrendatario__";
+            if (!arrendatarios.has(key)) {
+                arrendatarios.set(key, { socioId: r.socioId ?? null, personaId: r.personaId ?? null });
+            }
+        }
+        let mounted = true;
+        Promise.all(
+            [...arrendatarios.entries()].map(([key, ids]) =>
+                fetchCementerioMovimientosByNicho(nicho, ids.socioId, ids.personaId)
+                    .then((movs) => [key, movs.length > 0] as const)
+                    .catch(() => [key, false] as const)
+            )
+        ).then((results) => {
+            if (!mounted) return;
+            setMovimientosByArrendatario(new Map(results));
+        });
+        return () => { mounted = false; };
+    }, [nicho, records]);
 
     const grouped = useMemo(() => {
         const map = new Map<string, CementerioDetalleRecord[]>();
@@ -284,6 +302,8 @@ const CementerioDetalle: React.FC = () => {
             ) : (
                 filteredGrouped.map(([personaId, groupRecords]) => {
                     const personaNombre = groupRecords[0]?.personaNombre || "Sin arrendatario";
+                    const grupoSocioId = groupRecords[0]?.socioId ?? null;
+                    const grupoPersonaId = groupRecords[0]?.personaId ?? null;
                     return (
                             <div key={personaId} className="table-card" style={{ margin: "10px 0", padding: 0, overflow: "hidden" }}>
                             <div style={{
@@ -298,26 +318,35 @@ const CementerioDetalle: React.FC = () => {
                                     ({groupRecords.length} registro{groupRecords.length !== 1 ? "s" : ""})
                                 </span>
                                 <div style={{ marginLeft: "auto" }}>
-                                    <button
-                                        className="header-btn"
-                                        style={{
-                                            background: hasMovimientos ? "transparent" : "#f1f5f9",
-                                            color: hasMovimientos ? "var(--azul-institucional)" : "var(--muted)",
-                                            border: hasMovimientos ? "1px solid var(--azul-institucional)" : "1px solid var(--border)",
-                                            cursor: hasMovimientos ? "pointer" : "not-allowed",
-                                            opacity: hasMovimientos ? 1 : 0.6,
-                                            fontSize: 13,
-                                        }}
-                                        disabled={!hasMovimientos}
-                                        title={hasMovimientos ? "Ver movimientos de este nicho" : "No hay registros disponibles"}
-                                        onClick={() => {
-                                            if (hasMovimientos && nicho) {
-                                                navigate(`/tesoreria/movimientos?nicho=${encodeURIComponent(nicho)}`);
-                                            }
-                                        }}
-                                    >
-                                        <History size={14} /> Ver últimos movimientos
-                                    </button>
+                                    {(() => {
+                                        const key = personaId;
+                                        const grupoHasMovimientos = movimientosByArrendatario.get(key) ?? false;
+                                        return (
+                                            <button
+                                                className="header-btn"
+                                                style={{
+                                                    background: grupoHasMovimientos ? "transparent" : "#f1f5f9",
+                                                    color: grupoHasMovimientos ? "var(--azul-institucional)" : "var(--muted)",
+                                                    border: grupoHasMovimientos ? "1px solid var(--azul-institucional)" : "1px solid var(--border)",
+                                                    cursor: grupoHasMovimientos ? "pointer" : "not-allowed",
+                                                    opacity: grupoHasMovimientos ? 1 : 0.6,
+                                                    fontSize: 13,
+                                                }}
+                                                disabled={!grupoHasMovimientos}
+                                                title={grupoHasMovimientos ? "Ver pagos de este arrendatario" : "No hay pagos registrados"}
+                                                onClick={() => {
+                                                    if (grupoHasMovimientos && nicho) {
+                                                        let url = `/tesoreria/movimientos?nicho=${encodeURIComponent(nicho)}`;
+                                                        if (grupoSocioId) url += `&memberId=${encodeURIComponent(grupoSocioId)}`;
+                                                        else if (grupoPersonaId) url += `&personId=${encodeURIComponent(grupoPersonaId)}`;
+                                                        navigate(url);
+                                                    }
+                                                }}
+                                            >
+                                                <History size={14} /> Ver pagos
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                             {groupRecords.map((rec) => (

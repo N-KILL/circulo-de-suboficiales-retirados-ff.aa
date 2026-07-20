@@ -50,7 +50,8 @@ export function formatPeriodsDisplay(periods: string[] | null): string {
 }
 
 export function formatRecordDate(dateStr: string): string {
-  const parts = dateStr.split("-");
+  const iso = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+  const parts = iso.split("-");
   return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : dateStr;
 }
 

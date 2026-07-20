@@ -14,6 +14,8 @@ const Movements: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const nichoFilter = searchParams.get("nicho") || "";
+  const memberIdFilter = searchParams.get("memberId") || "";
+  const personIdFilter = searchParams.get("personId") || "";
 
   const [rawMovements, setRawMovements] = useState<Movement[]>([]);
   const [initialBanco, setInitialBanco] = useState(0);
@@ -52,7 +54,11 @@ const Movements: React.FC = () => {
   useEffect(() => {
     if (!nichoFilter) return;
     let mounted = true;
-    fetchCementerioMovimientosByNicho(nichoFilter)
+    fetchCementerioMovimientosByNicho(
+      nichoFilter,
+      memberIdFilter || null,
+      personIdFilter || null,
+    )
       .then((records) => {
         if (!mounted) return;
         const ids = new Set(records.map((r) => r.movement_id).filter(Boolean) as string[]);
@@ -60,7 +66,7 @@ const Movements: React.FC = () => {
       })
       .catch(() => { if (mounted) setNichoMovementIds(new Set()); });
     return () => { mounted = false; };
-  }, [nichoFilter]);
+  }, [nichoFilter, memberIdFilter, personIdFilter]);
 
   useEffect(() => {
     let mounted = true;
@@ -235,7 +241,7 @@ const Movements: React.FC = () => {
               ) : (
                 paginatedMovements.map((m, idx) => (
                   <tr key={idx} className="clickable-row" onClick={() => navigate(`/tesoreria/movimientos/detalle/${m.id}`)}>
-                    <td>{m.fecha}</td>
+                    <td className="col-fecha">{m.fecha}</td>
                     <td><span className={`badge ${m.tipo === "Ingreso" ? "badge-ingreso" : "badge-egreso"}`}>{m.tipo}</span></td>
                     <td>{m.modalidad}</td><td>{m.concepto}</td>
                     <td className="amount-ingreso">{m.ingreso}</td><td className="amount-egreso">{m.egreso}</td>

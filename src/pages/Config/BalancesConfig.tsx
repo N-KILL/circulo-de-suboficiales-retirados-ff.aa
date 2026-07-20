@@ -35,28 +35,21 @@ const BalancesConfig: React.FC<BalancesConfigProps> = ({ initialCajaChica, initi
   };
 
   return (
-    <div className="config-card">
-      <h3>Valores Iniciales</h3>
-      <p className="config-description">
-        Establecé los saldos iniciales de cada caja. Estos valores se usan
-        para calcular los saldos acumulados desde el inicio de los movimientos (2025).
-      </p>
-      <form onSubmit={handleSave} className="config-form">
-        <div className="config-field">
-          <label>Caja Chica (efectivo)</label>
-          <input type="text" className="config-input" value={cajaChica} onChange={(e) => setCajaChica(e.target.value)} placeholder="0.00" />
-        </div>
-        <div className="config-field">
-          <label>Banco (transferencias)</label>
-          <input type="text" className="config-input" value={banco} onChange={(e) => setBanco(e.target.value)} placeholder="0.00" />
-        </div>
-        {error && <div className="config-error">{error}</div>}
-        {success && <div className="config-success">Valores guardados correctamente</div>}
-        <button type="submit" className="config-save-btn" disabled={saving}>
-          {saving ? <><Loader size={16} className="spin" /> Guardando...</> : <><Save size={16} /> Guardar</>}
-        </button>
-      </form>
-    </div>
+    <form onSubmit={handleSave} className="config-form">
+      <div className="config-field">
+        <label>Caja Chica (efectivo)</label>
+        <input type="text" className="config-input" value={cajaChica} onChange={(e) => setCajaChica(e.target.value)} placeholder="0.00" />
+      </div>
+      <div className="config-field">
+        <label>Banco (transferencias)</label>
+        <input type="text" className="config-input" value={banco} onChange={(e) => setBanco(e.target.value)} placeholder="0.00" />
+      </div>
+      {error && <div className="config-error">{error}</div>}
+      {success && <div className="config-success">Valores guardados correctamente</div>}
+      <button type="submit" className="config-save-btn" disabled={saving}>
+        {saving ? <><Loader size={16} className="spin" /> Guardando...</> : <><Save size={16} /> Guardar</>}
+      </button>
+    </form>
   );
 };
 

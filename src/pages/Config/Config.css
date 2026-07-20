@@ -16,7 +16,7 @@
 .config-card {
     background: var(--card-bg);
     border-radius: 12px;
-    padding: 24px;
+    padding: 8px;
     border: 1px solid var(--border);
 }
 
@@ -38,6 +38,7 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    padding: 8px 8px;
 }
 
 .config-field {
@@ -234,4 +235,105 @@
     color: var(--muted);
     margin: 0;
     line-height: 1.4;
+}
+
+/* Collapsible card */
+.collapsible-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.collapsible-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.collapsible-card-header:hover {
+    background: var(--gris-claro);
+}
+
+.collapsible-card-icon {
+    display: flex;
+    align-items: center;
+    color: var(--muted);
+    flex-shrink: 0;
+}
+
+.collapsible-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--azul-armada);
+}
+
+.collapsible-card-extra {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.config-card-hint {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 400;
+}
+
+.collapsible-card-body {
+    padding: 0 4px 4px 4px;
+}
+
+.collapsible-card.closed .collapsible-card-header {
+    border-bottom: none;
+}
+
+.collapsible-card.open .collapsible-card-header {
+    border-bottom: none;
+}
+
+/* Config card overrides when used with CollapsibleCard */
+.collapsible-card.config-card {
+    background: var(--card-bg);
+    padding: 0;
+}
+
+.collapsible-card.config-card .collapsible-card-body .config-description {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 20px 0;
+    line-height: 1.4;
+}
+
+/* Collapsible section (inside DuesConfig) */
+.collapsible-section {
+    background: var(--gris-claro);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.collapsible-section .collapsible-card-header {
+    padding: 8px 4px;
+    border-bottom: none;
+}
+
+.collapsible-section.open .collapsible-card-header {
+    border-bottom: 1px solid var(--border);
+}
+
+.collapsible-section .collapsible-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.collapsible-section .collapsible-card-body {
+    padding: 0 4px 4px 4px;
 }

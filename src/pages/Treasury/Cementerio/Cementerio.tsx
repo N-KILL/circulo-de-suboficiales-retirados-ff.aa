@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { RefreshCw } from "lucide-react";
-import { fetchCementeriosGrid, type CementerioGridItem } from "../../../services/cementeriosApi";
-import { calcYearsAgo } from "../../../utils/format";
+import { fetchCementeriosGrid, fetchCementerioPagosMap, type CementerioGridItem, type CementerioPagoInfo } from "../../../services/cementeriosApi";
+import { fetchDuesConfig } from "../../../services/duesConfigApi";
+import { calcYearsAgo, formatRecordDate } from "../../../utils/format";
 import { type SortField, type SortDir } from "./types";
 import CementerioFilters from "./CementerioFilters";
 import CementerioTable from "./CementerioTable";
@@ -26,13 +27,16 @@ function esReducible(tipo: string, fechaFallecimiento: string): boolean {
 
 const Cementerio: React.FC = () => {
     const [data, setData] = useState<CementerioGridItem[]>([]);
+    const [pagosMap, setPagosMap] = useState<Map<string, string>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchText, setSearchText] = useState("");
     const [filtroPagaPor, setFiltroPagaPor] = useState<string>("");
     const [filtroAnios, setFiltroAnios] = useState<number | null>(null);
-    const [filtroReducible, setFiltroReducible] = useState(false);
-    const [showFilters, setShowFilters] = useState(true);
+    const [filtroReducible, setFiltroReducible] = useState<"ocultar" | "todo" | "solo">("ocultar");
+    const [debtFilterActive, setDebtFilterActive] = useState(false);
+    const [debtFilterYears, setDebtFilterYears] = useState(0);
+    const [showFilters, setShowFilters] = useState(false);
     const [sortField, setSortField] = useState<SortField>("nicho");
     const [sortDir, setSortDir] = useState<SortDir>("asc");
     const [currentPage, setCurrentPage] = useState(1);
@@ -42,7 +46,7 @@ const Cementerio: React.FC = () => {
         try { return localStorage.getItem("lastReducibleUpdate"); } catch { return null; }
     });
 
-    const filterDeps = `${searchText}|${filtroPagaPor}|${filtroAnios}|${filtroReducible}|${sortField}|${sortDir}`;
+    const filterDeps = `${searchText}|${filtroPagaPor}|${filtroAnios}|${filtroReducible}|${debtFilterActive}|${debtFilterYears}|${sortField}|${sortDir}`;
     const [prevFilterDeps, setPrevFilterDeps] = useState(filterDeps);
     if (filterDeps !== prevFilterDeps) {
         setPrevFilterDeps(filterDeps);
@@ -51,10 +55,12 @@ const Cementerio: React.FC = () => {
 
     useEffect(() => {
         let mounted = true;
-        fetchCementeriosGrid()
-            .then((items) => {
+        Promise.all([fetchCementeriosGrid(), fetchCementerioPagosMap(), fetchDuesConfig()])
+            .then(([items, pagos, config]) => {
                 if (!mounted) return;
                 setData(items);
+                setPagosMap(new Map(pagos.map((p) => [`${p.nicho}|${p.memberId ?? ""}|${p.personId ?? ""}`, p.ultimaFechaPago])));
+                setDebtFilterYears(config?.consideration_years ?? 0);
                 setIsLoading(false);
             })
             .catch((err) => {
@@ -76,11 +82,16 @@ const Cementerio: React.FC = () => {
     };
 
     const dataWithReducible = useMemo(() => {
-        return data.map((d) => ({
-            ...d,
-            reducible: esReducible(d.tipo, d.fechaFallecimiento),
-        }));
-    }, [data]);
+        return data.map((d) => {
+            const pagoKey = `${d.nicho}|${d.socioId ?? ""}|${d.personaId ?? ""}`;
+            return {
+                ...d,
+                reducible: esReducible(d.tipo, d.fechaFallecimiento),
+                hasPagos: pagosMap.has(pagoKey),
+                ultimaFechaPago: pagosMap.get(pagoKey) ?? "",
+            };
+        });
+    }, [data, pagosMap]);
 
     const reducibleCount = useMemo(() => {
         return dataWithReducible.filter((d) => d.reducible).length;
@@ -95,13 +106,17 @@ const Cementerio: React.FC = () => {
                 !d.telefono.includes(q)) return false;
             if (filtroPagaPor && d.pagaPor.toUpperCase() !== filtroPagaPor) return false;
             if (filtroAnios !== null) {
-                const anos = calcYearsAgo(d.fechaDePago);
+                const anos = calcYearsAgo(d.ultimaFechaPago ? formatRecordDate(d.ultimaFechaPago) : d.fechaDePago);
                 if (anos !== filtroAnios) return false;
             }
-            if (filtroReducible && !d.reducible) return false;
+            if (filtroReducible === "solo" && !d.reducible) return false;
+            if (debtFilterActive && debtFilterYears > 0) {
+                const anos = calcYearsAgo(d.ultimaFechaPago ? formatRecordDate(d.ultimaFechaPago) : d.fechaDePago);
+                if (anos >= 0 && anos > debtFilterYears) return false;
+            }
             return true;
         });
-    }, [dataWithReducible, searchText, filtroPagaPor, filtroAnios, filtroReducible]);
+    }, [dataWithReducible, searchText, filtroPagaPor, filtroAnios, filtroReducible, debtFilterActive, debtFilterYears]);
 
     const sorted = useMemo(() => {
         const list = [...filtered];
@@ -109,14 +124,17 @@ const Cementerio: React.FC = () => {
             const dir = sortDir === "asc" ? 1 : -1;
             switch (sortField) {
                 case "nicho": return a.nicho.localeCompare(b.nicho, undefined, { numeric: true }) * dir;
-                case "cantOcupantes": return (a.cantOcupantes - b.cantOcupantes) * dir;
                 case "arrendatario": return a.arrendatario.localeCompare(b.arrendatario) * dir;
                 case "telefono": return a.telefono.localeCompare(b.telefono) * dir;
                 case "pagaPor": return a.pagaPor.localeCompare(b.pagaPor) * dir;
-                case "fechaDePago": return a.fechaDePago.localeCompare(b.fechaDePago) * dir;
+                case "fechaDePago": {
+                    const fa = a.ultimaFechaPago || a.fechaDePago;
+                    const fb = b.ultimaFechaPago || b.fechaDePago;
+                    return fa.localeCompare(fb) * dir;
+                }
                 case "anios": {
-                    const va = calcYearsAgo(a.fechaDePago);
-                    const vb = calcYearsAgo(b.fechaDePago);
+                    const va = calcYearsAgo(a.ultimaFechaPago ? formatRecordDate(a.ultimaFechaPago) : a.fechaDePago);
+                    const vb = calcYearsAgo(b.ultimaFechaPago ? formatRecordDate(b.ultimaFechaPago) : b.fechaDePago);
                     if (va < 0 && vb < 0) return 0;
                     if (va < 0) return 1;
                     if (vb < 0) return -1;
@@ -143,7 +161,8 @@ const Cementerio: React.FC = () => {
         setSearchText("");
         setFiltroPagaPor("");
         setFiltroAnios(null);
-        setFiltroReducible(false);
+        setFiltroReducible("ocultar");
+        setDebtFilterActive(false);
     };
 
     const stepperDown = () => {
@@ -154,12 +173,20 @@ const Cementerio: React.FC = () => {
         setFiltroAnios((prev) => (prev === null ? 0 : prev + 1));
     };
 
+    const debtStepperDown = () => {
+        setDebtFilterYears((prev) => Math.max(0, prev - 1));
+    };
+
+    const debtStepperUp = () => {
+        setDebtFilterYears((prev) => prev + 1);
+    };
+
     const handleActualizarReducibles = () => {
         setUpdatingReducibles(true);
         const now = new Date().toLocaleString("es-AR");
         localStorage.setItem("lastReducibleUpdate", now);
         setLastReducibleUpdate(now);
-        setFiltroReducible(true);
+        setFiltroReducible("solo");
         setTimeout(() => setUpdatingReducibles(false), 500);
     };
 
@@ -200,6 +227,11 @@ const Cementerio: React.FC = () => {
                 onStepperUp={stepperUp}
                 filtroReducible={filtroReducible}
                 onFiltroReducibleChange={setFiltroReducible}
+                debtFilterActive={debtFilterActive}
+                onDebtFilterActiveChange={setDebtFilterActive}
+                debtFilterYears={debtFilterYears}
+                onDebtStepperDown={debtStepperDown}
+                onDebtStepperUp={debtStepperUp}
                 onClearFilters={clearFilters}
                 showFilters={showFilters}
                 onToggleFilters={() => setShowFilters((v) => !v)}
@@ -215,6 +247,7 @@ const Cementerio: React.FC = () => {
                 rowsPerPage={rowsPerPage}
                 onPageChange={setCurrentPage}
                 onRowsPerPageChange={(rows) => { setRowsPerPage(rows); setCurrentPage(1); }}
+                showReducibleColumn={filtroReducible !== "ocultar"}
             />
         </div>
     );

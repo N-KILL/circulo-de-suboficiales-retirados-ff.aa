@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Save, Loader } from "lucide-react";
 import { saveDuesConfig } from "../../services/duesConfigApi";
 import { parseMoney } from "../../utils/format";
+import CollapsibleCard from "../../components/ui/CollapsibleCard";
 
 interface DuesConfigProps {
   initialMemberFee: string;
@@ -88,101 +89,91 @@ const DuesConfig: React.FC<DuesConfigProps> = (props) => {
   };
 
   return (
-    <div className="config-card">
-      <h3>Cuotas</h3>
-      <p className="config-description">
-        Establecé los valores por defecto para la cuota de socio y el costo de cementerio.
-        Estos valores se cargarán automáticamente al crear un nuevo movimiento.
-      </p>
-      <form onSubmit={handleSave} className="config-form">
+    <form onSubmit={handleSave} className="config-form">
 
-        <div className="config-cemetery-section">
-          <label className="config-cemetery-title">Cuotas por Tipo de Socio</label>
-          <p className="config-cemetery-subtitle">Definí el valor mensual base para cada tipo de socio.</p>
-          <div className="config-cemetery-table">
-            <div className="config-cemetery-header">
-              <div className="config-cemetery-cell config-cemetery-label">Tipo</div>
-              <div className="config-cemetery-cell config-cemetery-col-header">Valor Mensual</div>
-            </div>
-            {SOCIO_TYPES.map((row) => (
-              <div key={row.key} className="config-cemetery-row">
-                <div className="config-cemetery-cell config-cemetery-row-label">{row.label}</div>
-                <div className="config-cemetery-cell">
-                  <input
-                    type="text"
-                    className="config-input"
-                    value={feeValues[row.key]}
-                    onChange={(e) => feeSetters[row.key](e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-            ))}
+      <CollapsibleCard title="Cuotas por Tipo de Socio" className="collapsible-section" defaultOpen={false}>
+        <p className="config-cemetery-subtitle">Definí el valor mensual base para cada tipo de socio.</p>
+        <div className="config-cemetery-table">
+          <div className="config-cemetery-header">
+            <div className="config-cemetery-cell config-cemetery-label">Tipo</div>
+            <div className="config-cemetery-cell config-cemetery-col-header">Valor Mensual</div>
           </div>
-        </div>
-
-        <div className="config-cemetery-section">
-          <label className="config-cemetery-title">Recargos por Servicios</label>
-          <p className="config-cemetery-subtitle">Valores adicionales que se suman a la cuota base según correspondan al socio.</p>
-          <div className="config-cemetery-table">
-            <div className="config-cemetery-header">
-              <div className="config-cemetery-cell config-cemetery-label">Concepto</div>
-              <div className="config-cemetery-cell config-cemetery-col-header">Valor Mensual</div>
-            </div>
-            <div className="config-cemetery-row">
-              <div className="config-cemetery-cell config-cemetery-row-label">Asistencial</div>
+          {SOCIO_TYPES.map((row) => (
+            <div key={row.key} className="config-cemetery-row">
+              <div className="config-cemetery-cell config-cemetery-row-label">{row.label}</div>
               <div className="config-cemetery-cell">
-                <input type="text" className="config-input" value={asistencialFee} onChange={(e) => setAsistencialFee(e.target.value)} placeholder="0.00" />
+                <input
+                  type="text"
+                  className="config-input"
+                  value={feeValues[row.key]}
+                  onChange={(e) => feeSetters[row.key](e.target.value)}
+                  placeholder="0.00"
+                />
               </div>
             </div>
-            <div className="config-cemetery-row">
-              <div className="config-cemetery-cell config-cemetery-row-label">Plan Salud</div>
+          ))}
+        </div>
+      </CollapsibleCard>
+
+      <CollapsibleCard title="Recargos por Servicios" className="collapsible-section" defaultOpen={false}>
+        <p className="config-cemetery-subtitle">Valores adicionales que se suman a la cuota base según correspondan al socio.</p>
+        <div className="config-cemetery-table">
+          <div className="config-cemetery-header">
+            <div className="config-cemetery-cell config-cemetery-label">Concepto</div>
+            <div className="config-cemetery-cell config-cemetery-col-header">Valor Mensual</div>
+          </div>
+          <div className="config-cemetery-row">
+            <div className="config-cemetery-cell config-cemetery-row-label">Asistencial</div>
+            <div className="config-cemetery-cell">
+              <input type="text" className="config-input" value={asistencialFee} onChange={(e) => setAsistencialFee(e.target.value)} placeholder="0.00" />
+            </div>
+          </div>
+          <div className="config-cemetery-row">
+            <div className="config-cemetery-cell config-cemetery-row-label">Plan Salud</div>
+            <div className="config-cemetery-cell">
+              <input type="text" className="config-input" value={planSaludFee} onChange={(e) => setPlanSaludFee(e.target.value)} placeholder="0.00" />
+            </div>
+          </div>
+        </div>
+      </CollapsibleCard>
+
+      <CollapsibleCard title="Cuotas de Cementerio" className="collapsible-section" defaultOpen={false}>
+        <p className="config-cemetery-subtitle">Definí el valor mensual para cada tipo de sepultura, distinguiendo socios y no socios.</p>
+        <div className="config-cemetery-table">
+          <div className="config-cemetery-header">
+            <div className="config-cemetery-cell config-cemetery-label"></div>
+            <div className="config-cemetery-cell config-cemetery-col-header">Socios</div>
+            <div className="config-cemetery-cell config-cemetery-col-header">No Socios</div>
+          </div>
+          {[
+            { label: "Nicho", memberVal: nichoMemberFee, nonMemberVal: nichoNonMemberFee, memberSet: setNichoMemberFee, nonMemberSet: setNichoNonMemberFee },
+            { label: "Urna", memberVal: urnaMemberFee, nonMemberVal: urnaNonMemberFee, memberSet: setUrnaMemberFee, nonMemberSet: setUrnaNonMemberFee },
+            { label: "Bolsa", memberVal: bolsaMemberFee, nonMemberVal: bolsaNonMemberFee, memberSet: setBolsaMemberFee, nonMemberSet: setBolsaNonMemberFee },
+          ].map((row) => (
+            <div key={row.label} className="config-cemetery-row">
+              <div className="config-cemetery-cell config-cemetery-row-label">{row.label}</div>
               <div className="config-cemetery-cell">
-                <input type="text" className="config-input" value={planSaludFee} onChange={(e) => setPlanSaludFee(e.target.value)} placeholder="0.00" />
+                <input type="text" className="config-input" value={row.memberVal} onChange={(e) => row.memberSet(e.target.value)} placeholder="0.00" />
+              </div>
+              <div className="config-cemetery-cell">
+                <input type="text" className="config-input" value={row.nonMemberVal} onChange={(e) => row.nonMemberSet(e.target.value)} placeholder="0.00" />
               </div>
             </div>
-          </div>
+          ))}
         </div>
+      </CollapsibleCard>
 
-        <div className="config-field">
-          <label>Años de consideración</label>
-          <input type="number" className="config-input" value={considerationYears} onChange={(e) => setConsiderationYears(e.target.value)} min={0} max={9} step={1} placeholder="0" />
-        </div>
+      <div className="config-field">
+        <label>Años de consideración</label>
+        <input type="number" className="config-input" value={considerationYears} onChange={(e) => setConsiderationYears(e.target.value)} min={0} max={9} step={1} placeholder="0" />
+      </div>
 
-        <div className="config-cemetery-section">
-          <label className="config-cemetery-title">Cuotas de Cementerio</label>
-          <p className="config-cemetery-subtitle">Definí el valor mensual para cada tipo de sepultura, distinguiendo socios y no socios.</p>
-          <div className="config-cemetery-table">
-            <div className="config-cemetery-header">
-              <div className="config-cemetery-cell config-cemetery-label"></div>
-              <div className="config-cemetery-cell config-cemetery-col-header">Socios</div>
-              <div className="config-cemetery-cell config-cemetery-col-header">No Socios</div>
-            </div>
-            {[
-              { label: "Nicho", memberVal: nichoMemberFee, nonMemberVal: nichoNonMemberFee, memberSet: setNichoMemberFee, nonMemberSet: setNichoNonMemberFee },
-              { label: "Urna", memberVal: urnaMemberFee, nonMemberVal: urnaNonMemberFee, memberSet: setUrnaMemberFee, nonMemberSet: setUrnaNonMemberFee },
-              { label: "Bolsa", memberVal: bolsaMemberFee, nonMemberVal: bolsaNonMemberFee, memberSet: setBolsaMemberFee, nonMemberSet: setBolsaNonMemberFee },
-            ].map((row) => (
-              <div key={row.label} className="config-cemetery-row">
-                <div className="config-cemetery-cell config-cemetery-row-label">{row.label}</div>
-                <div className="config-cemetery-cell">
-                  <input type="text" className="config-input" value={row.memberVal} onChange={(e) => row.memberSet(e.target.value)} placeholder="0.00" />
-                </div>
-                <div className="config-cemetery-cell">
-                  <input type="text" className="config-input" value={row.nonMemberVal} onChange={(e) => row.nonMemberSet(e.target.value)} placeholder="0.00" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {error && <div className="config-error">{error}</div>}
-        {success && <div className="config-success">Valores guardados correctamente</div>}
-        <button type="submit" className="config-save-btn" disabled={saving}>
-          {saving ? <><Loader size={16} className="spin" /> Guardando...</> : <><Save size={16} /> Guardar</>}
-        </button>
-      </form>
-    </div>
+      {error && <div className="config-error">{error}</div>}
+      {success && <div className="config-success">Valores guardados correctamente</div>}
+      <button type="submit" className="config-save-btn" disabled={saving}>
+        {saving ? <><Loader size={16} className="spin" /> Guardando...</> : <><Save size={16} /> Guardar</>}
+      </button>
+    </form>
   );
 };
 

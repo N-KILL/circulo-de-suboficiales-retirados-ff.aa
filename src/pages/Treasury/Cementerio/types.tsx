@@ -1,7 +1,7 @@
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import React from "react";
 
-export type SortField = "nicho" | "cantOcupantes" | "arrendatario" | "telefono" | "pagaPor" | "fechaDePago" | "anios" | "reducible";
+export type SortField = "nicho" | "arrendatario" | "telefono" | "pagaPor" | "fechaDePago" | "anios" | "reducible";
 export type SortDir = "asc" | "desc";
 
 export const SortIcon: React.FC<{ field: SortField; currentSort: SortField; currentDir: SortDir }> = ({ field, currentSort, currentDir }) => {

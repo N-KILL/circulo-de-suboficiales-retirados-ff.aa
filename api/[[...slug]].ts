@@ -340,15 +340,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const {
         getCementerioMovimientosByMovement,
         getCementerioMovimientosByNicho,
+        getCementerioMovimientosByNichoAndArrendatario,
         insertCementerioMovimiento,
         hasCementerioMovimientosByNicho,
+        getCementerioPagosMap,
       } = await import("../src/database/cementerioMovimientosRepository.js");
 
       if (method === "GET") {
         const movementId = req.query.movementId as string | undefined;
         const nicho = req.query.nicho as string | undefined;
         const hasNicho = req.query.hasNicho as string | undefined;
+        const pagosMap = req.query.pagosMap === "true";
+        const memberId = req.query.memberId as string | null | undefined;
+        const personId = req.query.personId as string | null | undefined;
 
+        if (pagosMap) {
+          const map = await getCementerioPagosMap();
+          res.status(200).json(map);
+          return;
+        }
         if (hasNicho) {
           const exists = await hasCementerioMovimientosByNicho(hasNicho);
           res.status(200).json({ exists });
@@ -360,7 +370,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return;
         }
         if (nicho) {
-          const records = await getCementerioMovimientosByNicho(nicho);
+          const records = (memberId || personId)
+            ? await getCementerioMovimientosByNichoAndArrendatario(nicho, memberId ?? null, personId ?? null)
+            : await getCementerioMovimientosByNicho(nicho);
           res.status(200).json(records);
           return;
         }

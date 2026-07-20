@@ -807,15 +807,26 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             const {
               getCementerioMovimientosByMovement,
               getCementerioMovimientosByNicho,
+              getCementerioMovimientosByNichoAndArrendatario,
               insertCementerioMovimiento,
               hasCementerioMovimientosByNicho,
+              getCementerioPagosMap,
             } = await import("./src/database/cementerioMovimientosRepository");
 
             if (req.method === "GET") {
               const movementId = url.searchParams.get("movementId");
               const nicho = url.searchParams.get("nicho");
               const hasNicho = url.searchParams.get("hasNicho");
+              const pagosMap = url.searchParams.get("pagosMap") === "true";
+              const memberId = url.searchParams.get("memberId");
+              const personId = url.searchParams.get("personId");
 
+              if (pagosMap) {
+                const map = await getCementerioPagosMap();
+                res.statusCode = 200;
+                res.end(JSON.stringify(map));
+                return;
+              }
               if (hasNicho) {
                 const exists = await hasCementerioMovimientosByNicho(hasNicho);
                 res.statusCode = 200;
@@ -829,7 +840,9 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
                 return;
               }
               if (nicho) {
-                const records = await getCementerioMovimientosByNicho(nicho);
+                const records = (memberId || personId)
+                  ? await getCementerioMovimientosByNichoAndArrendatario(nicho, memberId, personId)
+                  : await getCementerioMovimientosByNicho(nicho);
                 res.statusCode = 200;
                 res.end(JSON.stringify(records));
                 return;

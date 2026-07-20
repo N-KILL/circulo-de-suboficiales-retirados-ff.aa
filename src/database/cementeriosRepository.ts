@@ -130,8 +130,9 @@ function formatDbError(error: unknown): string {
 
 export type CementerioGridItem = {
     nicho: string;
-    cantOcupantes: number;
     arrendatario: string;
+    socioId: string | null;
+    personaId: string | null;
     telefono: string;
     pagaPor: string;
     ultimoPago: string;
@@ -144,8 +145,9 @@ export async function getAllCementeriosGrid(): Promise<CementerioGridItem[]> {
     const sql = getSql();
     type Raw = {
         nicho: string;
-        cant_ocupantes: number;
         arrendatario: string;
+        socio_id: string | null;
+        persona_id: string | null;
         telefono: string;
         paga_por: string;
         ultimo_pago: string;
@@ -156,24 +158,25 @@ export async function getAllCementeriosGrid(): Promise<CementerioGridItem[]> {
     const rows = await sql`
         SELECT
             c.nicho,
-            COUNT(*)::int AS cant_ocupantes,
             COALESCE(p.nombre, m.nombre) AS arrendatario,
-            MAX(c.telefono) AS telefono,
-            MAX(c.paga_por) AS paga_por,
-            MAX(c.ultimo_pago) AS ultimo_pago,
-            MAX(c.fecha_de_pago) AS fecha_de_pago,
-            MAX(c.tipo) AS tipo,
-            MAX(c.fecha_fallecimiento) AS fecha_fallecimiento
+            c.socio_id,
+            c.persona_id,
+            c.telefono,
+            c.paga_por,
+            c.ultimo_pago,
+            c.fecha_de_pago,
+            c.tipo,
+            c.fecha_fallecimiento
         FROM cementerios c
         LEFT JOIN persons p ON c.persona_id = p.id
         LEFT JOIN members m ON c.socio_id = m.id
-        GROUP BY c.nicho, COALESCE(p.nombre, m.nombre)
         ORDER BY c.nicho
     ` as Raw[];
     return rows.map((r) => ({
         nicho: r.nicho ?? "",
-        cantOcupantes: r.cant_ocupantes,
         arrendatario: r.arrendatario ?? "",
+        socioId: r.socio_id ?? null,
+        personaId: r.persona_id ?? null,
         telefono: r.telefono ?? "",
         pagaPor: r.paga_por ?? "",
         ultimoPago: r.ultimo_pago ?? "",

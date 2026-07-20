@@ -53,11 +53,7 @@ const ServicesConfig: React.FC<ServicesConfigProps> = ({ initialServices }) => {
   };
 
   return (
-    <div className="config-card">
-      <h3>Servicios</h3>
-      <p className="config-description">
-        Gestioná los servicios disponibles para cobrar. Se mostrarán en el formulario de nuevo movimiento.
-      </p>
+    <>
       <form onSubmit={handleSubmit} className="config-form">
         <div className="config-field">
           <label>{editServiceId ? "Nombre del servicio" : "Nuevo servicio"}</label>
@@ -100,7 +96,7 @@ const ServicesConfig: React.FC<ServicesConfigProps> = ({ initialServices }) => {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 };
 

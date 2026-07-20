@@ -9,6 +9,7 @@ import {
     fetchServices,
     type ServiceItem,
 } from "../../services/servicesApi";
+import CollapsibleCard from "../../components/ui/CollapsibleCard";
 import BalancesConfig from "./BalancesConfig";
 import DuesConfig from "./DuesConfig";
 import ServicesConfig from "./ServicesConfig";
@@ -80,25 +81,46 @@ const Variables: React.FC = () => {
                 <h2>Variables del sistema</h2>
             </div>
             <div className="config-grid">
-                <BalancesConfig initialCajaChica={cajaChica} initialBanco={banco} />
-                <DuesConfig
-                    initialMemberFee={memberFee}
-                    initialConsiderationYears={considerationYears}
-                    initialNichoMemberFee={nichoMemberFee}
-                    initialNichoNonMemberFee={nichoNonMemberFee}
-                    initialUrnaMemberFee={urnaMemberFee}
-                    initialUrnaNonMemberFee={urnaNonMemberFee}
-                    initialBolsaMemberFee={bolsaMemberFee}
-                    initialBolsaNonMemberFee={bolsaNonMemberFee}
-                    initialAsistencialFee={asistencialFee}
-                    initialPlanSaludFee={planSaludFee}
-                    initialFeeAct={feeAct}
-                    initialFeeActA={feeActA}
-                    initialFeeAdh={feeAdh}
-                    initialFeePart={feePart}
-                    initialFeeVit={feeVit}
-                />
-                <ServicesConfig initialServices={services} />
+                <CollapsibleCard
+                    title="Valores Iniciales"
+                    className="config-card"
+                    defaultOpen={false}
+                    headerExtra={<span className="config-card-hint">Saldos iniciales de cajas</span>}
+                >
+                    <BalancesConfig initialCajaChica={cajaChica} initialBanco={banco} />
+                </CollapsibleCard>
+                <CollapsibleCard
+                    title="Cuotas"
+                    className="config-card"
+                    defaultOpen={false}
+                    headerExtra={<span className="config-card-hint">Tarifas, montos y servicios</span>}
+                >
+                    <DuesConfig
+                        initialMemberFee={memberFee}
+                        initialConsiderationYears={considerationYears}
+                        initialNichoMemberFee={nichoMemberFee}
+                        initialNichoNonMemberFee={nichoNonMemberFee}
+                        initialUrnaMemberFee={urnaMemberFee}
+                        initialUrnaNonMemberFee={urnaNonMemberFee}
+                        initialBolsaMemberFee={bolsaMemberFee}
+                        initialBolsaNonMemberFee={bolsaNonMemberFee}
+                        initialAsistencialFee={asistencialFee}
+                        initialPlanSaludFee={planSaludFee}
+                        initialFeeAct={feeAct}
+                        initialFeeActA={feeActA}
+                        initialFeeAdh={feeAdh}
+                        initialFeePart={feePart}
+                        initialFeeVit={feeVit}
+                    />
+                </CollapsibleCard>
+                <CollapsibleCard
+                    title="Servicios"
+                    className="config-card"
+                    defaultOpen={false}
+                    headerExtra={<span className="config-card-hint">Servicios disponibles para cobrar</span>}
+                >
+                    <ServicesConfig initialServices={services} />
+                </CollapsibleCard>
             </div>
         </div>
     );
