@@ -1,3 +1,5 @@
+import { apiFetch } from "../apiConfig";
+
 export type DuesConfig = {
     id: string;
     member_fee: number;
@@ -18,7 +20,7 @@ export type DuesConfig = {
 };
 
 export async function fetchDuesConfig(): Promise<DuesConfig | null> {
-    const response = await fetch("/api/dues-config");
+    const response = await apiFetch("/api/dues-config");
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al cargar configuración de montos");
@@ -43,7 +45,7 @@ export async function saveDuesConfig(
     fee_part: number = 0,
     fee_vit: number = 0,
 ): Promise<DuesConfig> {
-    const response = await fetch("/api/dues-config", {
+    const response = await apiFetch("/api/dues-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,3 +1,5 @@
+import { apiFetch } from "../apiConfig";
+
 export interface DueLink {
     id: string;
     type: "socio" | "cementerio";
@@ -55,7 +57,7 @@ export interface Movement {
 }
 
 export async function fetchMovements(): Promise<Movement[]> {
-    const response = await fetch("/api/movements");
+    const response = await apiFetch("/api/movements");
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
@@ -68,7 +70,7 @@ export async function fetchMovements(): Promise<Movement[]> {
 }
 
 export async function fetchMovementById(id: string): Promise<Movement> {
-    const response = await fetch(`/api/movement?id=${encodeURIComponent(id)}`);
+    const response = await apiFetch(`/api/movement?id=${encodeURIComponent(id)}`);
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
@@ -84,7 +86,7 @@ export async function updateMovement(
     id: string,
     data: Partial<Pick<Movement, "date" | "detail" | "amount" | "type" | "mode" | "concept">> & { due?: Record<string, unknown> }
 ): Promise<void> {
-    const response = await fetch(`/api/movement?id=${encodeURIComponent(id)}`, {
+    const response = await apiFetch(`/api/movement?id=${encodeURIComponent(id)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -99,7 +101,7 @@ export async function updateMovement(
 }
 
 export async function deleteMovement(id: string): Promise<void> {
-    const response = await fetch(`/api/movement?id=${encodeURIComponent(id)}`, {
+    const response = await apiFetch(`/api/movement?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
     });
 

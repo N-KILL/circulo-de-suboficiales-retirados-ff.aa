@@ -1,3 +1,5 @@
+import { apiFetch } from "../apiConfig";
+
 export type ServiceRecordItem = {
     id: string;
     service_id: string | null;
@@ -17,7 +19,7 @@ export type ServiceRecordItem = {
 };
 
 export async function fetchServiceRecords(): Promise<ServiceRecordItem[]> {
-    const response = await fetch("/api/service-records");
+    const response = await apiFetch("/api/service-records");
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al cargar registros de servicios");
@@ -26,7 +28,7 @@ export async function fetchServiceRecords(): Promise<ServiceRecordItem[]> {
 }
 
 export async function fetchServiceRecordById(id: string): Promise<ServiceRecordItem> {
-    const response = await fetch(`/api/service-records?id=${encodeURIComponent(id)}`);
+    const response = await apiFetch(`/api/service-records?id=${encodeURIComponent(id)}`);
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al cargar registro de servicio");
@@ -35,7 +37,7 @@ export async function fetchServiceRecordById(id: string): Promise<ServiceRecordI
 }
 
 export async function fetchServiceRecordsByMember(memberId: string): Promise<ServiceRecordItem[]> {
-    const response = await fetch(`/api/service-records?memberId=${encodeURIComponent(memberId)}`);
+    const response = await apiFetch(`/api/service-records?memberId=${encodeURIComponent(memberId)}`);
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al cargar registros de servicios del socio");
@@ -44,7 +46,7 @@ export async function fetchServiceRecordsByMember(memberId: string): Promise<Ser
 }
 
 export async function fetchServiceRecordsByPerson(personId: string): Promise<ServiceRecordItem[]> {
-    const response = await fetch(`/api/service-records?personId=${encodeURIComponent(personId)}`);
+    const response = await apiFetch(`/api/service-records?personId=${encodeURIComponent(personId)}`);
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al cargar registros de servicios de la persona");
@@ -53,7 +55,7 @@ export async function fetchServiceRecordsByPerson(personId: string): Promise<Ser
 }
 
 export async function fetchServiceRecordsByMovement(movementId: string): Promise<ServiceRecordItem[]> {
-    const response = await fetch(`/api/service-records?movementId=${encodeURIComponent(movementId)}`);
+    const response = await apiFetch(`/api/service-records?movementId=${encodeURIComponent(movementId)}`);
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al cargar registros de servicios del movimiento");
@@ -71,7 +73,7 @@ export async function saveServiceRecord(data: {
     service_date?: string | null;
     detail?: string | null;
 }): Promise<ServiceRecordItem> {
-    const response = await fetch("/api/service-records", {
+    const response = await apiFetch("/api/service-records", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -93,7 +95,7 @@ export async function updateServiceRecord(id: string, data: {
     service_date?: string | null;
     detail?: string | null;
 }): Promise<ServiceRecordItem> {
-    const response = await fetch("/api/service-records", {
+    const response = await apiFetch("/api/service-records", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...data }),
@@ -106,7 +108,7 @@ export async function updateServiceRecord(id: string, data: {
 }
 
 export async function deleteServiceRecord(id: string): Promise<void> {
-    const response = await fetch(`/api/service-records?id=${encodeURIComponent(id)}`, {
+    const response = await apiFetch(`/api/service-records?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
     });
     if (!response.ok) {

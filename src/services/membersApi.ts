@@ -1,7 +1,8 @@
+import { apiFetch } from "../apiConfig";
 import type { Member, Person } from "../models/members";
 
 export async function fetchMembers(): Promise<Member[]> {
-    const response = await fetch("/api/members");
+    const response = await apiFetch("/api/members");
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
@@ -14,7 +15,7 @@ export async function fetchMembers(): Promise<Member[]> {
 }
 
 export async function fetchMemberById(id: string): Promise<Member> {
-    const response = await fetch(`/api/member?id=${encodeURIComponent(id)}`);
+    const response = await apiFetch(`/api/member?id=${encodeURIComponent(id)}`);
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
@@ -27,7 +28,7 @@ export async function fetchMemberById(id: string): Promise<Member> {
 }
 
 export async function saveMember(member: Member): Promise<void> {
-    const response = await fetch("/api/member", {
+    const response = await apiFetch("/api/member", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(member),
@@ -42,7 +43,7 @@ export async function saveMember(member: Member): Promise<void> {
 }
 
 export async function fetchPersons(query: string): Promise<Person[]> {
-    const response = await fetch(`/api/persons?q=${encodeURIComponent(query)}`);
+    const response = await apiFetch(`/api/persons?q=${encodeURIComponent(query)}`);
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -53,7 +54,7 @@ export async function fetchPersons(query: string): Promise<Person[]> {
 }
 
 export async function deleteMember(id: string): Promise<void> {
-    const response = await fetch(`/api/member?id=${encodeURIComponent(id)}`, {
+    const response = await apiFetch(`/api/member?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
     });
 

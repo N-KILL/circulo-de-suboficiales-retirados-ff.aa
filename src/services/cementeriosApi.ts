@@ -1,3 +1,4 @@
+import { apiFetch } from "../apiConfig";
 import type { Cementerio } from "../models/members";
 
 export interface CementerioGridItem {
@@ -34,7 +35,7 @@ export interface CementerioMovimientoRecord {
 }
 
 export async function fetchCementeriosGrid(): Promise<CementerioGridItem[]> {
-    const response = await fetch("/api/cementerios");
+    const response = await apiFetch("/api/cementerios");
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
@@ -47,7 +48,7 @@ export async function fetchCementeriosGrid(): Promise<CementerioGridItem[]> {
 }
 
 export async function fetchCementeriosByNicho(nicho: string): Promise<CementerioDetalleRecord[]> {
-    const response = await fetch(`/api/cementerios?nicho=${encodeURIComponent(nicho)}`);
+    const response = await apiFetch(`/api/cementerios?nicho=${encodeURIComponent(nicho)}`);
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
@@ -63,7 +64,7 @@ export async function fetchCementeriosByOwner(
     ownerId: string,
     isSocio: boolean,
 ): Promise<Cementerio[]> {
-    const response = await fetch(
+    const response = await apiFetch(
         `/api/cementerios?ownerId=${encodeURIComponent(ownerId)}&isSocio=${isSocio}`,
     );
     if (!response.ok) {
@@ -74,7 +75,7 @@ export async function fetchCementeriosByOwner(
 }
 
 export async function fetchCementerioOwnerIds(): Promise<{ memberIds: string[]; personIds: string[] }> {
-    const response = await fetch("/api/cementerios?owners=true");
+    const response = await apiFetch("/api/cementerios?owners=true");
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "No se pudieron cargar los propietarios de cementerio");
@@ -86,7 +87,7 @@ export async function updateCementerioRecord(
     id: string,
     data: Partial<Cementerio>
 ): Promise<void> {
-    const response = await fetch(`/api/cementerios?id=${encodeURIComponent(id)}`, {
+    const response = await apiFetch(`/api/cementerios?id=${encodeURIComponent(id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -103,7 +104,7 @@ export async function updateCementerioRecord(
 export async function fetchCementerioMovimientosByMovement(
     movementId: string,
 ): Promise<CementerioMovimientoRecord[]> {
-    const response = await fetch(
+    const response = await apiFetch(
         `/api/cementerio-movimientos?movementId=${encodeURIComponent(movementId)}`,
     );
     if (!response.ok) {
@@ -121,7 +122,7 @@ export async function fetchCementerioMovimientosByNicho(
     let url = `/api/cementerio-movimientos?nicho=${encodeURIComponent(nicho)}`;
     if (memberId) url += `&memberId=${encodeURIComponent(memberId)}`;
     if (personId) url += `&personId=${encodeURIComponent(personId)}`;
-    const response = await fetch(url);
+    const response = await apiFetch(url);
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "No se pudieron cargar los movimientos de cementerio");
@@ -132,7 +133,7 @@ export async function fetchCementerioMovimientosByNicho(
 export async function hasCementerioMovimientosByNicho(
     nicho: string,
 ): Promise<boolean> {
-    const response = await fetch(
+    const response = await apiFetch(
         `/api/cementerio-movimientos?hasNicho=${encodeURIComponent(nicho)}`,
     );
     if (!response.ok) return false;
@@ -148,7 +149,7 @@ export type CementerioPagoInfo = {
 };
 
 export async function fetchCementerioPagosMap(): Promise<CementerioPagoInfo[]> {
-    const response = await fetch("/api/cementerio-movimientos?pagosMap=true");
+    const response = await apiFetch("/api/cementerio-movimientos?pagosMap=true");
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "No se pudo cargar el mapa de pagos");
@@ -168,7 +169,7 @@ export async function saveCementerioMovimiento(data: {
     member_id?: string | null;
     person_id?: string | null;
 }): Promise<string> {
-    const response = await fetch("/api/cementerio-movimientos", {
+    const response = await apiFetch("/api/cementerio-movimientos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

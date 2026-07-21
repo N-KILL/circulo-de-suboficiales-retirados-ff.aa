@@ -1,3 +1,5 @@
+import { apiFetch } from "../apiConfig";
+
 export interface InitialBalances {
     id: string;
     caja_chica: number;
@@ -5,7 +7,7 @@ export interface InitialBalances {
 }
 
 export async function fetchInitialBalances(): Promise<InitialBalances | null> {
-    const response = await fetch("/api/initial-balances");
+    const response = await apiFetch("/api/initial-balances");
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
@@ -21,7 +23,7 @@ export async function saveInitialBalances(
     caja_chica: number,
     banco: number
 ): Promise<InitialBalances> {
-    const response = await fetch("/api/initial-balances", {
+    const response = await apiFetch("/api/initial-balances", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ caja_chica, banco }),

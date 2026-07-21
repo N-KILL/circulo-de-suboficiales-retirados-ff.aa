@@ -1,3 +1,5 @@
+import { apiFetch } from "../apiConfig";
+
 export type DebtWithDetails = {
   id: string;
   member_id: string | null;
@@ -14,7 +16,7 @@ export type DebtWithDetails = {
 };
 
 export async function fetchDebtsByMember(memberId: string): Promise<DebtWithDetails[]> {
-  const response = await fetch(`/api/debts?memberId=${encodeURIComponent(memberId)}`);
+  const response = await apiFetch(`/api/debts?memberId=${encodeURIComponent(memberId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Error al cargar deudas del socio");
@@ -23,7 +25,7 @@ export async function fetchDebtsByMember(memberId: string): Promise<DebtWithDeta
 }
 
 export async function fetchDebtsByPerson(personId: string): Promise<DebtWithDetails[]> {
-  const response = await fetch(`/api/debts?personId=${encodeURIComponent(personId)}`);
+  const response = await apiFetch(`/api/debts?personId=${encodeURIComponent(personId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Error al cargar deudas de la persona");
@@ -32,7 +34,7 @@ export async function fetchDebtsByPerson(personId: string): Promise<DebtWithDeta
 }
 
 export async function fetchBalanceByMember(memberId: string): Promise<number> {
-  const response = await fetch(`/api/debts/balance?memberId=${encodeURIComponent(memberId)}`);
+  const response = await apiFetch(`/api/debts/balance?memberId=${encodeURIComponent(memberId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Error al cargar saldo del socio");
@@ -42,7 +44,7 @@ export async function fetchBalanceByMember(memberId: string): Promise<number> {
 }
 
 export async function fetchBalanceByPerson(personId: string): Promise<number> {
-  const response = await fetch(`/api/debts/balance?personId=${encodeURIComponent(personId)}`);
+  const response = await apiFetch(`/api/debts/balance?personId=${encodeURIComponent(personId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Error al cargar saldo de la persona");
@@ -60,7 +62,7 @@ export async function saveDebt(data: {
   movement_id?: string | null;
   date: string;
 }): Promise<string> {
-  const response = await fetch("/api/debts", {
+  const response = await apiFetch("/api/debts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),

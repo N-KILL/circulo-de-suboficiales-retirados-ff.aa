@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../electron/preload.ts"],
+  "sourcesContent": ["import { contextBridge, ipcRenderer } from \"electron\";\n\ncontextBridge.exposeInMainWorld(\"electronAPI\", {\n  platform: process.platform,\n  isElectron: true,\n});\n"],
+  "mappings": ";;;;AAAA,SAAS,qBAAkC;AAE3C,cAAc,kBAAkB,eAAe;AAAA,EAC7C,UAAU,QAAQ;AAAA,EAClB,YAAY;AACd,CAAC;",
+  "names": []
+}
