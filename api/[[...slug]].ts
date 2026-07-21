@@ -117,10 +117,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (method === "DELETE") {
         const { reverseDebtsByMovementId } = await import("../src/database/debtsRepository.js");
+        const { deletePaymentsByMovementId } = await import("../src/database/externalServicePaymentsRepository.js");
         await reverseDebtsByMovementId(id);
         await deleteDueByMovementId(id);
         await deleteServiceRecordsByMovement(id);
         await deleteCementerioMovimientosByMovement(id);
+        await deletePaymentsByMovementId(id);
         await deleteMovement(id);
         res.status(200).json({ success: true });
         return;
@@ -811,6 +813,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
+      res.status(405).json({ error: "Método no permitido" });
+      return;
+    }
+
+    // /api/external-services
+    if (pathname === "/api/external-services") {
+      const {
+        getAllExternalServices,
+        insertExternalService,
+        updateExternalService,
+        deleteExternalService,
+      } = await import("../src/database/externalServicesRepository.js");
+
+      if (method === "OPTIONS") {
+        res.status(204).end();
+        return;
+      }
+      if (method === "GET") {
+        const rows = await getAllExternalServices();
+        res.status(200).json(rows);
+        return;
+      }
+      if (method === "POST") {
+        const { name, phone, description, frequency, start_month } = req.body as { name: string; phone?: string | null; description?: string | null; frequency?: string; start_month?: number | null };
+        if (!name?.trim()) { res.status(400).json({ error: "Falta el nombre" }); return; }
+        const row = await insertExternalService(name.trim(), phone ?? null, description ?? null, frequency ?? "mensual", start_month ?? null);
+        res.status(201).json(row);
+        return;
+      }
+      if (method === "PUT") {
+        const { id, name, phone, description, frequency, start_month, active } = req.body as { id: string; name: string; phone?: string | null; description?: string | null; frequency?: string; start_month?: number | null; active: boolean };
+        if (!id || !name?.trim()) { res.status(400).json({ error: "Faltan campos" }); return; }
+        const row = await updateExternalService(id, name.trim(), phone ?? null, description ?? null, frequency ?? "mensual", start_month ?? null, active);
+        if (!row) { res.status(404).json({ error: "No encontrado" }); return; }
+        res.status(200).json(row);
+        return;
+      }
+      if (method === "DELETE") {
+        const id = req.query.id as string | undefined;
+        if (!id) { res.status(400).json({ error: "Falta el id" }); return; }
+        await deleteExternalService(id);
+        res.status(200).json({ success: true });
+        return;
+      }
+      res.status(405).json({ error: "Método no permitido" });
+      return;
+    }
+
+    // /api/external-service-payments
+    if (pathname === "/api/external-service-payments") {
+      const {
+        getPaymentsByYear,
+        upsertPayment,
+        deletePayment,
+      } = await import("../src/database/externalServicePaymentsRepository.js");
+
+      if (method === "OPTIONS") {
+        res.status(204).end();
+        return;
+      }
+      if (method === "GET") {
+        const year = parseInt(req.query.year as string, 10);
+        if (isNaN(year)) { res.status(400).json({ error: "Falta el año" }); return; }
+        const rows = await getPaymentsByYear(year);
+        res.status(200).json(rows);
+        return;
+      }
+      if (method === "POST") {
+        const { service_id, month, year, amount, movement_id } = req.body as {
+          service_id: string; month: number; year: number; amount: number | null; movement_id: string | null;
+        };
+        if (!service_id || !month || !year) { res.status(400).json({ error: "Faltan campos" }); return; }
+        const row = await upsertPayment(service_id, month, year, amount ?? null, movement_id ?? null);
+        res.status(200).json(row);
+        return;
+      }
+      if (method === "DELETE") {
+        const { service_id, month, year } = req.body as { service_id: string; month: number; year: number };
+        if (!service_id || !month || !year) { res.status(400).json({ error: "Faltan campos" }); return; }
+        await deletePayment(service_id, month, year);
+        res.status(200).json({ success: true });
+        return;
+      }
       res.status(405).json({ error: "Método no permitido" });
       return;
     }

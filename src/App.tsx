@@ -15,6 +15,7 @@ import NewExpense from "./pages/Treasury/NewExpense/NewExpense";
 import Cementerio from "./pages/Treasury/Cementerio/Cementerio";
 import CementerioDetalle from "./pages/Treasury/Cementerio/CementerioDetalle";
 import ServiceHistory from "./pages/Treasury/ServiceHistory/ServiceHistory";
+import ExternalServicesGrid from "./pages/Treasury/ExternalServices/ExternalServicesGrid";
 import Members from "./pages/Members/Members";
 import NewMember from "./pages/Members/NewMember/NewMember";
 import DetalleSocio from "./pages/Members/Detalle/Detalle";
@@ -88,6 +89,11 @@ function App() {
           <Route path="tesoreria/historial-servicios" element={
             <ProtectedRoute allowedRoles={OWNER_OR_ADMIN}>
               <ServiceHistory />
+            </ProtectedRoute>
+          } />
+          <Route path="tesoreria/servicios-externos" element={
+            <ProtectedRoute allowedRoles={OWNER_OR_ADMIN}>
+              <ExternalServicesGrid />
             </ProtectedRoute>
           } />
           <Route path="socios" element={<Members />} />

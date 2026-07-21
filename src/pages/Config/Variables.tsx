@@ -9,10 +9,15 @@ import {
     fetchServices,
     type ServiceItem,
 } from "../../services/servicesApi";
+import {
+    fetchExternalServices,
+    type ExternalServiceItem,
+} from "../../services/externalServicesApi";
 import CollapsibleCard from "../../components/ui/CollapsibleCard";
 import BalancesConfig from "./BalancesConfig";
 import DuesConfig from "./DuesConfig";
 import ServicesConfig from "./ServicesConfig";
+import ExternalServicesConfig from "./ExternalServicesConfig";
 import "./Config.css";
 
 const Variables: React.FC = () => {
@@ -37,14 +42,16 @@ const Variables: React.FC = () => {
     const [feePart, setFeePart] = useState("0");
     const [feeVit, setFeeVit] = useState("0");
     const [services, setServices] = useState<ServiceItem[]>([]);
+    const [externalServices, setExternalServices] = useState<ExternalServiceItem[]>([]);
 
     useEffect(() => {
         Promise.all([
             fetchInitialBalances(),
             fetchDuesConfig(),
             fetchServices(),
+            fetchExternalServices(),
         ])
-            .then(([balances, duesCfg, svcs]) => {
+            .then(([balances, duesCfg, svcs, extSvcs]) => {
                 if (balances) {
                     setCajaChica(balances.caja_chica.toString());
                     setBanco(balances.banco.toString());
@@ -67,6 +74,7 @@ const Variables: React.FC = () => {
                     setFeeVit(duesCfg.fee_vit.toString());
                 }
                 setServices(svcs);
+                setExternalServices(extSvcs);
             })
             .catch((err) => setError(err.message || "Error al cargar datos"))
             .finally(() => setLoading(false));
@@ -76,10 +84,7 @@ const Variables: React.FC = () => {
     if (error) return <div className="dashboard-loading" style={{ color: "var(--danger)" }}>{error}</div>;
 
     return (
-        <div className="config-container">
-            <div className="treasury-header-row">
-                <h2>Variables del sistema</h2>
-            </div>
+        <div className="config-container custom-scroll">
             <div className="config-grid">
                 <CollapsibleCard
                     title="Valores Iniciales"
@@ -120,6 +125,14 @@ const Variables: React.FC = () => {
                     headerExtra={<span className="config-card-hint">Servicios disponibles para cobrar</span>}
                 >
                     <ServicesConfig initialServices={services} />
+                </CollapsibleCard>
+                <CollapsibleCard
+                    title="Servicios Externos / Impuestos"
+                    className="config-card"
+                    defaultOpen={false}
+                    headerExtra={<span className="config-card-hint">Luz, agua, gas, etc.</span>}
+                >
+                    <ExternalServicesConfig initialServices={externalServices} />
                 </CollapsibleCard>
             </div>
         </div>

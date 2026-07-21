@@ -64,6 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
     { to: "/tesoreria/nuevo-movimiento", label: "Nuevo ingreso" },
     { to: "/tesoreria/egresos/nuevo-egreso", label: "Nuevo egreso" },
     { to: "/tesoreria/historial-servicios", label: "Historial de servicios" },
+    { to: "/tesoreria/servicios-externos", label: "Serv. Externos / Impuestos" },
     { to: "/tesoreria/cementerio", label: "Cementerio" },
   ];
 

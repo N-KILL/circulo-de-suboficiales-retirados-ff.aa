@@ -320,6 +320,20 @@
   color: var(--muted);
 }
 
+.family-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.tag-exento {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
 .family-picker-actions {
   display: flex;
   gap: 8px;

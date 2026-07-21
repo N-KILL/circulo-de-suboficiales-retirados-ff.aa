@@ -13,7 +13,6 @@ const Layout: React.FC = () => {
 
   const getHeaderContent = (path: string) => {
     if (path === "/tesoreria/movimientos") return { title: "Movimientos", subtitle: "Consulta todos los movimientos registrados en la tesorería.", breadcrumbs: ["Tesorería", "Movimientos"] };
-
     if (path === "/tesoreria/nuevo-movimiento") return { title: "Nuevo ingreso", subtitle: "Registrá un nuevo ingreso en caja chica o banco.", breadcrumbs: ["Tesorería", "Nuevo ingreso"] };
     if (path === "/tesoreria/egresos/nuevo-egreso") return { title: "Nuevo egreso", subtitle: "Registrar un nuevo egreso del club", breadcrumbs: ["Tesorería", "Nuevo egreso"] };
     if (path === "/tesoreria/dashboard") return { title: "Dashboard Tesorería", subtitle: "Resumen general del estado financiero del club.", breadcrumbs: ["Tesorería", "Dashboard"] };
@@ -26,6 +25,11 @@ const Layout: React.FC = () => {
     if (path.startsWith("/personas/detalle/")) return { title: "Detalle de Persona", subtitle: "Información y cuotas de cementerio.", breadcrumbs: ["Personas", "Detalle"] };
     if (path.startsWith("/personas/editar/")) return { title: "Editar Persona", subtitle: "Modificar los datos de la persona.", breadcrumbs: ["Personas", "Editar"] };
     if (path === "/") return { title: " ", subtitle: " " };
+    if (path === "/configuracion") return { title: "Configuración", subtitle: "Administrá las variables y ajustes del sistema.", breadcrumbs: ["Configuración"] };
+    if (path === "/configuracion/variables") return { title: "Variables del Sistema", subtitle: "Configurar tarifas, saldos iniciales y servicios.", breadcrumbs: ["Configuración", "Variables"] };
+    if (path === "/tesoreria/servicios-externos") return { title: "Servicios Externos / Impuestos", subtitle: "Estado de pagos de servicios e impuestos.", breadcrumbs: ["Tesorería", "Servicios Externos"] };
+    if (path === "/tesoreria/cementerio") return { title: "Cementerio", subtitle: "Gestión de nichos y pagos de cementerio.", breadcrumbs: ["Tesorería", "Cementerio"] };
+    if (path === "/tesoreria/historial-servicios") return { title: "Historial de Servicios", subtitle: "Consulta del historial de servicios facturados.", breadcrumbs: ["Tesorería", "Historial de Servicios"] };
     return { title: "Sistema de Gestión" };
   };
 

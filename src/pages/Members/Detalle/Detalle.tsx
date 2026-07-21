@@ -226,14 +226,23 @@ const DetalleSocio: React.FC = () => {
               </div>
               {familyGroupPrefix && familyMembers.length > 1 && (
                 <div className="modal-family-section">
-                  <p className="family-member-hint">Grupo familiar N° {familyGroupPrefix} — {familyMembers.length} integrantes</p>
-                  {familyMembers.map((fm) => (
-                    <label key={fm.id} className="family-member-item">
-                      <input type="checkbox" checked={selectedFamily.has(fm.id)} onChange={() => setSelectedFamily((prev) => { const next = new Set(prev); if (next.has(fm.id)) next.delete(fm.id); else next.add(fm.id); return next; })} />
-                      <span>{fm.nombre}</span>
-                      <span className="family-member-socio">Nº {fm.numeroDeSocio}</span>
-                    </label>
-                  ))}
+                  <p className="family-member-hint">Grupo familiar N° {familyGroupPrefix} — {familyMembers.length} integrantes{familyMembers.length > 3 ? ` (a partir del 4to: exento por convenio)` : ""}</p>
+                  {familyMembers.map((fm, idx) => {
+                    const sorted = [...familyMembers].sort((a, b) => {
+                      const na = parseInt((a.nroFamilia ?? "").split("/").pop() ?? "0", 10) || 0;
+                      const nb = parseInt((b.nroFamilia ?? "").split("/").pop() ?? "0", 10) || 0;
+                      return na - nb;
+                    });
+                    const exempt = sorted.findIndex((m) => m.id === fm.id) >= 3;
+                    return (
+                      <label key={fm.id} className="family-member-item">
+                        <input type="checkbox" checked={selectedFamily.has(fm.id)} onChange={() => setSelectedFamily((prev) => { const next = new Set(prev); if (next.has(fm.id)) next.delete(fm.id); else next.add(fm.id); return next; })} />
+                        <span>{fm.nombre}</span>
+                        <span className="family-member-socio">Nº {fm.numeroDeSocio}</span>
+                        {exempt && <span className="family-tag tag-exento">EXENTO</span>}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
               <div className="config-form">

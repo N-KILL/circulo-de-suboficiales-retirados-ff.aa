@@ -39,8 +39,10 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isVitalicios = pathname === "/api/members/vitalicios";
         const isDebts = pathname === "/api/debts";
         const isDebtsBalance = pathname === "/api/debts/balance";
+        const isExternalServices = pathname === "/api/external-services";
+        const isExternalServicePayments = pathname === "/api/external-service-payments";
 
-        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance) {
+        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments) {
           next();
           return;
         }
@@ -158,10 +160,12 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
                 return;
               }
               const { reverseDebtsByMovementId } = await import("./src/database/debtsRepository");
+              const { deletePaymentsByMovementId } = await import("./src/database/externalServicePaymentsRepository");
               await reverseDebtsByMovementId(id);
               await deleteDueByMovementId(id);
               await deleteServiceRecordsByMovement(id);
               await deleteCementerioMovimientosByMovement(id);
+              await deletePaymentsByMovementId(id);
               await deleteMovement(id);
               res.statusCode = 200;
               res.end(JSON.stringify({ success: true }));
@@ -985,6 +989,126 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               return;
             }
 
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isExternalServices) {
+            const {
+              getAllExternalServices,
+              insertExternalService,
+              updateExternalService,
+              deleteExternalService,
+            } = await import("./src/database/externalServicesRepository");
+
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+            if (req.method === "GET") {
+              const rows = await getAllExternalServices();
+              res.statusCode = 200;
+              res.end(JSON.stringify(rows));
+              return;
+            }
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req)) as { name: string; phone?: string | null; description?: string | null; frequency?: string; start_month?: number | null };
+              if (!body.name?.trim()) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el nombre" }));
+                return;
+              }
+              const row = await insertExternalService(body.name.trim(), body.phone ?? null, body.description ?? null, body.frequency ?? "mensual", body.start_month ?? null);
+              res.statusCode = 201;
+              res.end(JSON.stringify(row));
+              return;
+            }
+            if (req.method === "PUT") {
+              const body = JSON.parse(await collectBody(req)) as { id: string; name: string; phone?: string | null; description?: string | null; frequency?: string; start_month?: number | null; active: boolean };
+              if (!body.id || !body.name?.trim()) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan campos" }));
+                return;
+              }
+              const row = await updateExternalService(body.id, body.name.trim(), body.phone ?? null, body.description ?? null, body.frequency ?? "mensual", body.start_month ?? null, body.active);
+              if (!row) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: "No encontrado" }));
+                return;
+              }
+              res.statusCode = 200;
+              res.end(JSON.stringify(row));
+              return;
+            }
+            if (req.method === "DELETE") {
+              const id = url.searchParams.get("id");
+              if (!id) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el id" }));
+                return;
+              }
+              await deleteExternalService(id);
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true }));
+              return;
+            }
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isExternalServicePayments) {
+            const {
+              getPaymentsByYear,
+              upsertPayment,
+              deletePayment,
+            } = await import("./src/database/externalServicePaymentsRepository");
+
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+            if (req.method === "GET") {
+              const year = parseInt(url.searchParams.get("year") ?? "", 10);
+              if (isNaN(year)) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el año" }));
+                return;
+              }
+              const rows = await getPaymentsByYear(year);
+              res.statusCode = 200;
+              res.end(JSON.stringify(rows));
+              return;
+            }
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req)) as {
+                service_id: string; month: number; year: number; amount: number | null; movement_id: string | null;
+              };
+              if (!body.service_id || !body.month || !body.year) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan campos" }));
+                return;
+              }
+              const row = await upsertPayment(body.service_id, body.month, body.year, body.amount ?? null, body.movement_id ?? null);
+              res.statusCode = 200;
+              res.end(JSON.stringify(row));
+              return;
+            }
+            if (req.method === "DELETE") {
+              const body = JSON.parse(await collectBody(req)) as { service_id: string; month: number; year: number };
+              if (!body.service_id || !body.month || !body.year) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Faltan campos" }));
+                return;
+              }
+              await deletePayment(body.service_id, body.month, body.year);
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true }));
+              return;
+            }
             res.statusCode = 405;
             res.end(JSON.stringify({ error: "Método no permitido" }));
             return;

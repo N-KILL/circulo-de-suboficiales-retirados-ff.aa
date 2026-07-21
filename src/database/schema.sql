@@ -227,3 +227,28 @@ CREATE TABLE IF NOT EXISTS debts (
 CREATE INDEX IF NOT EXISTS idx_debts_member_id  ON debts (member_id);
 CREATE INDEX IF NOT EXISTS idx_debts_person_id  ON debts (person_id);
 CREATE INDEX IF NOT EXISTS idx_debts_movement_id ON debts (movement_id);
+
+CREATE TABLE IF NOT EXISTS external_services (
+    id          UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        VARCHAR(255)    NOT NULL,
+    phone       VARCHAR(100),
+    description TEXT,
+    frequency   VARCHAR(20)     NOT NULL DEFAULT 'mensual',
+    active      BOOLEAN         NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS external_service_payments (
+    id          UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_id  UUID            NOT NULL REFERENCES external_services(id) ON DELETE CASCADE,
+    month       INT             NOT NULL CHECK (month BETWEEN 1 AND 12),
+    year        INT             NOT NULL,
+    movement_id UUID            REFERENCES petty_cash(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    UNIQUE(service_id, month, year)
+);
+
+CREATE INDEX IF NOT EXISTS idx_esp_service_id ON external_service_payments (service_id);
+CREATE INDEX IF NOT EXISTS idx_esp_movement_id ON external_service_payments (movement_id);
+CREATE INDEX IF NOT EXISTS idx_esp_year ON external_service_payments (year);

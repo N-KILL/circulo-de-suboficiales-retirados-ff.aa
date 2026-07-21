@@ -308,6 +308,17 @@ const NewMovement: React.FC = () => {
     return base;
   }, [duesConfig]);
 
+  const isFamilyExempt = useCallback((memberId: string): boolean => {
+    if (!familyPayment || familyMembers.length <= 3) return false;
+    const sorted = [...familyMembers].sort((a, b) => {
+      const na = parseInt((a.nroFamilia ?? "").split("/").pop() ?? "0", 10) || 0;
+      const nb = parseInt((b.nroFamilia ?? "").split("/").pop() ?? "0", 10) || 0;
+      return na - nb;
+    });
+    const idx = sorted.findIndex((m) => m.id === memberId);
+    return idx >= 3;
+  }, [familyPayment, familyMembers]);
+
   function toggleCementerioSelection(c: Cementerio) {
     setSelectedCementerios((prev) => {
       const exists = prev.find((x) => x.id === c.id);
@@ -524,7 +535,7 @@ const NewMovement: React.FC = () => {
       if (familyPayment && selectedFamilyMembers.size > 0) {
         for (const fmId of selectedFamilyMembers) {
           const fm = familyMembers.find((m) => m.id === fmId);
-          if (fm) total += getMemberFee(fm);
+          if (fm && !isFamilyExempt(fmId)) total += getMemberFee(fm);
         }
       } else if (selectedMember) {
         total = getMemberFee(selectedMember);
@@ -558,7 +569,7 @@ const NewMovement: React.FC = () => {
       if (familyPayment && selectedFamilyMembers.size > 0) {
         for (const fmId of selectedFamilyMembers) {
           const fm = familyMembers.find((m) => m.id === fmId);
-          if (fm) total += getMemberFee(fm);
+          if (fm && !isFamilyExempt(fmId)) total += getMemberFee(fm);
         }
       } else if (selectedMember) {
         total = getMemberFee(selectedMember);
@@ -985,6 +996,7 @@ const NewMovement: React.FC = () => {
                 onToggleFamilyMember={handleToggleFamilyMember}
                 selectedMemberId={selectedMember.id}
                 getMemberFee={getMemberFee}
+                isFamilyExempt={isFamilyExempt}
               />
             )}
 

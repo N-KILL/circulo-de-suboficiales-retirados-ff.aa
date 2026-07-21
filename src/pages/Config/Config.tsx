@@ -7,10 +7,7 @@ const Config: React.FC = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="config-container">
-            <div className="treasury-header-row">
-                <h2>Configuración</h2>
-            </div>
+        <div className="config-container custom-scroll">
             <div className="config-menu">
                 <button
                     className="config-menu-card"

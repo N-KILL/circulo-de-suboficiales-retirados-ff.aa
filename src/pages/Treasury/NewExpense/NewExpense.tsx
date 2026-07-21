@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { DollarSign, Save, Loader, Landmark, CreditCard, Info, Calendar, Trash2 } from "lucide-react";
 import { savePayment } from "../../../services/paymentsApi";
+import { fetchExternalServices, saveExternalServicePayment, type ExternalServiceItem } from "../../../services/externalServicesApi";
 import Banner from "../../../components/ui/Banner";
 import DateInput from "../../../components/ui/DateInput";
 import { toCurrency, todayLocal } from "../../../utils/format";
@@ -17,6 +18,7 @@ const EXPENSE_CONCEPTS = [
   "Alquileres",
   "Seguros",
   "Honorarios",
+  "Pago de servicio externo",
   "Otros",
 ];
 
@@ -37,12 +39,23 @@ const NewExpense: React.FC = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const [externalServices, setExternalServices] = useState<ExternalServiceItem[]>([]);
+  const [selectedExtService, setSelectedExtService] = useState<string>("");
+
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const mode = cajaOrigen === "caja_chica" ? "efectivo" : "transferencia";
   const originLabel = cajaOrigen === "caja_chica" ? "Caja Chica" : "Banco";
   const formaPagoLabel = mode === "efectivo" ? "Efectivo" : "Transferencia";
+
+  useEffect(() => {
+    if (concepto === "Pago de servicio externo" && externalServices.length === 0) {
+      fetchExternalServices()
+        .then((svcs) => setExternalServices(svcs.filter((s) => s.active)))
+        .catch(() => {});
+    }
+  }, [concepto, externalServices.length]);
 
   const importeNum = useMemo(() => {
     const cleaned = importeStr.replace(/[^0-9,]/g, "").replace(",", ".");
@@ -52,10 +65,11 @@ const NewExpense: React.FC = () => {
   const validate = useCallback((): FieldErrors => {
     const errs: FieldErrors = {};
     if (!concepto) errs.concepto = "Seleccioná un concepto";
+    if (concepto === "Pago de servicio externo" && !selectedExtService) errs.concepto = "Seleccioná un servicio externo";
     if (!fecha) errs.fecha = "Ingresá una fecha";
     if (!importeNum || importeNum <= 0) errs.importe = "Ingresá un importe válido mayor a cero";
     return errs;
-  }, [concepto, fecha, importeNum]);
+  }, [concepto, fecha, importeNum, selectedExtService]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -70,9 +84,12 @@ const NewExpense: React.FC = () => {
       setSuccess(false);
 
       try {
-        const detail = `${concepto}${descripcion ? `: ${descripcion}` : ""}`;
+        const svcName = externalServices.find((s) => s.id === selectedExtService)?.name;
+        const detail = concepto === "Pago de servicio externo" && svcName
+          ? `Pago servicio externo: ${svcName}${descripcion ? ` - ${descripcion}` : ""}`
+          : `${concepto}${descripcion ? `: ${descripcion}` : ""}`;
 
-        await savePayment({
+        const payment = await savePayment({
           date: fecha,
           detail,
           amount: importeNum,
@@ -80,6 +97,13 @@ const NewExpense: React.FC = () => {
           mode,
           concept: concepto,
         });
+
+        if (concepto === "Pago de servicio externo" && selectedExtService) {
+          const fechaDate = new Date(fecha + "T12:00:00");
+          const month = fechaDate.getMonth() + 1;
+          const year = fechaDate.getFullYear();
+          await saveExternalServicePayment(selectedExtService, month, year, importeNum, payment.id);
+        }
 
         setSuccess(true);
         setImporteStr("");
@@ -93,7 +117,7 @@ const NewExpense: React.FC = () => {
         setSaving(false);
       }
     },
-    [validate, concepto, descripcion, fecha, importeNum, mode]
+    [validate, concepto, descripcion, fecha, importeNum, mode, selectedExtService, externalServices]
   );
 
   const handleClearForm = useCallback(() => {
@@ -102,6 +126,7 @@ const NewExpense: React.FC = () => {
     setFecha(todayLocal());
     setImporteStr("");
     setDescripcion("");
+    setSelectedExtService("");
     setErrors({});
     setTouched({});
     setApiError(null);
@@ -164,6 +189,24 @@ const NewExpense: React.FC = () => {
                   <span className="field-error">{errors.concepto}</span>
                 )}
               </div>
+
+              {concepto === "Pago de servicio externo" && (
+                <div className="form-group">
+                  <label>
+                    Servicio externo <span className="required">*</span>
+                  </label>
+                  <select
+                    className="form-control"
+                    value={selectedExtService}
+                    onChange={(e) => setSelectedExtService(e.target.value)}
+                  >
+                    <option value="">Seleccionar servicio...</option>
+                    {externalServices.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="form-group">
                 <DateInput
@@ -250,7 +293,14 @@ const NewExpense: React.FC = () => {
                 <div className="summary-label">
                   <Info size={16} /> <span>Concepto</span>
                 </div>
-                <div className="summary-value">{concepto || "\u2014"}</div>
+                <div className="summary-value">
+                  {concepto || "\u2014"}
+                  {concepto === "Pago de servicio externo" && selectedExtService && (
+                    <span style={{ display: "block", fontSize: 12, color: "var(--muted)" }}>
+                      {externalServices.find((s) => s.id === selectedExtService)?.name}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="summary-item">
                 <div className="summary-label">

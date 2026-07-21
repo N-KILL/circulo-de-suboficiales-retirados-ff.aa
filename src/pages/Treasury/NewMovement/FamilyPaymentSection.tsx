@@ -9,6 +9,7 @@ interface FamilyPaymentSectionProps {
   onToggleFamilyMember: (id: string) => void;
   selectedMemberId: string;
   getMemberFee: (member: Member) => number;
+  isFamilyExempt: (memberId: string) => boolean;
 }
 
 const FamilyPaymentSection: React.FC<FamilyPaymentSectionProps> = ({
@@ -19,6 +20,7 @@ const FamilyPaymentSection: React.FC<FamilyPaymentSectionProps> = ({
   onToggleFamilyMember,
   selectedMemberId,
   getMemberFee,
+  isFamilyExempt,
 }) => {
   return (
     <div className="family-payment-section">
@@ -38,7 +40,8 @@ const FamilyPaymentSection: React.FC<FamilyPaymentSectionProps> = ({
             const isSelected = selectedFamilyMembers.has(fm.id);
             const memberFee = getMemberFee(fm);
             const paysByHaberes = (fm.pagaPor || "").toUpperCase() !== "TES";
-            const isDisabled = paysByHaberes && !isPayer;
+            const exempt = isFamilyExempt(fm.id);
+            const isDisabled = (paysByHaberes && !isPayer) || exempt;
             return (
               <label key={fm.id} className={`family-member-item${isPayer ? " family-member-payer" : ""}${isDisabled ? " family-member-disabled" : ""}`}>
                 <input
@@ -54,8 +57,9 @@ const FamilyPaymentSection: React.FC<FamilyPaymentSectionProps> = ({
                   {fm.asistencial && <span className="family-tag tag-asistencial">ASIST</span>}
                   {fm.planSalud && <span className="family-tag tag-plan-salud">SALUD</span>}
                   {paysByHaberes && <span className="family-tag tag-haberes">HABERES</span>}
+                  {exempt && <span className="family-tag tag-exento">EXENTO</span>}
                 </span>
-                <span className="family-member-fee">{memberFee > 0 ? `$ ${memberFee.toLocaleString("es-AR", { minimumFractionDigits: 2 })}` : "—"}</span>
+                <span className="family-member-fee">{exempt && !isPayer ? "Exento" : memberFee > 0 ? `$ ${memberFee.toLocaleString("es-AR", { minimumFractionDigits: 2 })}` : "—"}</span>
                 {isPayer && <span className="family-member-badge">Paga</span>}
               </label>
             );
@@ -64,7 +68,7 @@ const FamilyPaymentSection: React.FC<FamilyPaymentSectionProps> = ({
             <span>Total seleccionados:</span>
             <strong>
               $ {familyMembers
-                .filter((fm) => selectedFamilyMembers.has(fm.id))
+                .filter((fm) => selectedFamilyMembers.has(fm.id) && !isFamilyExempt(fm.id))
                 .reduce((sum, fm) => sum + getMemberFee(fm), 0)
                 .toLocaleString("es-AR", { minimumFractionDigits: 2 })}
             </strong>

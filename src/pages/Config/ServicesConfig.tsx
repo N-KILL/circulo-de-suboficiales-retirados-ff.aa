@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Save, Loader, Plus, Trash2, Pencil, X } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Save, Loader, Plus, Trash2, Pencil, X, Search, ArrowUpDown } from "lucide-react";
 import { saveService, updateService, deleteService } from "../../services/servicesApi";
 import type { ServiceItem } from "../../services/servicesApi";
 import { parseMoney } from "../../utils/format";
@@ -52,6 +52,24 @@ const ServicesConfig: React.FC<ServicesConfigProps> = ({ initialServices }) => {
     }
   };
 
+  const [searchText, setSearchText] = useState("");
+  const [sortField, setSortField] = useState<"name" | "amount">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const filteredServices = useMemo(() => {
+    const q = searchText.toLowerCase().trim();
+    let list = services;
+    if (q) {
+      list = list.filter((s) => s.name.toLowerCase().includes(q));
+    }
+    list = [...list].sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortField === "name") return a.name.localeCompare(b.name) * dir;
+      return (a.amount - b.amount) * dir;
+    });
+    return list;
+  }, [services, searchText, sortField, sortDir]);
+
   return (
     <>
       <form onSubmit={handleSubmit} className="config-form">
@@ -77,23 +95,52 @@ const ServicesConfig: React.FC<ServicesConfigProps> = ({ initialServices }) => {
       </form>
 
       {services.length > 0 && (
-        <div className="services-list">
-          {services.map((svc) => (
-            <div key={svc.id} className="service-item">
-              <div style={{ flex: 1 }}>
-                <span style={{ fontWeight: 600 }}>{svc.name}</span>
-                <span style={{ marginLeft: 12, color: "var(--muted)" }}>
-                  $ {svc.amount.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              <button type="button" onClick={() => handleStartEdit(svc)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--azul-institucional)", padding: 4 }}>
-                <Pencil size={16} />
-              </button>
-              <button type="button" onClick={() => handleDelete(svc.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc3545", padding: 4 }}>
-                <Trash2 size={16} />
-              </button>
+        <div className="svc-list-wrapper">
+          <div className="svc-list-toolbar">
+            <div className="svc-list-search">
+              <Search size={14} />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
             </div>
-          ))}
+            <div className="svc-list-sort">
+              <ArrowUpDown size={14} />
+              <select value={`${sortField}-${sortDir}`} onChange={(e) => {
+                const [field, dir] = e.target.value.split("-");
+                setSortField(field as "name" | "amount");
+                setSortDir(dir as "asc" | "desc");
+              }}>
+                <option value="name-asc">Nombre A-Z</option>
+                <option value="name-desc">Nombre Z-A</option>
+                <option value="amount-asc">Monto menor</option>
+                <option value="amount-desc">Monto mayor</option>
+              </select>
+            </div>
+          </div>
+          <div className="services-list custom-scroll">
+            {filteredServices.map((svc) => (
+              <div key={svc.id} className="service-item">
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontWeight: 600 }}>{svc.name}</span>
+                  <span style={{ marginLeft: 12, color: "var(--muted)" }}>
+                    $ {svc.amount.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <button type="button" onClick={() => handleStartEdit(svc)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--azul-institucional)", padding: 4 }}>
+                  <Pencil size={16} />
+                </button>
+                <button type="button" onClick={() => handleDelete(svc.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc3545", padding: 4 }}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+            {filteredServices.length === 0 && (
+              <div className="svc-list-empty">No se encontraron servicios</div>
+            )}
+          </div>
         </div>
       )}
     </>
