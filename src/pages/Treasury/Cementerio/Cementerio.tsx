@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { RefreshCw } from "lucide-react";
-import { fetchCementeriosGrid, fetchCementerioPagosMap, type CementerioGridItem, type CementerioPagoInfo } from "../../../services/cementeriosApi";
+import { fetchCementeriosGrid, fetchCementerioPagosMap, type CementerioGridItem } from "../../../services/cementeriosApi";
 import { fetchDuesConfig } from "../../../services/duesConfigApi";
 import { calcYearsAgo, formatRecordDate } from "../../../utils/format";
 import { type SortField, type SortDir } from "./types";

@@ -29,6 +29,13 @@ dist-ssr
 # Seed report (generado por npm run db:seed)
 database/seed-errors.json
 
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/
+src-tauri/bundle/
+src-tauri/Cargo.lock
+
 *.csv
 seed_errors.json
 seed_cementerio_errors.json

@@ -227,7 +227,7 @@ const DetalleSocio: React.FC = () => {
               {familyGroupPrefix && familyMembers.length > 1 && (
                 <div className="modal-family-section">
                   <p className="family-member-hint">Grupo familiar N° {familyGroupPrefix} — {familyMembers.length} integrantes{familyMembers.length > 3 ? ` (a partir del 4to: exento por convenio)` : ""}</p>
-                  {familyMembers.map((fm, idx) => {
+                  {familyMembers.map((fm) => {
                     const sorted = [...familyMembers].sort((a, b) => {
                       const na = parseInt((a.nroFamilia ?? "").split("/").pop() ?? "0", 10) || 0;
                       const nb = parseInt((b.nroFamilia ?? "").split("/").pop() ?? "0", 10) || 0;

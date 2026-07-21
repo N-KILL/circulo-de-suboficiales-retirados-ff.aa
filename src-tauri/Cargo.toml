@@ -1,0 +1,26 @@
+[package]
+name = "circulo-de-suboficiales"
+version = "0.1.0"
+description = "Sistema de Gestión del Círculo de Suboficiales Retirados"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "circulo_de_suboficiales_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["devtools"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "json", "uuid", "tls-rustls"] }
+tokio = { version = "1", features = ["net", "macros"] }
+dotenvy = "0.15"
+uuid = { version = "1", features = ["v4"] }
+rust-embed = "8"
+mime_guess = "2"

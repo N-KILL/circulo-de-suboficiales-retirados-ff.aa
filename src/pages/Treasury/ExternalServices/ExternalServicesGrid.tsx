@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Check, X, Search, ChevronDown, Pencil, Save, Loader } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, Search, ChevronDown, Pencil, Save } from "lucide-react";
 import {
   fetchExternalServices,
   fetchExternalServicePayments,
@@ -208,7 +208,7 @@ const ExternalServicesGrid: React.FC = () => {
       const amount = parseAmountInput(edit.amountStr);
 
       if (edit.paid && !wasPaid) {
-        if (amount > 0 && !payment?.movement_id) {
+        if (amount > 0) {
           toCreate.push({
             serviceId,
             serviceName: svcName,
@@ -217,8 +217,6 @@ const ExternalServicesGrid: React.FC = () => {
             amount,
             date: defaultDateForMonth(year, m),
           });
-        } else {
-          await saveExternalServicePayment(serviceId, m, year, amount || null, payment?.movement_id ?? null);
         }
       } else if (!edit.paid && wasPaid) {
         toDelete.push({ serviceId, month: m, year });
