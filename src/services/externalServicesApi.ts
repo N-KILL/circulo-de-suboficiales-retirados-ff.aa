@@ -1,5 +1,3 @@
-import { apiFetch } from "../apiConfig";
-
 export type ExternalServiceItem = {
     id: string;
     name: string;
@@ -31,12 +29,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchExternalServices(): Promise<ExternalServiceItem[]> {
-    const response = await apiFetch("/api/external-services");
+    const response = await fetch("/api/external-services");
     return handleResponse<ExternalServiceItem[]>(response);
 }
 
 export async function saveExternalService(name: string, phone: string | null, description: string | null, frequency: string, startMonth: number | null): Promise<ExternalServiceItem> {
-    const response = await apiFetch("/api/external-services", {
+    const response = await fetch("/api/external-services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, description, frequency, start_month: startMonth }),
@@ -45,7 +43,7 @@ export async function saveExternalService(name: string, phone: string | null, de
 }
 
 export async function updateExternalService(id: string, name: string, phone: string | null, description: string | null, frequency: string, startMonth: number | null, active: boolean): Promise<ExternalServiceItem> {
-    const response = await apiFetch("/api/external-services", {
+    const response = await fetch("/api/external-services", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, name, phone, description, frequency, start_month: startMonth, active }),
@@ -54,7 +52,7 @@ export async function updateExternalService(id: string, name: string, phone: str
 }
 
 export async function deleteExternalService(id: string): Promise<void> {
-    const response = await apiFetch(`/api/external-services?id=${id}`, {
+    const response = await fetch(`/api/external-services?id=${id}`, {
         method: "DELETE",
     });
     if (!response.ok) {
@@ -64,12 +62,12 @@ export async function deleteExternalService(id: string): Promise<void> {
 }
 
 export async function fetchExternalServicePayments(year: number): Promise<ExternalServicePaymentItem[]> {
-    const response = await apiFetch(`/api/external-service-payments?year=${year}`);
+    const response = await fetch(`/api/external-service-payments?year=${year}`);
     return handleResponse<ExternalServicePaymentItem[]>(response);
 }
 
 export async function saveExternalServicePayment(serviceId: string, month: number, year: number, amount: number | null, movementId: string | null): Promise<ExternalServicePaymentItem> {
-    const response = await apiFetch("/api/external-service-payments", {
+    const response = await fetch("/api/external-service-payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ service_id: serviceId, month, year, amount, movement_id: movementId }),
@@ -78,7 +76,7 @@ export async function saveExternalServicePayment(serviceId: string, month: numbe
 }
 
 export async function deleteExternalServicePayment(serviceId: string, month: number, year: number): Promise<void> {
-    const response = await apiFetch("/api/external-service-payments", {
+    const response = await fetch("/api/external-service-payments", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ service_id: serviceId, month, year }),

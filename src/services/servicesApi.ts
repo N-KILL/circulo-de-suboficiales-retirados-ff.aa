@@ -1,5 +1,3 @@
-import { apiFetch } from "../apiConfig";
-
 export type ServiceItem = {
     id: string;
     name: string;
@@ -7,7 +5,7 @@ export type ServiceItem = {
 };
 
 export async function fetchServices(): Promise<ServiceItem[]> {
-    const response = await apiFetch("/api/services");
+    const response = await fetch("/api/services");
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al cargar servicios");
@@ -16,7 +14,7 @@ export async function fetchServices(): Promise<ServiceItem[]> {
 }
 
 export async function saveService(name: string, amount: number): Promise<ServiceItem> {
-    const response = await apiFetch("/api/services", {
+    const response = await fetch("/api/services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, amount }),
@@ -29,7 +27,7 @@ export async function saveService(name: string, amount: number): Promise<Service
 }
 
 export async function updateService(id: string, name: string, amount: number): Promise<ServiceItem> {
-    const response = await apiFetch("/api/services", {
+    const response = await fetch("/api/services", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, name, amount }),
@@ -42,7 +40,7 @@ export async function updateService(id: string, name: string, amount: number): P
 }
 
 export async function deleteService(id: string): Promise<void> {
-    const response = await apiFetch(`/api/services?id=${encodeURIComponent(id)}`, {
+    const response = await fetch(`/api/services?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
     });
     if (!response.ok) {

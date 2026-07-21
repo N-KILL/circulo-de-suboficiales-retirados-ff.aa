@@ -1,5 +1,3 @@
-import { apiFetch } from "../apiConfig";
-
 export type DueWithDetails = {
   id: string;
   type: "socio" | "cementerio";
@@ -23,7 +21,7 @@ export type MemberCemeteryCheck = {
 };
 
 export async function fetchDuesByMember(memberId: string): Promise<DueWithDetails[]> {
-  const response = await apiFetch(`/api/dues?memberId=${encodeURIComponent(memberId)}`);
+  const response = await fetch(`/api/dues?memberId=${encodeURIComponent(memberId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Error al cargar cuotas del socio");
@@ -32,7 +30,7 @@ export async function fetchDuesByMember(memberId: string): Promise<DueWithDetail
 }
 
 export async function fetchMemberCemeteryCheck(memberId: string): Promise<MemberCemeteryCheck> {
-  const response = await apiFetch(`/api/dues?memberId=${encodeURIComponent(memberId)}&check=cementerio`);
+  const response = await fetch(`/api/dues?memberId=${encodeURIComponent(memberId)}&check=cementerio`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Error al verificar cementerio del socio");
@@ -41,7 +39,7 @@ export async function fetchMemberCemeteryCheck(memberId: string): Promise<Member
 }
 
 export async function fetchDuesByPerson(personId: string): Promise<DueWithDetails[]> {
-  const response = await apiFetch(`/api/dues?personId=${encodeURIComponent(personId)}`);
+  const response = await fetch(`/api/dues?personId=${encodeURIComponent(personId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Error al cargar cuotas de la persona");
@@ -50,7 +48,7 @@ export async function fetchDuesByPerson(personId: string): Promise<DueWithDetail
 }
 
 export async function fetchAllDues(): Promise<DueWithDetails[]> {
-  const response = await apiFetch("/api/dues");
+  const response = await fetch("/api/dues");
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Error al cargar cuotas");
@@ -68,7 +66,7 @@ export async function saveDue(data: {
   family_group?: string | null;
   paid_members?: string[] | null;
 }): Promise<string> {
-  const response = await apiFetch("/api/dues", {
+  const response = await fetch("/api/dues", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -82,7 +80,7 @@ export async function saveDue(data: {
 }
 
 export async function fetchFamilyMembers(memberId: string): Promise<import("../models/members").Member[]> {
-  const response = await apiFetch(`/api/members/family?memberId=${encodeURIComponent(memberId)}`);
+  const response = await fetch(`/api/members/family?memberId=${encodeURIComponent(memberId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Error al cargar grupo familiar");

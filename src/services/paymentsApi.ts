@@ -1,5 +1,3 @@
-import { apiFetch } from "../apiConfig";
-
 export interface PaymentData {
   date: string;
   detail: string;
@@ -10,7 +8,7 @@ export interface PaymentData {
 }
 
 export async function savePayment(payment: PaymentData): Promise<{ id: string }> {
-  const response = await apiFetch("/api/payment", {
+  const response = await fetch("/api/payment", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payment),
