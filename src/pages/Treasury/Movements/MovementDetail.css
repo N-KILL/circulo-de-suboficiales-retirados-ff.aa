@@ -85,7 +85,8 @@
 .movement-detail-actions .btn-edit,
 .movement-detail-actions .btn-save,
 .movement-detail-actions .btn-cancel,
-.movement-detail-actions .btn-delete {
+.movement-detail-actions .btn-delete,
+.movement-detail-actions .btn-comprobante {
   padding: 8px 16px;
   border-radius: 8px;
   font-weight: 600;
@@ -104,6 +105,38 @@
 
 .movement-detail-actions .btn-edit:hover {
   background: var(--azul-armada);
+}
+
+.movement-detail-actions .btn-comprobante {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.movement-detail-actions .btn-comprobante:hover {
+  background: #dcfce7;
+}
+
+.comprobante-action-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.comprobante-copies-select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #bbf7d0;
+  font-size: 13px;
+  font-weight: 600;
+  background: #f0fdf4;
+  color: #166534;
+  cursor: pointer;
+  outline: none;
+}
+
+.comprobante-copies-select:focus {
+  border-color: #166534;
 }
 
 .movement-detail-actions .btn-delete {

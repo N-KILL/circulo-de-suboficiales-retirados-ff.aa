@@ -69,13 +69,13 @@ function computeStats(
   }
 
   // Latest month
-  const latestMove = filtered.length > 0 ? filtered[filtered.length - 1] : null;
+  const latestMove = filtered.length > 0 ? filtered[0] : null;
   let monthLabel = 'Sin datos';
   let latestYear = 0;
   let latestMonth = 0;
 
   if (latestMove) {
-    const d = new Date(latestMove.date + 'T12:00:00');
+    const d = new Date((latestMove.date ?? '') + 'T12:00:00');
     latestYear = d.getFullYear();
     latestMonth = d.getMonth();
     monthLabel = `${MONTHS_ES[latestMonth]} ${latestYear}`;
@@ -85,7 +85,7 @@ function computeStats(
   let monthlyIncomes = 0;
   let monthlyExpenses = 0;
   for (const m of filtered) {
-    const d = new Date(m.date + 'T12:00:00');
+    const d = new Date((m.date ?? '') + 'T12:00:00');
     if (d.getFullYear() === latestYear && d.getMonth() === latestMonth) {
       if (m.type === 'ingreso') monthlyIncomes += m.amount;
       else if (m.type === 'egreso') monthlyExpenses += m.amount;
@@ -94,7 +94,7 @@ function computeStats(
   const monthlyResult = monthlyIncomes - monthlyExpenses;
 
   // Recent transactions
-  const sliced = filtered.slice(-15).reverse();
+  const sliced = filtered.slice(0, 15);
   const transactions: Transaction[] = sliced.map((m) => {
     const formattedDate = formatRecordDate(m.date);
     const modalidad = m.mode === 'efectivo' ? 'Efectivo' : 'Transferencia';
@@ -110,7 +110,7 @@ function computeStats(
       subtitle = 'Transferencia • Interno';
       amountStr = formatCurrency(m.amount);
     }
-    return { title: m.detail, subtitle, date: formattedDate, amount: amountStr, type: m.type };
+    return { title: m.detail ?? '(Sin detalle)', subtitle, date: formattedDate, amount: amountStr, type: m.type };
   });
 
   return {

@@ -509,7 +509,7 @@ const Members: React.FC = () => {
                 paginated.map(({ member: m, monthsOwed: owed }) => (
                   <tr
                     key={m.id}
-                    onClick={() => navigate(isSecretario ? `/socios/detalle/${m.id}` : `/socios/editar/${m.id}`, { state: { member: m } })}
+                    onClick={() => navigate(`/socios/detalle/${m.id}`)}
                     style={{ cursor: "pointer" }}
                   >
                     <td>{m.numeroDeSocio}</td>

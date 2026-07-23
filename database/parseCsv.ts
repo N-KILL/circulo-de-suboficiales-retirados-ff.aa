@@ -106,8 +106,13 @@ function normalizeBoolean(value: string): boolean {
 /** Columna A (índice 0), con fallback a columna H (índice 7) si A está vacía. */
 function resolveNumeroDeSocio(row: string[]): string {
     const colA = (row[0] ?? "").trim();
-    if (colA) return colA;
-    return (row[7] ?? "").trim();
+    const numeroBase = colA || (row[7] ?? "").trim();
+    
+    const fechaBaja = (row[19] ?? "").trim();
+    if (fechaBaja) {
+        return `${numeroBase}-00`;
+    }
+    return numeroBase;
 }
 
 function buildPersonFromRow(row: string[], nombreCol: number, tipoDocCol: number, docCol: number, domCol: number, telCol: number): Person | null {

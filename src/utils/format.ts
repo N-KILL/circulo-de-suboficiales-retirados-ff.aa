@@ -50,6 +50,7 @@ export function formatPeriodsDisplay(periods: string[] | null): string {
 }
 
 export function formatRecordDate(dateStr: string): string {
+  if (!dateStr) return "";
   const iso = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
   const parts = iso.split("-");
   return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : dateStr;
@@ -86,6 +87,75 @@ export const MONTHS_SHORT = [
   "Ene", "Feb", "Mar", "Abr", "May", "Jun",
   "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
 ];
+
+export function numberToWords(n: number): string {
+    if (n === 0) return "cero";
+    const ones = ["", "un", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte"];
+    const tens = ["", "", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
+    const hundreds = ["", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"];
+
+    const integerPart = Math.floor(n);
+    const decimalPart = Math.round((n - integerPart) * 100);
+
+    function convertGroup(num: number): string {
+        if (num === 0) return "";
+        if (num === 100) return "cien";
+        let result = "";
+        const h = Math.floor(num / 100);
+        const t = Math.floor((num % 100) / 10);
+        const o = num % 10;
+        if (h > 0) result += hundreds[h];
+        if (h > 0 && (t > 0 || o > 0)) result += " ";
+        if (num >= 16 && num < 20) {
+            result += ones[num];
+        } else if (o === 0 || t < 2) {
+            if (t > 0) result += tens[t];
+            if (t > 0 && o > 0) result += " y ";
+            if (o > 0) result += ones[o];
+        } else {
+            result += tens[t];
+            if (o > 0) result += " y " + ones[o];
+        }
+        return result;
+    }
+
+    if (integerPart === 0) return "cero";
+
+    let result = "";
+    const millions = Math.floor(integerPart / 1000000);
+    const thousands = Math.floor((integerPart % 1000000) / 1000);
+    const remainder = integerPart % 1000;
+
+    if (millions === 1) result += "un millón";
+    else if (millions > 1) result += convertGroup(millions) + " millones";
+
+    if (thousands > 0) {
+        if (thousands === 1) result += (result ? " " : "") + "mil";
+        else result += (result ? " " : "") + convertGroup(thousands) + " mil";
+    }
+
+    if (remainder > 0) result += (result ? " " : "") + convertGroup(remainder);
+
+    result += " pesos";
+
+    if (decimalPart > 0) {
+        const decOnes = decimalPart % 10;
+        const decTens = Math.floor(decimalPart / 10);
+        let decWords = "";
+        if (decTens === 1) {
+            decWords = ["diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve"][decOnes];
+        } else {
+            if (decTens > 0) decWords += tens[decTens];
+            if (decTens > 0 && decOnes > 0) decWords += " y ";
+            if (decOnes > 0) decWords += ones[decOnes];
+        }
+        result += " con " + decWords + " centavos";
+    } else {
+        result += " con cero centavos";
+    }
+
+    return result;
+}
 
 export function calcYearsAgo(dateStr: string): number {
   if (!dateStr) return -1;

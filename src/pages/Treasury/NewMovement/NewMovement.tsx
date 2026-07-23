@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom";
 import { DollarSign, Save, Loader } from "lucide-react";
 import { savePayment } from "../../../services/paymentsApi";
+import { fetchNextReceipt } from "../../../services/initialBalancesApi";
 import { fetchMembers, fetchMemberById } from "../../../services/membersApi";
 import { fetchAllPersons, fetchPersonById } from "../../../services/personsApi";
 import { fetchMovementById, updateMovement } from "../../../services/movementsApi";
@@ -13,7 +14,7 @@ import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
 import { saveServiceRecord, updateServiceRecord, fetchServiceRecordsByMovement, deleteServiceRecord } from "../../../services/serviceRecordsApi";
 import { saveService } from "../../../services/servicesApi";
 import { saveDebt, fetchBalanceByMember, fetchBalanceByPerson } from "../../../services/debtsApi";
-import { parseDateYMD, todayLocal, formatCurrency } from "../../../utils/format";
+import { parseDateYMD, todayLocal, formatCurrency, MONTHS_SHORT } from "../../../utils/format";
 import Banner from "../../../components/ui/Banner";
 import DateInput from "../../../components/ui/DateInput";
 import MovementFormFields from "./MovementFormFields";
@@ -23,11 +24,80 @@ import PeriodPicker from "../../../components/period/PeriodPicker";
 import MovementSummary from "./MovementSummary";
 import PersonInfoCard from "./PersonInfoCard";
 import NewServiceModal from "./NewServiceModal";
+import Comprobante, { type ComprobanteData } from "../../../components/comprobante/Comprobante";
+import { saveComprobante } from "../../../services/comprobantesApi";
+import { fetchReceiptCopiesConfig, fetchReceiptConcepts, type ReceiptCopiesDefaults, type ReceiptConcept } from "../../../services/receiptCopiesConfigApi";
 import type { DuesConfig } from "../../../services/duesConfigApi";
 import type { ServiceItem } from "../../../services/servicesApi";
 import type { MembersDebtStatus } from "../../../services/membersDebtApi";
 import type { Member, Person, Cementerio } from "../../../models/members";
 import "./NewMovement.css";
+
+function buildConceptDetail(
+  concept: string,
+  servicio: string,
+  periods: string[],
+  familyPayment: boolean,
+  selectedFamilyMembers: Set<string>,
+  familyMembers: Member[],
+  selectedMember: Member | null,
+  selectedCementerios: Cementerio[],
+  cementerioSelectedYears: Map<string, Set<string>>,
+  duesConfig: DuesConfig | null,
+  getMemberFee: (m: Member) => number,
+  selectedServiceAmount?: number | null,
+): string | undefined {
+  const fmt = (n: number) => `$${n.toLocaleString("es-AR")}`;
+
+  if (concept === "Cuota Socio" && duesConfig) {
+    const parts: string[] = [];
+    if (familyPayment && selectedFamilyMembers.size > 0) {
+      const members = familyMembers.filter((m) => selectedFamilyMembers.has(m.id));
+      for (const fm of members) {
+        const fee = getMemberFee(fm);
+        const base = fee - (fm.asistencial ? duesConfig.asistencial_fee : 0) - (fm.planSalud ? duesConfig.plan_salud_fee : 0);
+        const items: string[] = [];
+        if (base > 0) items.push(`Cuota base: ${fmt(base)}`);
+        if (fm.asistencial) items.push(`Asistencial: ${fmt(duesConfig.asistencial_fee)}`);
+        if (fm.planSalud) items.push(`Plan Salud: ${fmt(duesConfig.plan_salud_fee)}`);
+        parts.push(`${fm.nombre}: Cuota socio (${items.length > 0 ? items.join(" + ") : fmt(fee)})`);
+      }
+    } else if (selectedMember) {
+      const fee = getMemberFee(selectedMember);
+      const base = fee - (selectedMember.asistencial ? duesConfig.asistencial_fee : 0) - (selectedMember.planSalud ? duesConfig.plan_salud_fee : 0);
+      const items: string[] = [];
+      if (base > 0) items.push(`Cuota base: ${fmt(base)}`);
+      if (selectedMember.asistencial) items.push(`Asistencial: ${fmt(duesConfig.asistencial_fee)}`);
+      if (selectedMember.planSalud) items.push(`Plan Salud: ${fmt(duesConfig.plan_salud_fee)}`);
+      parts.push(`${selectedMember.nombre}: Cuota socio (${items.length > 0 ? items.join(" + ") : fmt(fee)})`);
+    }
+    if (periods.length > 0) {
+      const byYear: Record<string, string[]> = {};
+      for (const p of periods) {
+        const [y, m] = p.split("-");
+        if (!byYear[y]) byYear[y] = [];
+        byYear[y].push(MONTHS_SHORT[parseInt(m, 10) - 1]);
+      }
+      const periodStr = Object.entries(byYear)
+        .map(([year, months]) => `${months.join(", ")} ${year}`)
+        .join(" — ");
+      parts.push(`Período: ${periodStr}`);
+    }
+    return parts.join("\n");
+  }
+  if (concept === "Cementerio" && selectedCementerios.length > 0) {
+    const items = selectedCementerios.map((c) => {
+      const years = cementerioSelectedYears.get(c.id);
+      const yearList = years ? [...years].sort().join(", ") : "";
+      return `${c.nicho}${yearList ? ` (Años: ${yearList})` : ""}`;
+    });
+    return `Cementerio — ${items.join("; ")}`;
+  }
+  if (concept === "Servicios" && servicio) {
+    return `Servicio: ${servicio}${selectedServiceAmount != null ? ` (${fmt(selectedServiceAmount)})` : ""}`;
+  }
+  return undefined;
+}
 
 type FieldErrors = {
   socio?: string;
@@ -48,6 +118,8 @@ const NewMovement: React.FC = () => {
   const [servicio, setServicio] = useState("");
 
   const [duesConfig, setDuesConfig] = useState<DuesConfig | null>(null);
+  const [receiptCopiesDefaults, setReceiptCopiesDefaults] = useState<ReceiptCopiesDefaults>({});
+  const [ingresoConcepts, setIngresoConcepts] = useState<ReceiptConcept[]>([]);
   const [serviciosFromApi, setServiciosFromApi] = useState<ServiceItem[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [persons, setPersons] = useState<Person[]>([]);
@@ -99,6 +171,9 @@ const NewMovement: React.FC = () => {
 
   const [anotarEnCuenta, setAnotarEnCuenta] = useState(false);
 
+  const [comprobanteData, setComprobanteData] = useState<ComprobanteData | null>(null);
+  const [showComprobante, setShowComprobante] = useState(false);
+
   const memberSearchRef = useRef<HTMLDivElement>(null);
   const personSearchRef = useRef<HTMLDivElement>(null);
 
@@ -129,12 +204,18 @@ const NewMovement: React.FC = () => {
       fetchDuesConfig(),
       fetchServices(),
       fetchMembersDebtStatus(),
-    ]).then(([cfg, svcs, debt]) => {
+      fetchReceiptCopiesConfig(),
+      fetchReceiptConcepts(),
+    ]).then(([cfg, svcs, debt, receiptCfg, concepts]) => {
       if (mounted) {
         setDuesConfig(cfg);
         setServiciosFromApi(svcs);
         setDebtStatus(debt);
         setDebtLoading(false);
+        if (receiptCfg) {
+          setReceiptCopiesDefaults(receiptCfg.defaults);
+        }
+        setIngresoConcepts(concepts.filter((c) => c.type === "ingreso" && c.active));
       }
     }).catch(() => { if (mounted) setDebtLoading(false); });
     return () => { mounted = false; };
@@ -306,6 +387,14 @@ const NewMovement: React.FC = () => {
     if (member.asistencial) base += duesConfig.asistencial_fee;
     if (member.planSalud) base += duesConfig.plan_salud_fee;
     return base;
+  }, [duesConfig]);
+
+  const getExtrasOnlyFee = useCallback((member: Member): number => {
+    if (!duesConfig) return 0;
+    let extras = 0;
+    if (member.asistencial) extras += duesConfig.asistencial_fee;
+    if (member.planSalud) extras += duesConfig.plan_salud_fee;
+    return extras;
   }, [duesConfig]);
 
   const isFamilyExempt = useCallback((memberId: string): boolean => {
@@ -535,7 +624,7 @@ const NewMovement: React.FC = () => {
       if (familyPayment && selectedFamilyMembers.size > 0) {
         for (const fmId of selectedFamilyMembers) {
           const fm = familyMembers.find((m) => m.id === fmId);
-          if (fm && !isFamilyExempt(fmId)) total += getMemberFee(fm);
+          if (fm) total += isFamilyExempt(fmId) ? getExtrasOnlyFee(fm) : getMemberFee(fm);
         }
       } else if (selectedMember) {
         total = getMemberFee(selectedMember);
@@ -569,7 +658,7 @@ const NewMovement: React.FC = () => {
       if (familyPayment && selectedFamilyMembers.size > 0) {
         for (const fmId of selectedFamilyMembers) {
           const fm = familyMembers.find((m) => m.id === fmId);
-          if (fm && !isFamilyExempt(fmId)) total += getMemberFee(fm);
+          if (fm) total += isFamilyExempt(fmId) ? getExtrasOnlyFee(fm) : getMemberFee(fm);
         }
       } else if (selectedMember) {
         total = getMemberFee(selectedMember);
@@ -590,18 +679,34 @@ const NewMovement: React.FC = () => {
     setErrors((prev) => { if (!prev.period) return prev; const next = { ...prev }; delete next.period; return next; });
   }
 
-  const socioConcepts = useMemo(() => ["Cuota Socio", "Servicios", "Cementerio"], []);
-  const personaConcepts = ["Servicios", "Cementerio"];
+  const socioConcepts = useMemo(() =>
+    ingresoConcepts
+      .filter((c) => c.target === "socios" || c.target === "ambos")
+      .map((c) => c.name),
+    [ingresoConcepts]
+  );
+  const personaConcepts = useMemo(() =>
+    ingresoConcepts
+      .filter((c) => c.target === "personas" || c.target === "ambos")
+      .map((c) => c.name),
+    [ingresoConcepts]
+  );
   const currentConcepts = personType === "socio" ? socioConcepts : personaConcepts;
 
   if (personType !== prevPersonTypeForConcept) {
     setPrevPersonTypeForConcept(personType);
-    if (!currentConcepts.includes(concept)) {
+    if (currentConcepts.length > 0 && !currentConcepts.includes(concept)) {
       setConcept(currentConcepts[0]);
     }
   }
 
   const showServicioSelect = concept === "Servicios";
+
+  useEffect(() => {
+    if (currentConcepts.length > 0 && !currentConcepts.includes(concept)) {
+      setConcept(currentConcepts[0]);
+    }
+  }, [currentConcepts, concept]);
 
   const [prevShowServicioSelect, setPrevShowServicioSelect] = useState(showServicioSelect);
   if (prevShowServicioSelect !== showServicioSelect) {
@@ -826,8 +931,19 @@ const NewMovement: React.FC = () => {
             });
           }
         } else {
+          const receiptNumber = await fetchNextReceipt("ingreso");
           const { id: movementId } = await savePayment({
             date: fecha, detail, amount: importeNum, type: "ingreso", mode, concept: conceptLabel,
+          });
+
+          const conceptDetail = buildConceptDetail(concept, servicio, periods, familyPayment, selectedFamilyMembers, familyMembers, selectedMember, selectedCementerios, cementerioSelectedYears, duesConfig, getMemberFee, selectedServiceAmount);
+          await saveComprobante({
+            movement_id: movementId,
+            receipt_number: receiptNumber,
+            copies_to_print: receiptCopiesDefaults[conceptLabel] ?? 1,
+            detail: conceptDetail || detail,
+            concept: conceptLabel,
+            payer_name: payerName || null,
           });
 
           if (shouldCreateDue) {
@@ -909,10 +1025,19 @@ const NewMovement: React.FC = () => {
               date: fecha,
             });
           }
-        }
 
-        if (isEditing) navigate(`/tesoreria/movimientos/detalle/${id}`);
-        else {
+          setComprobanteData({
+            receipt_number: receiptNumber,
+            type: "ingreso",
+            date: fecha,
+            detail,
+            amount: importeNum,
+            origin: originLabel,
+            payerName: payerName || undefined,
+            copies_to_print: receiptCopiesDefaults[conceptLabel] ?? 1,
+            conceptDetail: conceptDetail || undefined,
+            paymentMethod: formaPagoLabel,
+          });
           setSuccess(true);
           setSelectedMember(null); setMemberSearch(""); setFamilyPayment(false);
           setFamilyMembers([]); setSelectedFamilyMembers(new Set());
@@ -922,6 +1047,8 @@ const NewMovement: React.FC = () => {
           setImporteStr(""); setDescripcion(""); setErrors({}); setTouched({}); setApiError(null);
           setAnotarEnCuenta(false);
         }
+
+        if (isEditing) navigate(`/tesoreria/movimientos/detalle/${id}`);
       } catch (err) {
         setApiError(err instanceof Error ? err.message : "Error al guardar el movimiento");
       } finally {
@@ -942,7 +1069,15 @@ const NewMovement: React.FC = () => {
 
   return (
     <form className="new-movement-container" onSubmit={handleSubmit} noValidate>
-      {success && <Banner type="success" message="Movimiento registrado correctamente" onClose={() => setSuccess(false)} />}
+      {success && (
+        <Banner
+          type="success"
+          message={`Movimiento registrado correctamente${comprobanteData ? ` — Comprobante N° ${String(comprobanteData.receipt_number).padStart(6, "0")}` : ""}`}
+          onClose={() => { setSuccess(false); setComprobanteData(null); }}
+          actionLabel={comprobanteData ? "Ver Comprobante" : undefined}
+          onAction={comprobanteData ? () => setShowComprobante(true) : undefined}
+        />
+      )}
       {apiError && <Banner type="error" message={apiError} onClose={() => setApiError(null)} />}
       {errors.period && (
         <Banner type="error" message={errors.period!} onClose={() => setErrors((prev) => { const n = { ...prev }; delete n.period; return n; })} />
@@ -996,6 +1131,7 @@ const NewMovement: React.FC = () => {
                 onToggleFamilyMember={handleToggleFamilyMember}
                 selectedMemberId={selectedMember.id}
                 getMemberFee={getMemberFee}
+                getExtrasOnlyFee={getExtrasOnlyFee}
                 isFamilyExempt={isFamilyExempt}
               />
             )}
@@ -1145,6 +1281,10 @@ const NewMovement: React.FC = () => {
         saving={savingService}
         onSave={handleSaveNewService}
       />
+
+      {showComprobante && comprobanteData && (
+        <Comprobante data={comprobanteData} onClose={() => setShowComprobante(false)} />
+      )}
     </form>
   );
 };

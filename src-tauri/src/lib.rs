@@ -111,16 +111,15 @@ pub fn run() {
 
             #[cfg(not(debug_assertions))]
             {
-                if !wait_for_port(3001, Duration::from_secs(10)) {
-                    eprintln!("[tauri] WARNING: API server did not start within 10 seconds");
-                } else {
+                if wait_for_port(3001, Duration::from_secs(10)) {
                     println!("[tauri] API server ready on port 3001");
-                }
-
-                if let Some(window) = app.get_webview_window("main") {
-                    window
-                        .eval("window.location.href = 'http://localhost:3001'")
-                        .ok();
+                    if let Some(window) = app.get_webview_window("main") {
+                        window
+                            .eval("window.location.href = 'http://localhost:3001'")
+                            .ok();
+                    }
+                } else {
+                    eprintln!("[tauri] ERROR: API server did not start within 10 seconds. The app will not work.");
                 }
             }
 

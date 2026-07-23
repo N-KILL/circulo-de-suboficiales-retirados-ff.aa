@@ -539,6 +539,24 @@ input[type="date"].form-control {
   opacity: 1;
 }
 
+.banner-action-btn {
+  margin-left: auto;
+  margin-right: 8px;
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.banner-action-btn:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -595,6 +613,7 @@ input[type="date"].form-control {
   font-size: 13px;
   cursor: pointer;
   transition: background 0.15s;
+  overflow: hidden;
 }
 
 .family-member-item:hover {
@@ -605,6 +624,7 @@ input[type="date"].form-control {
   width: 14px;
   height: 14px;
   accent-color: var(--azul-institucional);
+  flex: 0 0 auto;
 }
 
 .family-member-payer {
@@ -614,17 +634,27 @@ input[type="date"].form-control {
 
 .family-member-name {
   font-weight: 500;
+  flex: 3 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .family-member-socio {
   font-size: 11px;
   color: var(--muted);
+  flex: 3 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .family-member-tags {
   display: flex;
   gap: 4px;
-  margin-left: auto;
+  flex: 0 1 auto;
 }
 
 .family-tag {
@@ -676,6 +706,16 @@ input[type="date"].form-control {
   color: var(--azul-armada);
   min-width: 80px;
   text-align: right;
+}
+
+.family-member-right {
+  flex: 4 1 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .family-member-badge {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Loader, Plus, X, Eye } from "lucide-react";
+import { ArrowLeft, User, Loader, Plus, X, Eye, Pencil } from "lucide-react";
 import { useAuthStore } from "../../../store/authStore";
 import { fetchMemberById } from "../../../services/membersApi";
 import { fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
@@ -129,7 +129,10 @@ const DetalleSocio: React.FC = () => {
 
   return (
     <div className="detalle-container">
-      <button className="btn-back" onClick={() => navigate("/socios")}><ArrowLeft size={18} /> Volver a Socios</button>
+      <div className="detalle-actions-row">
+        <button className="btn-back" onClick={() => navigate("/socios")}><ArrowLeft size={18} /> Volver a Socios</button>
+        {canModify && <button className="btn-register-period" onClick={() => navigate(`/socios/editar/${id}`)}><Pencil size={16} /> Editar socio</button>}
+      </div>
 
       <div className="detalle-card">
         <div className="detalle-header">

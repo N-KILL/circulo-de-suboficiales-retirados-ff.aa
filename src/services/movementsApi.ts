@@ -1,3 +1,5 @@
+import type { ComprobanteRecord } from "./comprobantesApi";
+
 export interface DueLink {
     id: string;
     type: "socio" | "cementerio";
@@ -49,6 +51,7 @@ export interface Movement {
     type: "ingreso" | "egreso" | "transferencia";
     mode: "efectivo" | "transferencia";
     concept?: string | null;
+    comprobante?: ComprobanteRecord | null;
     linked_due?: DueLink | null;
     linked_service_records?: ServiceRecordLink[];
     linked_cementerio_movimientos?: CementerioMovimientoLink[];

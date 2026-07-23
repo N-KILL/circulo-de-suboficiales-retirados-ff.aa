@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Save, Loader, Trash2 } from "lucide-react";
 import { useMembersStore } from "../../../store/membersStore";
 import type { MembersState, Member } from "../../../models/members";
 import DateInput from "../../../components/ui/DateInput";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import { todayLocal } from "../../../utils/format";
 
 export interface MemberFormProps {
   isEditing: boolean;
@@ -30,6 +31,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
 }) => {
   const form = useMembersStore((s: MembersState) => s.form);
   const setField = useMembersStore((s: MembersState) => s.setField);
+  const [conBaja, setConBaja] = useState(() => form.fechaBaja !== "");
 
   const handleChange = (key: keyof Member, value: Member[keyof Member]) => setField(key, value);
 
@@ -310,6 +312,61 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <option>Baja</option>
               <option>Pensionado</option>
             </select>
+          </div>
+        </div>
+      )}
+
+      {isEditing && (
+        <div className="optional-section">
+          <h4 className="section-title">Baja</h4>
+          <div className="form-grid form-grid-3">
+            <div className="form-group">
+              <label className="checkbox-label" style={{ marginBottom: 4 }}>
+                <input
+                  type="checkbox"
+                  className="form-control-checkbox"
+                  checked={conBaja}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setConBaja(true);
+                      if (!form.fechaBaja) handleChange("fechaBaja", todayLocal());
+                    } else {
+                      setConBaja(false);
+                      handleChange("fechaBaja", "");
+                    }
+                  }}
+                />
+                Fecha de Baja
+              </label>
+              {conBaja && (
+                <DateInput
+                  id="fecha-baja"
+                  label=""
+                  value={form.fechaBaja}
+                  onChange={(v) => handleChange("fechaBaja", v)}
+                />
+              )}
+            </div>
+            <div className="form-group">
+              <label>&nbsp;</label>
+              <label className="checkbox-label" style={{ marginTop: 6 }}>
+                <input
+                  type="checkbox"
+                  className="form-control-checkbox"
+                  checked={form.fallecido}
+                  onChange={(e) => handleChange("fallecido", e.target.checked)}
+                />
+                Fallecido
+              </label>
+            </div>
+            <div className="form-group full-width">
+              <label>Motivo de Baja</label>
+              <input
+                className="form-control"
+                value={form.motivoBaja}
+                onChange={(e) => handleChange("motivoBaja", e.target.value)}
+              />
+            </div>
           </div>
         </div>
       )}

@@ -1,21 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Loader, ExternalLink } from "lucide-react";
+import { Loader } from "lucide-react";
 import "./NewMember.css";
 import { useMembersStore } from "../../../store/membersStore";
 import { fetchMemberById, deleteMember } from "../../../services/membersApi";
-import { fetchMembersDebtStatus } from "../../../services/membersDebtApi";
 import type { MembersState } from "../../../models/members";
 import MemberForm from "./MemberForm";
 import ApoderadoSection from "./ApoderadoSection";
-
-function monthsOwed(lastPeriod: string | null): number {
-  if (!lastPeriod) return -1;
-  const now = new Date();
-  const end = new Date(lastPeriod + "-01T00:00:00");
-  if (end >= now) return 0;
-  return (now.getFullYear() - end.getFullYear()) * 12 + (now.getMonth() - end.getMonth());
-}
 
 const NewMember: React.FC = () => {
   const navigate = useNavigate();
@@ -27,8 +18,6 @@ const NewMember: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [debtMonths, setDebtMonths] = useState<number | null>(null);
-
   const setForm = useMembersStore((s: MembersState) => s.setForm);
   const apoderado1 = useMembersStore((s: MembersState) => s.apoderado1);
   const apoderado2 = useMembersStore((s: MembersState) => s.apoderado2);
@@ -55,9 +44,6 @@ const NewMember: React.FC = () => {
       }).finally(() => {
         if (mounted) setLoading(false);
       });
-      fetchMembersDebtStatus().then((data) => {
-        if (mounted) setDebtMonths(monthsOwed(data.members[id] ?? null));
-      }).catch(() => {});
       return () => { mounted = false; };
     } else {
       reset();
@@ -85,7 +71,7 @@ const NewMember: React.FC = () => {
     try {
       await deleteMember(id);
       setShowConfirmDelete(false);
-      navigate(-1);
+      navigate("/socios");
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Error al eliminar");
       setShowConfirmDelete(false);
@@ -110,39 +96,7 @@ const NewMember: React.FC = () => {
           {fetchError}
         </div>
       )}
-      {isEditing && debtMonths !== null && !loading && !fetchError && (
-        <div
-          style={{
-            padding: "12px 16px",
-            borderRadius: 8,
-            marginBottom: 16,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            background: debtMonths === -1 || debtMonths === 0 ? "#f0fdf4" : "#fff3cd",
-            border: `1px solid ${debtMonths === -1 || debtMonths === 0 ? "#bbf7d0" : "#ffc107"}`,
-            color: debtMonths === -1 || debtMonths === 0 ? "#166534" : "#856404",
-          }}
-        >
-          <span style={{ fontWeight: 600 }}>
-            {debtMonths === -1
-              ? "No disp."
-              : debtMonths === 0
-                ? "Al día"
-                : `Debe ${debtMonths} meses`}
-          </span>
-          <button
-            type="button"
-            className="header-btn-sm"
-            onClick={() => window.open(`/socios/detalle/${id}`, "_blank")}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            <ExternalLink size={14} />
-            Ver detalles
-          </button>
-        </div>
-      )}
+
       {!loading && !fetchError && (
       <div className="new-member-layout">
         <div className="new-member-form-section">

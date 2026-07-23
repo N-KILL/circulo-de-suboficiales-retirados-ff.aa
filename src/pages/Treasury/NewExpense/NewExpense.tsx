@@ -1,14 +1,18 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { DollarSign, Save, Loader, Landmark, CreditCard, Info, Calendar, Trash2 } from "lucide-react";
 import { savePayment } from "../../../services/paymentsApi";
+import { fetchNextReceipt } from "../../../services/initialBalancesApi";
 import { fetchExternalServices, saveExternalServicePayment, type ExternalServiceItem } from "../../../services/externalServicesApi";
 import Banner from "../../../components/ui/Banner";
+import Comprobante, { type ComprobanteData } from "../../../components/comprobante/Comprobante";
+import { saveComprobante } from "../../../services/comprobantesApi";
+import { fetchReceiptCopiesConfig, fetchReceiptConcepts, type ReceiptCopiesDefaults } from "../../../services/receiptCopiesConfigApi";
 import DateInput from "../../../components/ui/DateInput";
 import { toCurrency, todayLocal } from "../../../utils/format";
 import "../NewMovement/NewMovement.css";
 import "./NewExpense.css";
 
-const EXPENSE_CONCEPTS = [
+const FALLBACK_EXPENSE_CONCEPTS = [
   "Sueldos",
   "Servicios",
   "Impuestos",
@@ -30,7 +34,7 @@ type FieldErrors = {
 
 const NewExpense: React.FC = () => {
   const [cajaOrigen, setCajaOrigen] = useState<"caja_chica" | "banco">("caja_chica");
-  const [concepto, setConcepto] = useState(EXPENSE_CONCEPTS[0]);
+  const [concepto, setConcepto] = useState(FALLBACK_EXPENSE_CONCEPTS[0]);
   const [fecha, setFecha] = useState(todayLocal());
   const [importeStr, setImporteStr] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -41,13 +45,24 @@ const NewExpense: React.FC = () => {
 
   const [externalServices, setExternalServices] = useState<ExternalServiceItem[]>([]);
   const [selectedExtService, setSelectedExtService] = useState<string>("");
+  const [receiptCopiesDefaults, setReceiptCopiesDefaults] = useState<ReceiptCopiesDefaults>({});
+  const [egresoConcepts, setEgresoConcepts] = useState<string[]>(FALLBACK_EXPENSE_CONCEPTS);
 
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
+  const [comprobanteData, setComprobanteData] = useState<ComprobanteData | null>(null);
+  const [showComprobante, setShowComprobante] = useState(false);
+
   const mode = cajaOrigen === "caja_chica" ? "efectivo" : "transferencia";
   const originLabel = cajaOrigen === "caja_chica" ? "Caja Chica" : "Banco";
   const formaPagoLabel = mode === "efectivo" ? "Efectivo" : "Transferencia";
+
+  useEffect(() => {
+    if (egresoConcepts.length > 0 && !egresoConcepts.includes(concepto)) {
+      setConcepto(egresoConcepts[0]);
+    }
+  }, [egresoConcepts, concepto]);
 
   useEffect(() => {
     if (concepto === "Pago de servicio externo" && externalServices.length === 0) {
@@ -56,6 +71,20 @@ const NewExpense: React.FC = () => {
         .catch(() => {});
     }
   }, [concepto, externalServices.length]);
+
+  useEffect(() => {
+    Promise.all([
+      fetchReceiptCopiesConfig(),
+      fetchReceiptConcepts(),
+    ]).then(([cfg, concepts]) => {
+      if (cfg) setReceiptCopiesDefaults(cfg.defaults);
+      const egresoNames = concepts
+        .filter((c) => c.type === "egreso" && c.active)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((c) => c.name);
+      if (egresoNames.length > 0) setEgresoConcepts(egresoNames);
+    }).catch(() => {});
+  }, []);
 
   const importeNum = useMemo(() => {
     const cleaned = importeStr.replace(/[^0-9,]/g, "").replace(",", ".");
@@ -84,6 +113,7 @@ const NewExpense: React.FC = () => {
       setSuccess(false);
 
       try {
+        const receiptNumber = await fetchNextReceipt("egreso");
         const svcName = externalServices.find((s) => s.id === selectedExtService)?.name;
         const detail = concepto === "Pago de servicio externo" && svcName
           ? `Pago servicio externo: ${svcName}${descripcion ? ` - ${descripcion}` : ""}`
@@ -105,6 +135,25 @@ const NewExpense: React.FC = () => {
           await saveExternalServicePayment(selectedExtService, month, year, importeNum, payment.id);
         }
 
+        await saveComprobante({
+          movement_id: payment.id,
+          receipt_number: receiptNumber,
+          copies_to_print: receiptCopiesDefaults[concepto] ?? 1,
+          detail: detail,
+          concept: concepto,
+          payer_name: null,
+        });
+
+        setComprobanteData({
+          receipt_number: receiptNumber,
+          type: "egreso",
+          date: fecha,
+          detail,
+          amount: importeNum,
+          origin: originLabel,
+          copies_to_print: receiptCopiesDefaults[concepto] ?? 1,
+          paymentMethod: formaPagoLabel,
+        });
         setSuccess(true);
         setImporteStr("");
         setDescripcion("");
@@ -117,12 +166,12 @@ const NewExpense: React.FC = () => {
         setSaving(false);
       }
     },
-    [validate, concepto, descripcion, fecha, importeNum, mode, selectedExtService, externalServices]
+    [validate, concepto, descripcion, fecha, importeNum, mode, selectedExtService, externalServices, originLabel]
   );
 
   const handleClearForm = useCallback(() => {
     setCajaOrigen("caja_chica");
-    setConcepto(EXPENSE_CONCEPTS[0]);
+    setConcepto(egresoConcepts[0]);
     setFecha(todayLocal());
     setImporteStr("");
     setDescripcion("");
@@ -131,11 +180,19 @@ const NewExpense: React.FC = () => {
     setTouched({});
     setApiError(null);
     setSuccess(false);
-  }, []);
+  }, [egresoConcepts]);
 
   return (
     <form className="new-movement-container" onSubmit={handleSubmit} noValidate>
-      {success && <Banner type="success" message="Egreso registrado correctamente" onClose={() => setSuccess(false)} />}
+      {success && (
+        <Banner
+          type="success"
+          message={`Egreso registrado correctamente${comprobanteData ? ` — Comprobante N° ${String(comprobanteData.receipt_number).padStart(6, "0")}` : ""}`}
+          onClose={() => { setSuccess(false); setComprobanteData(null); }}
+          actionLabel={comprobanteData ? "Ver Comprobante" : undefined}
+          onAction={comprobanteData ? () => setShowComprobante(true) : undefined}
+        />
+      )}
       {apiError && <Banner type="error" message={apiError} onClose={() => setApiError(null)} />}
 
       <div className="new-movement-layout">
@@ -181,7 +238,7 @@ const NewExpense: React.FC = () => {
                   }}
                   onBlur={() => { if (!concepto) setTouched((prev) => ({ ...prev, concepto: true })); }}
                 >
-                  {EXPENSE_CONCEPTS.map((c) => (
+                  {egresoConcepts.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
@@ -327,6 +384,10 @@ const NewExpense: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showComprobante && comprobanteData && (
+        <Comprobante data={comprobanteData} onClose={() => setShowComprobante(false)} />
+      )}
     </form>
   );
 };

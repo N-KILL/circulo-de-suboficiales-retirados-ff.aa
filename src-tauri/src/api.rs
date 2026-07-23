@@ -28,6 +28,9 @@ pub fn api_router() -> Router<AppState> {
         .route("/api/person", get(get_person).post(upsert_person).delete(delete_person))
         .route("/api/person-members", get(get_person_members))
         .route("/api/payment", post(create_payment))
+        .route("/api/receipt/next", post(next_receipt_number))
+        .route("/api/comprobante", get(get_comprobante).post(insert_comprobante))
+        .route("/api/receipt-copies-config", get(get_receipt_copies_config).post(save_receipt_copies_config))
         .route("/api/cementerios", get(get_cementerios).patch(update_cementerio))
         .route("/api/dues", get(get_dues).post(insert_due))
         .route("/api/dues-config", get(get_dues_config).post(upsert_dues_config))
@@ -58,23 +61,35 @@ fn row_to_json(row: &sqlx::postgres::PgRow) -> Value {
         let value: Value = match column.type_info().name() {
             "BOOL" => row.try_get::<bool, _>(idx).map(Value::Bool).unwrap_or(Value::Null),
             "INT4" | "INT8" | "SERIAL" => row.try_get::<i32, _>(idx).map(|v| Value::Number(v.into())).unwrap_or(Value::Null),
-            "FLOAT4" | "FLOAT8" | "NUMERIC" => {
-                row.try_get::<String, _>(idx)
-                    .map(|s| {
-                        s.parse::<f64>()
-                            .map(|f| {
-                                serde_json::Number::from_f64(f)
-                                    .map(Value::Number)
-                                    .unwrap_or(Value::String(s.clone()))
-                            })
-                            .unwrap_or(Value::String(s))
+            "FLOAT4" | "FLOAT8" => {
+                row.try_get::<f64, _>(idx)
+                    .map(|f| {
+                        serde_json::Number::from_f64(f)
+                            .map(Value::Number)
+                            .unwrap_or(Value::Null)
+                    })
+                    .unwrap_or(Value::Null)
+            }
+            "NUMERIC" => {
+                row.try_get::<rust_decimal::Decimal, _>(idx)
+                    .map(|d| {
+                        let f: f64 = d.to_string().parse().unwrap_or(0.0);
+                        serde_json::Number::from_f64(f)
+                            .map(Value::Number)
+                            .unwrap_or(Value::String(d.to_string()))
                     })
                     .unwrap_or(Value::Null)
             }
             "UUID" => row.try_get::<uuid::Uuid, _>(idx).map(|v| Value::String(v.to_string())).unwrap_or(Value::Null),
-            "DATE" | "TIMESTAMPTZ" | "TIMESTAMP" => {
-                row.try_get::<sqlx::types::JsonValue, _>(idx)
-                    .or_else(|_| row.try_get::<String, _>(idx).map(|s| serde_json::Value::String(s)))
+            "DATE" => {
+                row.try_get::<chrono::NaiveDate, _>(idx)
+                    .map(|d| Value::String(d.to_string()))
+                    .unwrap_or(Value::Null)
+            }
+            "TIMESTAMPTZ" | "TIMESTAMP" => {
+                row.try_get::<chrono::NaiveDateTime, _>(idx)
+                    .map(|dt| Value::String(dt.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string()))
+                    .or_else(|_| row.try_get::<String, _>(idx).map(Value::String))
                     .unwrap_or(Value::Null)
             }
             "JSONB" | "JSON" => row.try_get::<Value, _>(idx).unwrap_or(Value::Null),
@@ -143,17 +158,158 @@ struct ServiceRecordQuery {
     movement_id: Option<String>, movementId: Option<String>,
 }
 
+fn str_col(row: &sqlx::postgres::PgRow, col: &str) -> String {
+    row.try_get::<Option<String>, _>(col).ok().flatten().unwrap_or_default()
+}
+
+fn bool_col(row: &sqlx::postgres::PgRow, col: &str) -> bool {
+    row.try_get::<Option<bool>, _>(col).ok().flatten().unwrap_or(false)
+}
+
+fn opt_str_col(row: &sqlx::postgres::PgRow, col: &str) -> Option<String> {
+    row.try_get::<Option<String>, _>(col).ok().flatten()
+}
+
+fn map_sexo(raw: &str) -> String {
+    match raw { "M" | "m" => "Masculino", "F" | "f" => "Femenino", _ => raw }.to_string()
+}
+
+fn unmap_sexo(raw: &str) -> String {
+    match raw { "Masculino" => "M", "Femenino" => "F", _ => raw }.to_string()
+}
+
+fn map_tipo_socio(raw: &str) -> String {
+    match raw {
+        "ACT" => "Activo",
+        "ACT A" | "ACT \"A\"" => "Activo Tipo A",
+        "ADH" => "Adherente",
+        "HON" => "Honorario",
+        "PART" => "Participante",
+        "VIT" => "Vitalicio",
+        _ => raw,
+    }.to_string()
+}
+
+fn unmap_tipo_socio(raw: &str) -> String {
+    match raw {
+        "Activo" => "ACT",
+        "Activo Tipo A" => "ACT A",
+        "Adherente" => "ADH",
+        "Honorario" => "HON",
+        "Participante" => "PART",
+        "Vitalicio" => "VIT",
+        _ => raw,
+    }.to_string()
+}
+
+fn map_estado(raw: &str) -> String {
+    match raw {
+        "" => "En servicio",
+        "(R)" | "RET" => "Retirado",
+        "Baja" => "Baja",
+        "PENS" => "Pensionado",
+        _ => raw,
+    }.to_string()
+}
+
+fn unmap_estado(raw: &str) -> String {
+    match raw {
+        "En servicio" => "",
+        "Retirado" => "RET",
+        "Baja" => "Baja",
+        "Pensionado" => "PENS",
+        _ => raw,
+    }.to_string()
+}
+
+fn fecha_to_display(raw: &str) -> String {
+    if raw.is_empty() { return String::new(); }
+    if raw.len() == 10 && raw.as_bytes()[4] == b'-' { return raw.to_string(); }
+    if raw.len() >= 10 && raw.as_bytes()[2] == b'/' && raw.as_bytes()[5] == b'/' {
+        let d = &raw[0..2];
+        let m = &raw[3..5];
+        let y = &raw[6..10];
+        return format!("{}-{}-{}", y, m, d);
+    }
+    raw.to_string()
+}
+
+fn fecha_to_db(raw: &str) -> String {
+    if raw.is_empty() { return String::new(); }
+    if raw.len() >= 10 && raw.as_bytes()[2] == b'/' && raw.as_bytes()[5] == b'/' { return raw.to_string(); }
+    if raw.len() == 10 && raw.as_bytes()[4] == b'-' {
+        let y = &raw[0..4];
+        let m = &raw[5..7];
+        let d = &raw[8..10];
+        return format!("{}/{}/{}", d, m, y);
+    }
+    raw.to_string()
+}
+
+fn person_json(row: &sqlx::postgres::PgRow, prefix: &str) -> Value {
+    let nombre = str_col(row, &format!("{}_nombre", prefix));
+    if nombre.trim().is_empty() { return Value::Null; }
+    json!({
+        "id": opt_str_col(row, &format!("{}_id", prefix)).unwrap_or_default(),
+        "nombre": nombre,
+        "tipoDoc": str_col(row, &format!("{}_tipo_doc", prefix)),
+        "documento": str_col(row, &format!("{}_documento", prefix)),
+        "domicilio": str_col(row, &format!("{}_domicilio", prefix)),
+        "telefono": str_col(row, &format!("{}_telefono", prefix)),
+    })
+}
+
+fn row_to_member_json(row: &sqlx::postgres::PgRow) -> Value {
+    json!({
+        "id": str_col(row, "id"),
+        "numeroDeSocio": str_col(row, "numero_de_socio"),
+        "nombre": str_col(row, "nombre"),
+        "sexo": map_sexo(&str_col(row, "sexo")),
+        "residencia": str_col(row, "residencia"),
+        "nroFamilia": str_col(row, "nro_familia"),
+        "nroFamAFall": str_col(row, "nro_fam_a_fall"),
+        "tipoDoc": str_col(row, "tipo_doc"),
+        "documento": str_col(row, "documento"),
+        "cuil": str_col(row, "cuil"),
+        "tipoSocio": map_tipo_socio(&str_col(row, "tipo_socio")),
+        "fechaNac": fecha_to_display(&str_col(row, "fecha_nac")),
+        "edad": str_col(row, "edad"),
+        "codPostal": str_col(row, "cod_postal"),
+        "localidad": str_col(row, "localidad"),
+        "domicilio": str_col(row, "domicilio"),
+        "email": str_col(row, "email"),
+        "telefono": str_col(row, "telefono"),
+        "asistencial": bool_col(row, "asistencial"),
+        "planSalud": bool_col(row, "plan_salud"),
+        "militar": bool_col(row, "militar"),
+        "fuerza": str_col(row, "fuerza"),
+        "grado": str_col(row, "grado"),
+        "estado": map_estado(&str_col(row, "estado")),
+        "fechaIngreso": fecha_to_display(&str_col(row, "fecha_ingreso")),
+        "fechaBaja": fecha_to_display(&str_col(row, "fecha_baja")),
+        "motivoBaja": str_col(row, "motivo_baja"),
+        "cobraIAF": str_col(row, "cobra_iaf"),
+        "pagaPor": str_col(row, "paga_por"),
+        "depositarEn": opt_str_col(row, "depositar_en"),
+        "cementerio": str_col(row, "cementerio"),
+        "fallecido": bool_col(row, "fallecido"),
+        "apoderado1": person_json(row, "apoderado1"),
+        "apoderado2": person_json(row, "apoderado2"),
+    })
+}
+
 async fn get_members(State(db): State<AppState>) -> Result<Json<Value>, ErrResponse> {
     let rows = sqlx::query(
-        "SELECT m.*, ap1.nombre AS apoderado1_nombre, ap1.tipo_doc AS apoderado1_tipo_doc,
+        "SELECT m.*, ap1.id AS apoderado1_id, ap1.nombre AS apoderado1_nombre, ap1.tipo_doc AS apoderado1_tipo_doc,
          ap1.documento AS apoderado1_documento, ap1.domicilio AS apoderado1_domicilio, ap1.telefono AS apoderado1_telefono,
-         ap2.nombre AS apoderado2_nombre, ap2.tipo_doc AS apoderado2_tipo_doc,
+         ap2.id AS apoderado2_id, ap2.nombre AS apoderado2_nombre, ap2.tipo_doc AS apoderado2_tipo_doc,
          ap2.documento AS apoderado2_documento, ap2.domicilio AS apoderado2_domicilio, ap2.telefono AS apoderado2_telefono
          FROM members m LEFT JOIN persons ap1 ON m.apoderado1_id = ap1.id
          LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id
          ORDER BY NULLIF(regexp_replace(m.numero_de_socio, '[^0-9]', '', 'g'), '')::int NULLS LAST, m.numero_de_socio"
     ).fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-    Ok(Json(rows_to_json(&rows)))
+    let members: Vec<Value> = rows.iter().map(|r| row_to_member_json(r)).collect();
+    Ok(Json(Value::Array(members)))
 }
 
 async fn get_members_family(
@@ -161,18 +317,34 @@ async fn get_members_family(
     Query(q): Query<MemberIdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let member_id = q.member_id.or(q.memberId).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta memberId"))?;
+    let current = sqlx::query("SELECT nro_familia, numero_de_socio FROM members WHERE id = $1 LIMIT 1")
+        .bind(&member_id).fetch_optional(&db.pool).await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let current = current.ok_or_else(|| err(StatusCode::NOT_FOUND, "Socio no encontrado"))?;
+    let raw = opt_str_col(&current, "nro_familia").unwrap_or_default();
+    let numero = str_col(&current, "numero_de_socio");
+    let nro = raw.trim();
+    let family_group = if !nro.is_empty() {
+        nro.split('/').next().unwrap_or(nro).to_string()
+    } else {
+        numero.split('/').next().unwrap_or("").to_string()
+    };
+    if family_group.is_empty() {
+        return Ok(Json(Value::Array(vec![])));
+    }
+    let like_pattern = format!("{}/%", family_group);
     let rows = sqlx::query(
-        "SELECT m.*, ap1.nombre AS apoderado1_nombre, ap1.tipo_doc AS apoderado1_tipo_doc,
+        "SELECT m.*, ap1.id AS apoderado1_id, ap1.nombre AS apoderado1_nombre, ap1.tipo_doc AS apoderado1_tipo_doc,
          ap1.documento AS apoderado1_documento, ap1.domicilio AS apoderado1_domicilio, ap1.telefono AS apoderado1_telefono,
-         ap2.nombre AS apoderado2_nombre, ap2.tipo_doc AS apoderado2_tipo_doc,
+         ap2.id AS apoderado2_id, ap2.nombre AS apoderado2_nombre, ap2.tipo_doc AS apoderado2_tipo_doc,
          ap2.documento AS apoderado2_documento, ap2.domicilio AS apoderado2_domicilio, ap2.telefono AS apoderado2_telefono
          FROM members m LEFT JOIN persons ap1 ON m.apoderado1_id = ap1.id
          LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id
          WHERE m.nro_familia LIKE $1 OR m.nro_familia = $2 ORDER BY m.numero_de_socio"
-    ).bind(format!("%/{}", member_id))
-     .bind(&member_id)
+    ).bind(&like_pattern).bind(&family_group)
      .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-    Ok(Json(rows_to_json(&rows)))
+    let members: Vec<Value> = rows.iter().map(|r| row_to_member_json(r)).collect();
+    Ok(Json(Value::Array(members)))
 }
 
 async fn get_members_debt_status(
@@ -263,7 +435,9 @@ async fn get_movement(
     Query(q): Query<IdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    let row = sqlx::query("SELECT * FROM petty_cash WHERE id = $1").bind(&id)
+    let row = sqlx::query(
+        "SELECT id, date::text, detail, amount::float8 as amount, type, mode, concept, created_at::text FROM petty_cash WHERE id = $1"
+    ).bind(&id)
         .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let movement = row.ok_or_else(|| err(StatusCode::NOT_FOUND, "No encontrado"))?;
     let due = sqlx::query("SELECT * FROM dues WHERE movement_id = $1").bind(&id)
@@ -272,11 +446,16 @@ async fn get_movement(
         .fetch_all(&db.pool).await.ok().map(|r| rows_to_json(&r)).unwrap_or(json!([]));
     let cm = sqlx::query("SELECT * FROM cementerio_movimientos WHERE movement_id = $1").bind(&id)
         .fetch_all(&db.pool).await.ok().map(|r| rows_to_json(&r)).unwrap_or(json!([]));
+    let comprobante_row = sqlx::query(
+        "SELECT id, movement_id::text, receipt_number, copies_to_print, detail, concept, payer_name, created_at::text FROM comprobantes WHERE movement_id = $1 ORDER BY created_at DESC LIMIT 1"
+    ).bind(&id)
+        .fetch_optional(&db.pool).await.ok().flatten().map(|r| row_to_json(&r));
     let mut result = row_to_json(&movement);
     if let Some(obj) = result.as_object_mut() {
         obj.insert("linked_due".into(), due.unwrap_or(Value::Null));
         obj.insert("linked_service_records".into(), sr);
         obj.insert("linked_cementerio_movimientos".into(), cm);
+        obj.insert("comprobante".into(), comprobante_row.unwrap_or(Value::Null));
     }
     Ok(Json(result))
 }
@@ -336,17 +515,59 @@ async fn delete_movement(
 async fn get_movements(
     State(db): State<AppState>,
 ) -> Result<Json<Value>, ErrResponse> {
-    let rows = sqlx::query("SELECT * FROM petty_cash ORDER BY date DESC")
+    let rows = sqlx::query(
+        "SELECT id, date::text, detail, amount::float8 as amount, type, mode, concept, created_at::text FROM petty_cash ORDER BY date DESC"
+    )
         .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-    Ok(Json(rows_to_json(&rows)))
+
+    let movement_ids: Vec<String> = rows.iter()
+        .filter_map(|r| r.try_get::<uuid::Uuid, _>("id").ok().map(|v| v.to_string()))
+        .collect();
+
+    let comprobantes_value: Value = if !movement_ids.is_empty() {
+        sqlx::query(
+            "SELECT id, movement_id::text, receipt_number, copies_to_print, detail, concept, payer_name, created_at::text FROM comprobantes WHERE movement_id = ANY($1)"
+        )
+            .bind(&movement_ids)
+            .fetch_all(&db.pool).await
+            .map(|r| rows_to_json(&r))
+            .unwrap_or(json!([]))
+    } else {
+        json!([])
+    };
+
+    let mut comprobante_map: std::collections::HashMap<String, Value> = std::collections::HashMap::new();
+    if let Some(arr) = comprobantes_value.as_array() {
+        for c in arr {
+            if let Some(mid) = c.get("movement_id").and_then(|v| v.as_str()) {
+                comprobante_map.insert(mid.to_string(), c.clone());
+            }
+        }
+    }
+
+    let movements: Vec<Value> = rows.iter().map(|r| {
+        let mut movement = row_to_json(r);
+        if let Some(obj) = movement.as_object_mut() {
+            let mid = obj.get("id").and_then(|v| v.as_str()).unwrap_or("");
+            let comprobante = comprobante_map.get(mid).cloned().unwrap_or(Value::Null);
+            obj.insert("comprobante".into(), comprobante);
+        }
+        movement
+    }).collect();
+
+    Ok(Json(Value::Array(movements)))
 }
 
 async fn get_initial_balances(
     State(db): State<AppState>,
 ) -> Result<Json<Value>, ErrResponse> {
-    let rows = sqlx::query("SELECT * FROM initial_balances")
-        .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-    Ok(Json(rows_to_json(&rows)))
+    let row = sqlx::query(
+        "SELECT id, caja_chica::float as caja_chica, banco::float as banco,
+         comprobante_ingreso, comprobante_egreso
+         FROM initial_balances LIMIT 1"
+    )
+    .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    Ok(Json(row.map(|r| row_to_json(&r)).unwrap_or(Value::Null)))
 }
 
 async fn upsert_initial_balances(
@@ -355,11 +576,22 @@ async fn upsert_initial_balances(
 ) -> Result<Json<Value>, ErrResponse> {
     let caja = body.get("caja_chica").and_then(|v| v.as_f64()).unwrap_or(0.0);
     let banco = body.get("banco").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    sqlx::query(
-        "INSERT INTO initial_balances (id, caja_chica, banco) VALUES ('caja_chica', $1, 'banco'), ('banco', $2, 'banco')
-         ON CONFLICT (id) DO UPDATE SET caja_chica = EXCLUDED.caja_chica, banco = EXCLUDED.banco"
-    ).bind(caja).bind(banco).execute(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-    Ok(Json(json!({ "success": true })))
+    let ci = body.get("comprobante_ingreso").and_then(|v| v.as_i64()).map(|v| v as i32);
+    let ce = body.get("comprobante_egreso").and_then(|v| v.as_i64()).map(|v| v as i32);
+    let row = sqlx::query(
+        "INSERT INTO initial_balances (id, caja_chica, banco, comprobante_ingreso, comprobante_egreso)
+         VALUES ('00000000-0000-0000-0000-000000000001', $1, $2, COALESCE($3, 1), COALESCE($4, 1))
+         ON CONFLICT (id) DO UPDATE SET
+         caja_chica = EXCLUDED.caja_chica,
+         banco = EXCLUDED.banco,
+         comprobante_ingreso = COALESCE($3, initial_balances.comprobante_ingreso),
+         comprobante_egreso = COALESCE($4, initial_balances.comprobante_egreso),
+         updated_at = NOW()
+         RETURNING id, caja_chica::float as caja_chica, banco::float as banco,
+         comprobante_ingreso, comprobante_egreso"
+    ).bind(caja).bind(banco).bind(ci).bind(ce)
+     .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    Ok(Json(row.map(|r| row_to_json(&r)).unwrap_or(json!({ "success": true }))))
 }
 
 async fn get_member(
@@ -368,14 +600,14 @@ async fn get_member(
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
     let row = sqlx::query(
-        "SELECT m.*, ap1.nombre AS apoderado1_nombre, ap1.tipo_doc AS apoderado1_tipo_doc,
+        "SELECT m.*, ap1.id AS apoderado1_id, ap1.nombre AS apoderado1_nombre, ap1.tipo_doc AS apoderado1_tipo_doc,
          ap1.documento AS apoderado1_documento, ap1.domicilio AS apoderado1_domicilio, ap1.telefono AS apoderado1_telefono,
-         ap2.nombre AS apoderado2_nombre, ap2.tipo_doc AS apoderado2_tipo_doc,
+         ap2.id AS apoderado2_id, ap2.nombre AS apoderado2_nombre, ap2.tipo_doc AS apoderado2_tipo_doc,
          ap2.documento AS apoderado2_documento, ap2.domicilio AS apoderado2_domicilio, ap2.telefono AS apoderado2_telefono
          FROM members m LEFT JOIN persons ap1 ON m.apoderado1_id = ap1.id
          LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id WHERE m.id = $1 LIMIT 1"
     ).bind(&id).fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-    row.ok_or_else(|| err(StatusCode::NOT_FOUND, "No encontrado")).map(|r| Json(row_to_json(&r)))
+    row.ok_or_else(|| err(StatusCode::NOT_FOUND, "No encontrado")).map(|r| Json(row_to_member_json(&r)))
 }
 
 async fn upsert_member(
@@ -389,6 +621,12 @@ async fn upsert_member(
     let id = body.get("id").and_then(|v| v.as_str()).unwrap_or("");
     let numero = ns.unwrap();
     let nombre = body.get("nombre").and_then(|v| v.as_str()).unwrap_or("");
+    let sexo = unmap_sexo(&body_str(body.get("sexo")).unwrap_or_default());
+    let tipo_socio = unmap_tipo_socio(&body_str(body.get("tipoSocio")).unwrap_or_default());
+    let estado = unmap_estado(&body_str(body.get("estado")).unwrap_or_default());
+    let fecha_nac = fecha_to_db(&body_str(body.get("fechaNac")).unwrap_or_default());
+    let fecha_ingreso = fecha_to_db(&body_str(body.get("fechaIngreso")).unwrap_or_default());
+    let fecha_baja = fecha_to_db(&body_str(body.get("fechaBaja")).unwrap_or_default());
     sqlx::query(
         "INSERT INTO members (id, numero_de_socio, nombre, sexo, residencia, nro_familia, nro_fam_a_fall,
          tipo_doc, documento, cuil, tipo_socio, fecha_nac, edad, cod_postal, localidad, domicilio, email, telefono,
@@ -409,17 +647,18 @@ async fn upsert_member(
          apoderado1_id=EXCLUDED.apoderado1_id, apoderado2_id=EXCLUDED.apoderado2_id, updated_at=NOW()"
     )
     .bind(id).bind(numero).bind(nombre)
-    .bind(body_str(body.get("sexo"))).bind(body_str(body.get("residencia"))).bind(body_str(body.get("nroFamilia")))
+    .bind(&sexo).bind(body_str(body.get("residencia"))).bind(body_str(body.get("nroFamilia")))
     .bind(body_str(body.get("nroFamAFall"))).bind(body_str(body.get("tipoDoc"))).bind(body_str(body.get("documento")))
-    .bind(body_str(body.get("cuil"))).bind(body_str(body.get("tipoSocio"))).bind(body_str(body.get("fechaNac")))
+    .bind(body_str(body.get("cuil"))).bind(&tipo_socio).bind(&fecha_nac)
     .bind(body_str(body.get("edad"))).bind(body_str(body.get("codPostal"))).bind(body_str(body.get("localidad")))
     .bind(body_str(body.get("domicilio"))).bind(body_str(body.get("email"))).bind(body_str(body.get("telefono")))
     .bind(body_bool(body.get("asistencial"))).bind(body_bool(body.get("planSalud"))).bind(body_bool(body.get("militar")))
-    .bind(body_str(body.get("fuerza"))).bind(body_str(body.get("grado"))).bind(body_str(body.get("estado")))
-    .bind(body_str(body.get("fechaIngreso"))).bind(body_str(body.get("fechaBaja"))).bind(body_str(body.get("motivoBaja")))
-    .bind(body_str(body.get("cobraIaf"))).bind(body_str(body.get("pagaPor"))).bind(body_str(body.get("depositarEn")))
+    .bind(body_str(body.get("fuerza"))).bind(body_str(body.get("grado"))).bind(&estado)
+    .bind(&fecha_ingreso).bind(&fecha_baja).bind(body_str(body.get("motivoBaja")))
+    .bind(body_str(body.get("cobraIAF"))).bind(body_str(body.get("pagaPor"))).bind(body_str(body.get("depositarEn")))
     .bind(body_str(body.get("cementerio"))).bind(body_bool(body.get("fallecido")))
-    .bind(body_str(body.get("apoderado1Id"))).bind(body_str(body.get("apoderado2Id")))
+    .bind(body_str(body.get("apoderado1").and_then(|a| a.get("id"))).or_else(|| body_str(body.get("apoderado1Id"))))
+    .bind(body_str(body.get("apoderado2").and_then(|a| a.get("id"))).or_else(|| body_str(body.get("apoderado2Id"))))
     .execute(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
 }
@@ -483,7 +722,15 @@ async fn get_person_members(
         "SELECT m.* FROM members m WHERE m.apoderado1_id = $1 OR m.apoderado2_id = $1 ORDER BY m.numero_de_socio"
     ).bind(&person_id).fetch_all(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-    Ok(Json(rows_to_json(&rows)))
+    let members: Vec<Value> = rows.iter().map(|r| {
+        let full = row_to_member_json(r);
+        json!({
+            "id": full.get("id"),
+            "numeroDeSocio": full.get("numeroDeSocio"),
+            "nombre": full.get("nombre"),
+        })
+    }).collect();
+    Ok(Json(Value::Array(members)))
 }
 
 async fn create_payment(
@@ -1039,6 +1286,147 @@ async fn delete_ext_service_payment(
         .bind(service_id).bind(month).bind(year).execute(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
+}
+
+async fn next_receipt_number(
+    State(db): State<AppState>,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ErrResponse> {
+    let receipt_type = body.get("type").and_then(|v| v.as_str())
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta type"))?;
+    let column = match receipt_type {
+        "ingreso" => "comprobante_ingreso",
+        "egreso" => "comprobante_egreso",
+        _ => return Err(err(StatusCode::BAD_REQUEST, "Tipo inválido (ingreso o egreso)")),
+    };
+    let q_str = format!(
+        "UPDATE initial_balances SET {column} = {column} + 1, updated_at = NOW()
+         WHERE id = '00000000-0000-0000-0000-000000000001'
+         RETURNING {column} - 1 AS receipt_number"
+    );
+    let row = sqlx::query(&q_str)
+        .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let number = row.and_then(|r| r.try_get::<i32, _>("receipt_number").ok()).unwrap_or(1);
+    Ok(Json(json!({ "receipt_number": number })))
+}
+
+async fn get_comprobante(
+    State(db): State<AppState>,
+    Query(q): Query<MovementIdQuery>,
+) -> Result<Json<Value>, ErrResponse> {
+    let movement_id = q.movement_id.or(q.movementId)
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta movementId"))?;
+    let row = sqlx::query(
+        "SELECT * FROM comprobantes WHERE movement_id = $1 ORDER BY created_at DESC LIMIT 1"
+    ).bind(&movement_id).fetch_optional(&db.pool).await
+     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    Ok(Json(row.map(|r| row_to_json(&r)).unwrap_or(Value::Null)))
+}
+
+async fn insert_comprobante(
+    State(db): State<AppState>,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ErrResponse> {
+    let movement_id = body.get("movement_id").and_then(|v| v.as_str())
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta movement_id"))?;
+    let receipt_number = body.get("receipt_number").and_then(|v| v.as_i64())
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta receipt_number"))? as i32;
+    let detail = body.get("detail").and_then(|v| v.as_str())
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta detail"))?;
+    let copies = body.get("copies_to_print").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+    let concept = body.get("concept").and_then(|v| v.as_str());
+    let payer_name = body.get("payer_name").and_then(|v| v.as_str());
+    let row = sqlx::query(
+        "INSERT INTO comprobantes (movement_id, receipt_number, copies_to_print, detail, concept, payer_name)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"
+    ).bind(movement_id).bind(receipt_number).bind(copies).bind(detail)
+     .bind(concept).bind(payer_name)
+     .fetch_one(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let id = row.try_get::<uuid::Uuid, _>("id").ok().map(|v| v.to_string());
+    Ok(Json(json!({ "success": true, "id": id })))
+}
+
+async fn get_receipt_copies_config(
+    State(db): State<AppState>,
+) -> Result<Json<Value>, ErrResponse> {
+    let rows = sqlx::query(
+        "SELECT rc.id, rc.type, rc.name, rc.target, rc.sort_order, rc.active,
+         COALESCE(rcc.copies_to_print, 1) as copies_to_print
+         FROM receipt_concepts rc
+         LEFT JOIN receipt_copies_config rcc ON rcc.concept_id = rc.id
+         ORDER BY rc.type, rc.sort_order"
+    ).fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    Ok(Json(json!({ "concepts": rows_to_json(&rows) })))
+}
+
+async fn save_receipt_copies_config(
+    State(db): State<AppState>,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ErrResponse> {
+    let concepts = body.get("concepts").and_then(|v| v.as_array())
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta concepts"))?;
+
+    let existing_rows = sqlx::query("SELECT id FROM receipt_concepts")
+        .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let existing_set: std::collections::HashSet<String> = existing_rows.iter()
+        .filter_map(|r| r.try_get::<uuid::Uuid, _>("id").ok().map(|v| v.to_string()))
+        .collect();
+    let incoming_ids: std::collections::HashSet<String> = concepts.iter()
+        .filter_map(|c| c.get("id").and_then(|v| v.as_str()).map(String::from))
+        .collect();
+
+    for id in &existing_set {
+        if !incoming_ids.contains(id.as_str()) {
+            sqlx::query("DELETE FROM receipt_copies_config WHERE concept_id = $1").bind(id)
+                .execute(&db.pool).await.ok();
+            sqlx::query("DELETE FROM receipt_concepts WHERE id = $1").bind(id)
+                .execute(&db.pool).await.ok();
+        }
+    }
+
+    for c in concepts {
+        let id = c.get("id").and_then(|v| v.as_str());
+        let name = c.get("name").and_then(|v| v.as_str()).unwrap_or("");
+        let ctype = c.get("type").and_then(|v| v.as_str()).unwrap_or("egreso");
+        let target = c.get("target").and_then(|v| v.as_str()).unwrap_or("ambos");
+        let sort_order = c.get("sort_order").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+        let active = c.get("active").and_then(|v| v.as_bool()).unwrap_or(true);
+        let copies = c.get("copies_to_print").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+
+        if let Some(exist_id) = id {
+            if existing_set.contains(exist_id) {
+                sqlx::query(
+                    "UPDATE receipt_concepts SET name=$1, type=$2, target=$3, sort_order=$4, active=$5 WHERE id=$6"
+                ).bind(name).bind(ctype).bind(target).bind(sort_order).bind(active).bind(exist_id)
+                 .execute(&db.pool).await.ok();
+                sqlx::query(
+                    "INSERT INTO receipt_copies_config (concept_id, copies_to_print)
+                     VALUES ($1, $2) ON CONFLICT (concept_id) DO UPDATE SET copies_to_print = EXCLUDED.copies_to_print"
+                ).bind(exist_id).bind(copies).execute(&db.pool).await.ok();
+                continue;
+            }
+        }
+        let row = sqlx::query(
+            "INSERT INTO receipt_concepts (type, name, target, sort_order, active)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id"
+        ).bind(ctype).bind(name).bind(target).bind(sort_order).bind(active)
+         .fetch_one(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        let new_id = row.try_get::<uuid::Uuid, _>("id").ok().map(|v| v.to_string());
+        if let Some(nid) = new_id {
+            sqlx::query(
+                "INSERT INTO receipt_copies_config (concept_id, copies_to_print) VALUES ($1, $2)"
+            ).bind(&nid).bind(copies).execute(&db.pool).await.ok();
+        }
+    }
+
+    let rows = sqlx::query(
+        "SELECT rc.id, rc.type, rc.name, rc.target, rc.sort_order, rc.active,
+         COALESCE(rcc.copies_to_print, 1) as copies_to_print
+         FROM receipt_concepts rc
+         LEFT JOIN receipt_copies_config rcc ON rcc.concept_id = rc.id
+         ORDER BY rc.type, rc.sort_order"
+    ).fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    Ok(Json(json!({ "concepts": rows_to_json(&rows) })))
 }
 
 fn body_str(v: Option<&Value>) -> Option<String> {

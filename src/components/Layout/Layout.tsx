@@ -63,7 +63,7 @@ const isHome = location.pathname === "/";
               </span>
             </div>
             <div className="footer-right">
-              <span>Sistema de Gestión - Versión 0.0.1</span>
+              <span>Sistema de Gestión - Versión 0.1.0</span>
             </div>
           </footer>
         )}

@@ -76,6 +76,37 @@ CREATE TABLE IF NOT EXISTS petty_cash (
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS comprobantes (
+    id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    movement_id         UUID            NOT NULL REFERENCES petty_cash(id) ON DELETE CASCADE,
+    receipt_number      INT             NOT NULL,
+    copies_to_print     INT             NOT NULL DEFAULT 1,
+    detail              TEXT            NOT NULL,
+    concept             TEXT,
+    payer_name          TEXT,
+    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comprobantes_movement ON comprobantes (movement_id);
+
+CREATE TABLE IF NOT EXISTS receipt_concepts (
+    id          UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    type        VARCHAR(20)     NOT NULL CHECK (type IN ('ingreso', 'egreso')),
+    name        VARCHAR(100)    NOT NULL,
+    target      VARCHAR(20)     NOT NULL DEFAULT 'ambos' CHECK (target IN ('socios', 'personas', 'ambos')),
+    sort_order  INT             NOT NULL DEFAULT 0,
+    active      BOOLEAN         NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS receipt_copies_config (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    concept_id      UUID            NOT NULL REFERENCES receipt_concepts(id) ON DELETE CASCADE,
+    copies_to_print INT             NOT NULL DEFAULT 1,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    UNIQUE(concept_id)
+);
+
 CREATE TABLE IF NOT EXISTS cementerios (
     id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     nicho               VARCHAR(50),

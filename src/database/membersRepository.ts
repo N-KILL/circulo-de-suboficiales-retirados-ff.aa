@@ -296,7 +296,17 @@ export async function updateVitalicios(): Promise<number> {
           AND (fecha_baja IS NULL OR fecha_baja = '')
           AND tipo_socio IS DISTINCT FROM 'VIT'
           AND edad ~ '^[0-9]+$'
-          AND CAST(edad AS INTEGER) > 35
+          AND CAST(edad AS INTEGER) >= 80
+          AND fecha_ingreso IS NOT NULL
+          AND fecha_ingreso != ''
+          AND EXTRACT(YEAR FROM AGE(
+              CURRENT_DATE,
+              CASE
+                  WHEN fecha_ingreso ~ '^\d{2}/\d{2}/\d{4}$' THEN TO_DATE(fecha_ingreso, 'DD/MM/YYYY')
+                  WHEN fecha_ingreso ~ '^\d{4}-\d{2}-\d{2}$' THEN TO_DATE(fecha_ingreso, 'YYYY-MM-DD')
+                  ELSE NULL
+              END
+          )) >= 35
     `;
     return (result as { rowCount: number }).rowCount ?? 0;
 }

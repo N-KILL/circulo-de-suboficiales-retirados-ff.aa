@@ -13,11 +13,16 @@ import {
     fetchExternalServices,
     type ExternalServiceItem,
 } from "../../services/externalServicesApi";
+import {
+    fetchReceiptConcepts,
+    type ReceiptConcept,
+} from "../../services/receiptCopiesConfigApi";
 import CollapsibleCard from "../../components/ui/CollapsibleCard";
 import BalancesConfig from "./BalancesConfig";
 import DuesConfig from "./DuesConfig";
 import ServicesConfig from "./ServicesConfig";
 import ExternalServicesConfig from "./ExternalServicesConfig";
+import ReceiptCopiesConfig from "./ReceiptCopiesConfig";
 import "./Config.css";
 
 const Variables: React.FC = () => {
@@ -26,6 +31,8 @@ const Variables: React.FC = () => {
 
     const [cajaChica, setCajaChica] = useState("0");
     const [banco, setBanco] = useState("0");
+    const [comprobanteIngreso, setComprobanteIngreso] = useState(1);
+    const [comprobanteEgreso, setComprobanteEgreso] = useState(1);
     const [memberFee, setMemberFee] = useState("0");
     const [considerationYears, setConsiderationYears] = useState("0");
     const [nichoMemberFee, setNichoMemberFee] = useState("0");
@@ -43,6 +50,7 @@ const Variables: React.FC = () => {
     const [feeVit, setFeeVit] = useState("0");
     const [services, setServices] = useState<ServiceItem[]>([]);
     const [externalServices, setExternalServices] = useState<ExternalServiceItem[]>([]);
+    const [receiptConcepts, setReceiptConcepts] = useState<ReceiptConcept[]>([]);
 
     useEffect(() => {
         Promise.all([
@@ -50,11 +58,14 @@ const Variables: React.FC = () => {
             fetchDuesConfig(),
             fetchServices(),
             fetchExternalServices(),
+            fetchReceiptConcepts(),
         ])
-            .then(([balances, duesCfg, svcs, extSvcs]) => {
+            .then(([balances, duesCfg, svcs, extSvcs, receiptCfg]) => {
                 if (balances) {
                     setCajaChica(balances.caja_chica.toString());
                     setBanco(balances.banco.toString());
+                    setComprobanteIngreso(balances.comprobante_ingreso ?? 1);
+                    setComprobanteEgreso(balances.comprobante_egreso ?? 1);
                 }
                 if (duesCfg) {
                     setMemberFee(duesCfg.member_fee.toString());
@@ -75,6 +86,7 @@ const Variables: React.FC = () => {
                 }
                 setServices(svcs);
                 setExternalServices(extSvcs);
+                setReceiptConcepts(receiptCfg);
             })
             .catch((err) => setError(err.message || "Error al cargar datos"))
             .finally(() => setLoading(false));
@@ -92,7 +104,7 @@ const Variables: React.FC = () => {
                     defaultOpen={false}
                     headerExtra={<span className="config-card-hint">Saldos iniciales de cajas</span>}
                 >
-                    <BalancesConfig initialCajaChica={cajaChica} initialBanco={banco} />
+                    <BalancesConfig initialCajaChica={cajaChica} initialBanco={banco} initialComprobanteIngreso={comprobanteIngreso} initialComprobanteEgreso={comprobanteEgreso} />
                 </CollapsibleCard>
                 <CollapsibleCard
                     title="Cuotas"
@@ -133,6 +145,14 @@ const Variables: React.FC = () => {
                     headerExtra={<span className="config-card-hint">Luz, agua, gas, etc.</span>}
                 >
                     <ExternalServicesConfig initialServices={externalServices} />
+                </CollapsibleCard>
+                <CollapsibleCard
+                    title="Valores Ingresos/Egresos, Comprobantes"
+                    className="config-card"
+                    defaultOpen={false}
+                    headerExtra={<span className="config-card-hint">Conceptos, copias y destino por concepto</span>}
+                >
+                    <ReceiptCopiesConfig initialConcepts={receiptConcepts} />
                 </CollapsibleCard>
             </div>
         </div>

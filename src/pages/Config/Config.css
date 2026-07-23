@@ -409,3 +409,39 @@
 .collapsible-section .collapsible-card-body {
     padding: 0 4px 4px 4px;
 }
+
+.config-delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #dc3545;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.config-delete-btn:hover {
+    background: #fee2e2;
+}
+
+.receipt-copies-table .config-cemetery-header,
+.receipt-copies-table .config-cemetery-row {
+    grid-template-columns: 1fr 160px 60px 40px;
+}
+
+.receipt-copies-table.show-target .config-cemetery-header,
+.receipt-copies-table.show-target .config-cemetery-row {
+    grid-template-columns: 1fr 70px 70px 160px 60px 40px;
+}
+
+.receipt-copies-add .config-cemetery-header,
+.receipt-copies-add .config-cemetery-row {
+    grid-template-columns: 110px 1fr 140px auto;
+}
+
+.receipt-copies-add.show-target .config-cemetery-header,
+.receipt-copies-add.show-target .config-cemetery-row {
+    grid-template-columns: 110px 1fr auto auto 140px auto;
+}

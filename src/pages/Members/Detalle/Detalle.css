@@ -24,6 +24,12 @@
   text-decoration: underline;
 }
 
+.detalle-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .detalle-card {
   background: var(--card-bg);
   border-radius: 12px;

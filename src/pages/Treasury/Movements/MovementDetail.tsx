@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader, Edit3, Trash2, X, Eye } from "lucide-react";
+import { ArrowLeft, Loader, Edit3, Trash2, X, Eye, FileText } from "lucide-react";
 import { fetchMovementById, deleteMovement, type Movement, type ServiceRecordLink, type CementerioMovimientoLink } from "../../../services/movementsApi";
 import { fetchMemberById } from "../../../services/membersApi";
 import ServiceRecordModal from "../../../components/service/ServiceRecordModal";
+import Comprobante from "../../../components/comprobante/Comprobante";
 import { toCurrency, formatPeriodsDisplay, formatRecordDate } from "../../../utils/format";
 import "../TreasuryTables.css";
 import "../ServiceHistory/ServiceHistory.css";
@@ -19,6 +20,7 @@ const MovementDetail: React.FC = () => {
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [paidMemberNames, setPaidMemberNames] = useState<{ id: string; nombre: string }[]>([]);
     const [selectedServiceRecord, setSelectedServiceRecord] = useState<ServiceRecordLink | null>(null);
+    const [showComprobante, setShowComprobante] = useState(false);
 
     useEffect(() => {
         if (!id) return;
@@ -77,6 +79,11 @@ const MovementDetail: React.FC = () => {
                     <h2>Detalle del Movimiento</h2>
                     {!confirmDelete && (
                         <div className="movement-detail-actions">
+                            {movement.comprobante != null && (
+                                <div className="comprobante-action-group">
+                                    <button className="btn-comprobante" onClick={() => setShowComprobante(true)}><FileText size={16} /> Ver Comprobante</button>
+                                </div>
+                            )}
                             <button className="btn-edit" onClick={() => navigate(`/tesoreria/nuevo-movimiento/${movement.id}`)}><Edit3 size={16} /> Editar</button>
                             <button className="btn-delete" onClick={() => setConfirmDelete(true)}><Trash2 size={16} /> Eliminar</button>
                         </div>
@@ -168,6 +175,23 @@ const MovementDetail: React.FC = () => {
             </div>
 
             <ServiceRecordModal record={selectedServiceRecord} onClose={() => setSelectedServiceRecord(null)} />
+
+            {showComprobante && movement.comprobante != null && (
+                <Comprobante
+                    data={{
+                        receipt_number: movement.comprobante.receipt_number,
+                        type: movement.type as "ingreso" | "egreso",
+                        date: movement.date,
+                        detail: movement.comprobante.detail || movement.detail || "",
+                        amount: movement.amount,
+                        origin: movement.mode === "efectivo" ? "Caja Chica" : "Banco",
+                        payerName: movement.comprobante.payer_name ?? movement.linked_due?.member_nombre ?? movement.linked_due?.person_nombre ?? undefined,
+                        copies_to_print: movement.comprobante.copies_to_print,
+                        paymentMethod: movement.mode === "efectivo" ? "Efectivo" : "Transferencia",
+                    }}
+                    onClose={() => setShowComprobante(false)}
+                />
+            )}
         </div>
     );
 };

@@ -30,6 +30,9 @@ export async function migratePettyCashSchema(): Promise<void> {
     await sql`
         ALTER TABLE petty_cash ADD COLUMN IF NOT EXISTS concept VARCHAR(100)
     `;
+    await sql`
+        ALTER TABLE petty_cash ADD COLUMN IF NOT EXISTS receipt_number INT
+    `;
 }
 
 export async function getAllMovements(): Promise<PettyCashRow[]> {

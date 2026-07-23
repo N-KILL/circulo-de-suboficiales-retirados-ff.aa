@@ -77,8 +77,8 @@ const Movements: React.FC = () => {
         setInitialBanco(balances?.banco ?? 0);
         setInitialCajaChica(balances?.caja_chica ?? 0);
         if (data.length > 0) {
-          const last = data[data.length - 1];
-          const d = new Date(last.date + "T12:00:00");
+          const first = data[0];
+          const d = new Date(first.date + "T12:00:00");
           setSelectedMonths([d.getMonth()]);
           setSelectedYears([d.getFullYear()]);
         } else {
@@ -98,19 +98,21 @@ const Movements: React.FC = () => {
     const items: Array<{
       id: string; date: string; fecha: string;
       tipo: string; modalidad: string; concepto: string;
+      comprobante: string;
       ingreso: string; egreso: string;
       saldoBanco: string | null; saldoCajaChica: string | null;
       dateObj: Date;
     }> = [];
     for (const m of rawMovements) {
-      if (m.type === "ingreso") { rb += m.amount; if (m.mode === "efectivo") rc += m.amount; }
-      else if (m.type === "egreso") { rb -= m.amount; if (m.mode === "efectivo") rc -= m.amount; }
+      if (m.type === "ingreso") { if (m.mode === "transferencia") rb += m.amount; if (m.mode === "efectivo") rc += m.amount; }
+      else if (m.type === "egreso") { if (m.mode === "transferencia") rb -= m.amount; if (m.mode === "efectivo") rc -= m.amount; }
       const fecha = formatRecordDate(m.date);
       items.push({
         id: m.id, date: m.date, fecha,
         tipo: m.type === "ingreso" ? "Ingreso" : m.type === "egreso" ? "Egreso" : "Transferencia",
         modalidad: m.mode === "efectivo" ? "Efectivo" : "Transferencia",
-        concepto: m.detail,
+        concepto: m.detail ?? "",
+        comprobante: m.comprobante?.receipt_number != null ? String(m.comprobante.receipt_number).padStart(6, "0") : "\u2014",
         ingreso: m.type === "ingreso" ? formatCurrency(m.amount) : "-",
         egreso: m.type === "egreso" ? formatCurrency(m.amount) : "-",
         saldoBanco: m.mode === "transferencia" ? formatCurrency(rb) : null,
@@ -136,7 +138,7 @@ const Movements: React.FC = () => {
         const modeMatch = (cajaBanco && m.modalidad === "Transferencia") || (cajaChica && m.modalidad === "Efectivo");
         if (!cajaBanco && !cajaChica) return false;
         if (!modeMatch) return false;
-        if (search && !m.concepto.toLowerCase().includes(search)) return false;
+        if (search && !m.concepto.toLowerCase().includes(search) && !m.comprobante.toLowerCase().includes(search)) return false;
         if (m.tipo === "Transferencia") return false;
         if (m.tipo === "Ingreso" && !filtroIngreso) return false;
         if (m.tipo === "Egreso" && !filtroEgreso) return false;
@@ -231,17 +233,18 @@ const Movements: React.FC = () => {
           <table className="treasury-table">
             <thead>
               <tr>
-                <th>Fecha</th><th>Tipo</th><th>Modalidad</th><th>Concepto</th><th>Ingreso</th><th>Egreso</th>
+                <th>Fecha</th><th>Comprobante</th><th>Tipo</th><th>Modalidad</th><th>Concepto</th><th>Ingreso</th><th>Egreso</th>
                 {showSaldoColumns && <><th>Saldo Banco</th><th>Saldo Caja Chica</th></>}
               </tr>
             </thead>
             <tbody>
               {paginatedMovements.length === 0 ? (
-                <tr><td colSpan={showSaldoColumns ? 8 : 6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No se encontraron movimientos con los filtros aplicados.</td></tr>
+                <tr><td colSpan={showSaldoColumns ? 9 : 7} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No se encontraron movimientos con los filtros aplicados.</td></tr>
               ) : (
                 paginatedMovements.map((m, idx) => (
                   <tr key={idx} className="clickable-row" onClick={() => navigate(`/tesoreria/movimientos/detalle/${m.id}`)}>
                     <td className="col-fecha">{m.fecha}</td>
+                    <td className="col-comprobante">{m.comprobante}</td>
                     <td><span className={`badge ${m.tipo === "Ingreso" ? "badge-ingreso" : "badge-egreso"}`}>{m.tipo}</span></td>
                     <td>{m.modalidad}</td><td>{m.concepto}</td>
                     <td className="amount-ingreso">{m.ingreso}</td><td className="amount-egreso">{m.egreso}</td>

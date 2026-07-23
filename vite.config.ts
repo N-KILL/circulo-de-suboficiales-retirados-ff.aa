@@ -42,7 +42,11 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isExternalServices = pathname === "/api/external-services";
         const isExternalServicePayments = pathname === "/api/external-service-payments";
 
-        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments) {
+        const isReceiptNext = pathname === "/api/receipt/next";
+        const isComprobante = pathname === "/api/comprobante";
+        const isReceiptCopiesConfig = pathname === "/api/receipt-copies-config";
+
+        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments && !isReceiptNext && !isComprobante && !isReceiptCopiesConfig) {
           next();
           return;
         }
@@ -112,6 +116,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             const { getDueByMovementId, deleteDueByMovementId, updateDueByMovementId } = await import("./src/database/duesRepository");
             const { getServiceRecordsByMovement, deleteServiceRecordsByMovement } = await import("./src/database/serviceRecordsRepository");
             const { getCementerioMovimientosByMovement, deleteCementerioMovimientosByMovement } = await import("./src/database/cementerioMovimientosRepository");
+            const { getComprobanteByMovementId } = await import("./src/database/comprobantesRepository");
             const id = url.searchParams.get("id") ?? undefined;
 
             if (req.method === "GET") {
@@ -126,13 +131,14 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
                 res.end(JSON.stringify({ error: "Movimiento no encontrado" }));
                 return;
               }
-              const [due, serviceRecords, cementerioMovimientos] = await Promise.all([
+              const [due, serviceRecords, cementerioMovimientos, comprobante] = await Promise.all([
                 getDueByMovementId(id),
                 getServiceRecordsByMovement(id),
                 getCementerioMovimientosByMovement(id),
+                getComprobanteByMovementId(id),
               ]);
               res.statusCode = 200;
-              res.end(JSON.stringify({ ...movement, linked_due: due, linked_service_records: serviceRecords, linked_cementerio_movimientos: cementerioMovimientos }));
+              res.end(JSON.stringify({ ...movement, linked_due: due, linked_service_records: serviceRecords, linked_cementerio_movimientos: cementerioMovimientos, comprobante }));
               return;
             }
 
@@ -185,9 +191,17 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
 
           if (isMovements && req.method === "GET") {
             const { getAllMovements } = await import("./src/database/pettyCashRepository");
+            const { getComprobantesByMovementIds } = await import("./src/database/comprobantesRepository");
             const movements = await getAllMovements();
+            const movementIds = movements.map((m) => m.id);
+            const comprobantes = await getComprobantesByMovementIds(movementIds);
+            const comprobanteByMovement = new Map(comprobantes.map((c) => [c.movement_id, c]));
+            const movementsWithComprobante = movements.map((m) => ({
+              ...m,
+              comprobante: comprobanteByMovement.get(m.id) ?? null,
+            }));
             res.statusCode = 200;
-            res.end(JSON.stringify(movements));
+            res.end(JSON.stringify(movementsWithComprobante));
             return;
           }
 
@@ -201,9 +215,9 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             }
             if (req.method === "POST") {
               const body = await collectBody(req);
-              const { caja_chica, banco } = JSON.parse(body);
+              const { caja_chica, banco, comprobante_ingreso, comprobante_egreso } = JSON.parse(body);
               const { upsertInitialBalances } = await import("./src/database/initialBalancesRepository");
-              const result = await upsertInitialBalances(caja_chica, banco);
+              const result = await upsertInitialBalances(caja_chica, banco, comprobante_ingreso, comprobante_egreso);
               res.statusCode = 200;
               res.end(JSON.stringify(result));
               return;
@@ -256,7 +270,64 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             return;
           }
 
+          if (isReceiptNext && req.method === "POST") {
+            const body = JSON.parse(await collectBody(req));
+            const { type } = body;
+            if (type !== "ingreso" && type !== "egreso") {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Tipo inválido (ingreso o egreso)" }));
+              return;
+            }
+            const { getNextAndIncrementReceipt } = await import("./src/database/initialBalancesRepository");
+            const receiptNumber = await getNextAndIncrementReceipt(type);
+            res.statusCode = 200;
+            res.end(JSON.stringify({ receipt_number: receiptNumber }));
+            return;
+          }
+
           if (isPayment && req.method === "OPTIONS") {
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
+
+          if (isComprobante && req.method === "GET") {
+            const movementId = url.searchParams.get("movementId");
+            if (!movementId) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta movementId" }));
+              return;
+            }
+            const { getComprobanteByMovementId } = await import("./src/database/comprobantesRepository");
+            const comprobante = await getComprobanteByMovementId(movementId);
+            res.statusCode = 200;
+            res.end(JSON.stringify(comprobante));
+            return;
+          }
+
+          if (isComprobante && req.method === "POST") {
+            const body = await collectBody(req);
+            const data = JSON.parse(body);
+            if (!data?.movement_id || data?.receipt_number == null || !data?.detail) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Faltan datos requeridos" }));
+              return;
+            }
+            const { insertComprobante } = await import("./src/database/comprobantesRepository");
+            const id = await insertComprobante({
+              movement_id: data.movement_id,
+              receipt_number: data.receipt_number,
+              copies_to_print: data.copies_to_print ?? 1,
+              detail: data.detail,
+              concept: data.concept ?? null,
+              payer_name: data.payer_name ?? null,
+            });
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true, id }));
+            return;
+          }
+
+          if (isComprobante && req.method === "OPTIONS") {
             res.statusCode = 204;
             res.end();
             return;
@@ -533,6 +604,33 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             if (req.method === "OPTIONS") {
               res.statusCode = 204;
               res.end();
+              return;
+            }
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isReceiptCopiesConfig) {
+            if (req.method === "GET") {
+              const { getAllReceiptConcepts } = await import("./src/database/receiptCopiesConfigRepository");
+              const concepts = await getAllReceiptConcepts();
+              res.statusCode = 200;
+              res.end(JSON.stringify({ concepts }));
+              return;
+            }
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req));
+              const { concepts } = body;
+              if (!Array.isArray(concepts)) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta parámetro concepts" }));
+                return;
+              }
+              const { saveAllReceiptConcepts } = await import("./src/database/receiptCopiesConfigRepository");
+              const result = await saveAllReceiptConcepts(concepts);
+              res.statusCode = 200;
+              res.end(JSON.stringify({ concepts: result }));
               return;
             }
             res.statusCode = 405;

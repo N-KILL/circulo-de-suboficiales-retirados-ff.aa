@@ -67,8 +67,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // GET /api/movements
     if (pathname === "/api/movements" && method === "GET") {
       const { getAllMovements } = await import("../src/database/pettyCashRepository.js");
+      const { getComprobantesByMovementIds } = await import("../src/database/comprobantesRepository.js");
       const movements = await getAllMovements();
-      res.status(200).json(movements);
+      const movementIds = movements.map((m) => m.id);
+      const comprobantes = await getComprobantesByMovementIds(movementIds);
+      const comprobanteByMovement = new Map(comprobantes.map((c) => [c.movement_id, c]));
+      const movementsWithComprobante = movements.map((m) => ({
+        ...m,
+        comprobante: comprobanteByMovement.get(m.id) ?? null,
+      }));
+      res.status(200).json(movementsWithComprobante);
       return;
     }
 
@@ -78,6 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { getDueByMovementId, deleteDueByMovementId, updateDueByMovementId } = await import("../src/database/duesRepository.js");
       const { getServiceRecordsByMovement, deleteServiceRecordsByMovement } = await import("../src/database/serviceRecordsRepository.js");
       const { getCementerioMovimientosByMovement, deleteCementerioMovimientosByMovement } = await import("../src/database/cementerioMovimientosRepository.js");
+      const { getComprobanteByMovementId } = await import("../src/database/comprobantesRepository.js");
       const id = req.query.id as string | undefined;
 
       if (!id) {
@@ -91,12 +100,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           res.status(404).json({ error: "Movimiento no encontrado" });
           return;
         }
-        const [due, serviceRecords, cementerioMovimientos] = await Promise.all([
+        const [due, serviceRecords, cementerioMovimientos, comprobante] = await Promise.all([
           getDueByMovementId(id),
           getServiceRecordsByMovement(id),
           getCementerioMovimientosByMovement(id),
+          getComprobanteByMovementId(id),
         ]);
-        res.status(200).json({ ...movement, linked_due: due, linked_service_records: serviceRecords, linked_cementerio_movimientos: cementerioMovimientos });
+        res.status(200).json({ ...movement, linked_due: due, linked_service_records: serviceRecords, linked_cementerio_movimientos: cementerioMovimientos, comprobante });
         return;
       }
 
@@ -247,16 +257,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (method === "POST") {
-        const { caja_chica, banco } = req.body as {
+        const { caja_chica, banco, comprobante_ingreso, comprobante_egreso } = req.body as {
           caja_chica?: number;
           banco?: number;
+          comprobante_ingreso?: number;
+          comprobante_egreso?: number;
         };
         if (caja_chica === undefined || banco === undefined) {
           res.status(400).json({ error: "Faltan parámetros caja_chica y/o banco" });
           return;
         }
         const { upsertInitialBalances } = await import("../src/database/initialBalancesRepository.js");
-        const result = await upsertInitialBalances(caja_chica, banco);
+        const result = await upsertInitialBalances(caja_chica, banco, comprobante_ingreso, comprobante_egreso);
         res.status(200).json(result);
         return;
       }
@@ -282,6 +294,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         concept: payment.concept ?? null,
       });
       res.status(200).json({ success: true, id: movementId });
+      return;
+    }
+
+    // POST /api/receipt/next
+    if (pathname === "/api/receipt/next" && method === "POST") {
+      const { type } = req.body as { type?: string };
+      if (type !== "ingreso" && type !== "egreso") {
+        res.status(400).json({ error: "Tipo inválido (ingreso o egreso)" });
+        return;
+      }
+      const { getNextAndIncrementReceipt } = await import("../src/database/initialBalancesRepository.js");
+      const receiptNumber = await getNextAndIncrementReceipt(type);
+      res.status(200).json({ receipt_number: receiptNumber });
+      return;
+    }
+
+    // GET /api/comprobante?movementId=xxx
+    if (pathname === "/api/comprobante" && method === "GET") {
+      const movementId = req.query.movementId as string;
+      if (!movementId) {
+        res.status(400).json({ error: "Falta movementId" });
+        return;
+      }
+      const { getComprobanteByMovementId } = await import("../src/database/comprobantesRepository.js");
+      const comprobante = await getComprobanteByMovementId(movementId);
+      res.status(200).json(comprobante);
+      return;
+    }
+
+    // POST /api/comprobante
+    if (pathname === "/api/comprobante" && method === "POST") {
+      const data = req.body;
+      if (!data?.movement_id || data?.receipt_number == null || !data?.detail) {
+        res.status(400).json({ error: "Faltan datos requeridos" });
+        return;
+      }
+      const { insertComprobante } = await import("../src/database/comprobantesRepository.js");
+      const id = await insertComprobante({
+        movement_id: data.movement_id,
+        receipt_number: data.receipt_number,
+        copies_to_print: data.copies_to_print ?? 1,
+        detail: data.detail,
+        concept: data.concept ?? null,
+        payer_name: data.payer_name ?? null,
+      });
+      res.status(200).json({ success: true, id });
       return;
     }
 
@@ -502,6 +560,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           fee_act ?? 0, fee_act_a ?? 0, fee_adh ?? 0, fee_part ?? 0, fee_vit ?? 0,
         );
         res.status(200).json(result);
+        return;
+      }
+
+      res.status(405).json({ error: "Método no permitido" });
+      return;
+    }
+
+    // /api/receipt-copies-config
+    if (pathname === "/api/receipt-copies-config") {
+      if (method === "GET") {
+        const { getAllReceiptConcepts } = await import("../src/database/receiptCopiesConfigRepository.js");
+        const concepts = await getAllReceiptConcepts();
+        res.status(200).json({ concepts });
+        return;
+      }
+
+      if (method === "POST") {
+        const { concepts } = req.body;
+        if (!Array.isArray(concepts)) {
+          res.status(400).json({ error: "Falta parámetro concepts" });
+          return;
+        }
+        const { saveAllReceiptConcepts } = await import("../src/database/receiptCopiesConfigRepository.js");
+        const result = await saveAllReceiptConcepts(concepts);
+        res.status(200).json({ concepts: result });
         return;
       }
 
