@@ -985,7 +985,7 @@ async fn insert_due(
         .map(|a| serde_json::to_string(a).unwrap_or_else(|_| "[]".to_string()));
     let row = sqlx::query(
         "INSERT INTO dues (id, type, payment_date, period, member_id, person_id, movement_id, family_group, paid_members)
-         VALUES (gen_random_uuid(), $1, $2::date, $3::jsonb, $4, $5, $6, $7, $8::jsonb) RETURNING id"
+         VALUES (gen_random_uuid(), $1, $2::date, $3::jsonb, $4::uuid, $5::uuid, $6::uuid, $7, $8::jsonb) RETURNING id"
     )
     .bind(due_type).bind(payment_date)
     .bind(period_str).bind(body_str(body.get("member_id"))).bind(body_str(body.get("person_id")))
@@ -1119,7 +1119,7 @@ async fn insert_service_record(
     }
     let row = sqlx::query(
         "INSERT INTO service_records (id, service_id, member_id, person_id, movement_id, amount, date, service_date, detail)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6::date, $7, $8) RETURNING *"
+         VALUES (gen_random_uuid(), $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6::date, $7, $8) RETURNING *"
     )
     .bind(service_id).bind(member_id).bind(person_id)
     .bind(body_str(body.get("movement_id"))).bind(body_f64(&body, "amount"))
@@ -1134,7 +1134,7 @@ async fn update_service_record(
 ) -> Result<Json<Value>, ErrResponse> {
     let id = body.get("id").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
     let row = sqlx::query(
-        "UPDATE service_records SET service_id=$1, member_id=$2, person_id=$3, movement_id=$4,
+        "UPDATE service_records SET service_id=$1::uuid, member_id=$2::uuid, person_id=$3::uuid, movement_id=$4::uuid,
          amount=$5, date=$6::date, service_date=$7, detail=$8 WHERE id=$9::uuid RETURNING *"
     )
     .bind(body_str(body.get("service_id"))).bind(body_str(body.get("member_id")))
@@ -1268,7 +1268,7 @@ async fn insert_cementerio_movimiento(
     let fecha_pago = body.get("fecha_pago").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta fecha_pago"))?;
     let row = sqlx::query(
         "INSERT INTO cementerio_movimientos (id, movement_id, cementerio_id, nicho, tipo, ocupante, fecha_pago, anios_pagados, importe, member_id, person_id)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6::date, $7, $8, $9, $10) RETURNING id"
+         VALUES (gen_random_uuid(), $1::uuid, $2::uuid, $3, $4, $5, $6::date, $7, $8, $9::uuid, $10::uuid) RETURNING id"
     )
     .bind(movement_id).bind(body_str(body.get("cementerio_id"))).bind(nicho)
     .bind(body_str(body.get("tipo"))).bind(body_str(body.get("ocupante")))
@@ -1332,7 +1332,7 @@ async fn insert_debt(
     }
     let row = sqlx::query(
         "INSERT INTO debts (id, member_id, person_id, type, description, amount, movement_id, date)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7::date) RETURNING id"
+         VALUES (gen_random_uuid(), $1::uuid, $2::uuid, $3, $4, $5, $6::uuid, $7::date) RETURNING id"
     )
     .bind(member_id).bind(person_id).bind(debt_type)
     .bind(body_str(body.get("description"))).bind(amount)
@@ -1439,7 +1439,7 @@ async fn upsert_ext_service_payment(
     let year = body.get("year").and_then(|v| v.as_i64()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta year"))? as i32;
     let row = sqlx::query(
         "INSERT INTO external_service_payments (id, service_id, month, year, amount, movement_id)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+         VALUES (gen_random_uuid(), $1::uuid, $2, $3, $4, $5::uuid)
          ON CONFLICT (service_id, month, year) DO UPDATE SET amount=EXCLUDED.amount, movement_id=EXCLUDED.movement_id RETURNING *"
     )
     .bind(service_id).bind(month).bind(year)
@@ -1512,7 +1512,7 @@ async fn insert_comprobante(
     let payer_name = body.get("payer_name").and_then(|v| v.as_str());
     let row = sqlx::query(
         "INSERT INTO comprobantes (movement_id, receipt_number, copies_to_print, detail, concept, payer_name)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"
+         VALUES ($1::uuid, $2, $3, $4, $5, $6) RETURNING id"
     ).bind(movement_id).bind(receipt_number).bind(copies).bind(detail)
      .bind(concept).bind(payer_name)
      .fetch_one(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;

@@ -77,10 +77,9 @@ const Movements: React.FC = () => {
         setInitialBanco(balances?.banco ?? 0);
         setInitialCajaChica(balances?.caja_chica ?? 0);
         if (data.length > 0) {
-          const first = data[0];
-          const d = new Date(first.date + "T12:00:00");
-          setSelectedMonths([d.getMonth()]);
-          setSelectedYears([d.getFullYear()]);
+          const now = new Date();
+          setSelectedMonths([now.getMonth()]);
+          setSelectedYears([now.getFullYear()]);
         } else {
           const now = new Date();
           setSelectedMonths([now.getMonth()]);
