@@ -138,6 +138,16 @@ struct DuesQuery {
     check: Option<String>,
 }
 #[derive(Deserialize)]
+struct CementerioMovimientosQuery {
+    movement_id: Option<String>, movementId: Option<String>,
+    nicho: Option<String>,
+    has_nicho: Option<String>, hasNicho: Option<String>,
+    pagos_map: Option<String>, pagosMap: Option<String>,
+    member_id: Option<String>, memberId: Option<String>,
+    person_id: Option<String>, personId: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct DebtBalanceQuery {
     member_id: Option<String>, memberId: Option<String>,
     person_id: Option<String>, personId: Option<String>,
@@ -350,41 +360,65 @@ async fn get_members_family(
 async fn get_members_debt_status(
     State(db): State<AppState>,
 ) -> Result<Json<Value>, ErrResponse> {
-    let rows = sqlx::query(
-        "SELECT m.id, m.numero_de_socio, m.nombre, m.apellido,
-         du.type AS debt_type, du.payment_date AS last_payment_date
-         FROM members m LEFT JOIN LATERAL (
-             SELECT du.type, du.payment_date
-             FROM dues du WHERE du.member_id = m.id ORDER BY du.payment_date DESC LIMIT 1
-         ) du ON true ORDER BY m.numero_de_socio"
-    ).fetch_all(&db.pool).await;
-    match rows {
-        Ok(rows) => {
-            let config = sqlx::query("SELECT consideration_years FROM pricing LIMIT 1")
-                .fetch_optional(&db.pool).await.ok().flatten();
-            let cy = config.and_then(|r| r.try_get::<i32, _>("consideration_years").ok()).unwrap_or(0);
-            Ok(Json(json!({ "members": rows_to_json(&rows), "consideration_years": cy })))
+    let dues_rows = sqlx::query(
+        "SELECT member_id, paid_members, period FROM dues WHERE type = 'socio'"
+    ).fetch_all(&db.pool).await.unwrap_or_default();
+
+    let mut latest_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    for row in &dues_rows {
+        let member_id: Option<uuid::Uuid> = row.try_get("member_id").ok().flatten();
+        let period: Option<Value> = row.try_get("period").ok().flatten();
+        let paid_members: Option<Value> = row.try_get("paid_members").ok().flatten();
+
+        let periods: Vec<String> = match &period {
+            Some(Value::Array(arr)) => arr.iter().filter_map(|v| v.as_str().map(String::from)).collect(),
+            _ => continue,
+        };
+        if periods.is_empty() { continue; }
+        let latest = periods.iter().max().cloned().unwrap_or_default();
+
+        let mut members: Vec<String> = Vec::new();
+        if let Some(mid) = member_id {
+            members.push(mid.to_string());
         }
-        Err(_) => {
-            let rows = sqlx::query(
-                "SELECT m.id, m.numero_de_socio, m.nombre
-                 FROM members m ORDER BY m.numero_de_socio"
-            ).fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-            let config = sqlx::query("SELECT consideration_years FROM pricing LIMIT 1")
-                .fetch_optional(&db.pool).await.ok().flatten();
-            let cy = config.and_then(|r| r.try_get::<i32, _>("consideration_years").ok()).unwrap_or(0);
-            let members: Vec<Value> = rows.iter().map(|r| {
-                json!({
-                    "id": r.try_get::<uuid::Uuid, _>("id").ok().map(|v| v.to_string()),
-                    "numeroDeSocio": r.try_get::<String, _>("numero_de_socio").ok(),
-                    "nombre": r.try_get::<String, _>("nombre").ok(),
-                    "debt_amount": 0,
-                    "last_payment_date": null
-                })
-            }).collect();
-            Ok(Json(json!({ "members": members, "consideration_years": cy })))
+        if let Some(Value::Array(pm)) = &paid_members {
+            for v in pm {
+                if let Some(s) = v.as_str() {
+                    members.push(s.to_string());
+                }
+            }
+        }
+        for mid in &members {
+            if let Some(existing) = latest_map.get(mid) {
+                if latest > *existing {
+                    latest_map.insert(mid.clone(), latest.clone());
+                }
+            } else {
+                latest_map.insert(mid.clone(), latest.clone());
+            }
         }
     }
+
+    let config = sqlx::query("SELECT consideration_years FROM pricing LIMIT 1")
+        .fetch_optional(&db.pool).await.ok().flatten();
+    let cy = config.and_then(|r| r.try_get::<i32, _>("consideration_years").ok()).unwrap_or(0);
+
+    let member_rows = sqlx::query(
+        "SELECT m.id, m.numero_de_socio, m.nombre FROM members m ORDER BY m.numero_de_socio"
+    ).fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    let members: Vec<Value> = member_rows.iter().map(|r| {
+        let id = r.try_get::<uuid::Uuid, _>("id").ok().map(|v| v.to_string()).unwrap_or_default();
+        let last_payment = latest_map.get(&id).cloned();
+        json!({
+            "id": id,
+            "numeroDeSocio": str_col(r, "numero_de_socio"),
+            "nombre": str_col(r, "nombre"),
+            "last_payment_date": last_payment,
+        })
+    }).collect();
+
+    Ok(Json(json!({ "members": members, "consideration_years": cy })))
 }
 
 async fn update_vitalicios(
@@ -466,33 +500,47 @@ async fn update_movement(
     Json(body): Json<Value>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    if let Some(movement_data) = body.get("movement_data").or(body.as_object().map(|_| &body)) {
-        if let Some(obj) = movement_data.as_object() {
-            let mut sets = Vec::new();
-            let mut idx = 1;
-            for (k, _v) in obj {
-                if k == "due" || k == "id" { continue; }
-                sets.push(format!("\"{}\" = ${}", k, idx));
-                idx += 1;
+    if let Some(obj) = body.as_object() {
+        let mut sets = Vec::new();
+        let mut non_null_values: Vec<(&String, &Value)> = Vec::new();
+        for (k, v) in obj {
+            if k == "due" || k == "id" { continue; }
+            match v {
+                Value::Null => {
+                    sets.push(format!("\"{}\" = NULL", k));
+                }
+                _ => {
+                    sets.push(format!("\"{}\" = ${}", k, sets.len() + 1));
+                    non_null_values.push((k, v));
+                }
             }
-            if !sets.is_empty() {
-                let q_str = format!("UPDATE petty_cash SET {} WHERE id = ${}", sets.join(", "), idx);
-                sqlx::query(&q_str).execute(&db.pool).await.ok();
+        }
+        if !sets.is_empty() {
+            let q_str = format!("UPDATE petty_cash SET {} WHERE id = ${}", sets.join(", "), sets.len() + 1);
+            let mut query = sqlx::query(&q_str);
+            for (_k, v) in &non_null_values {
+                query = bind_json(query, v);
             }
+            query = query.bind(&id);
+            query.execute(&db.pool).await.ok();
         }
     }
     if let Some(due_data) = body.get("due") {
         if let Some(obj) = due_data.as_object() {
-            let mut sets = Vec::new();
-            let mut idx = 1;
-            for (k, _v) in obj {
-                sets.push(format!("\"{}\" = ${}", k, idx));
-                idx += 1;
-            }
-            if !sets.is_empty() {
-                let q_str = format!("UPDATE dues SET {} WHERE movement_id = ${}", sets.join(", "), idx);
-                sqlx::query(&q_str).bind(&id).execute(&db.pool).await.ok();
-            }
+            let period_json = obj.get("period")
+                .and_then(|v| v.as_array())
+                .filter(|a| !a.is_empty())
+                .map(|a| serde_json::to_string(a).unwrap_or_default());
+            let paid_members_json = obj.get("paid_members")
+                .and_then(|v| v.as_array())
+                .filter(|a| !a.is_empty())
+                .map(|a| serde_json::to_string(a).unwrap_or_default());
+            let q_str = "UPDATE dues SET period = COALESCE($1::jsonb, period), paid_members = COALESCE($2::jsonb, paid_members) WHERE movement_id = $3";
+            sqlx::query(q_str)
+                .bind(period_json)
+                .bind(paid_members_json)
+                .bind(&id)
+                .execute(&db.pool).await.ok();
         }
     }
     Ok(Json(json!({ "success": true })))
@@ -503,7 +551,18 @@ async fn delete_movement(
     Query(q): Query<IdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    sqlx::query("UPDATE debts SET movement_id = NULL WHERE movement_id = $1").bind(&id).execute(&db.pool).await.ok();
+    let debts = sqlx::query("SELECT id, description, amount FROM debts WHERE movement_id = $1")
+        .bind(&id).fetch_all(&db.pool).await.unwrap_or_default();
+    for debt in &debts {
+        let debt_id: Option<uuid::Uuid> = debt.try_get("id").ok();
+        let desc: String = debt.try_get("description").ok().flatten().unwrap_or_default();
+        let amount: f64 = debt.try_get("amount").ok().flatten().unwrap_or(0.0);
+        if let Some(did) = debt_id {
+            let cancel_desc = format!("Cancelados {}{:.2} - {}", if amount >= 0.0 { "+" } else { "" }, amount, desc);
+            sqlx::query("UPDATE debts SET amount = 0, description = $1 WHERE id = $2")
+                .bind(cancel_desc).bind(did).execute(&db.pool).await.ok();
+        }
+    }
     sqlx::query("DELETE FROM dues WHERE movement_id = $1").bind(&id).execute(&db.pool).await.ok();
     sqlx::query("DELETE FROM service_records WHERE movement_id = $1").bind(&id).execute(&db.pool).await.ok();
     sqlx::query("DELETE FROM cementerio_movimientos WHERE movement_id = $1").bind(&id).execute(&db.pool).await.ok();
@@ -756,10 +815,21 @@ async fn get_cementerios(
     Query(q): Query<CementeriosQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     if q.owners.as_deref() == Some("true") {
-        let rows = sqlx::query("SELECT DISTINCT socio_id as owner_id FROM cementerios WHERE socio_id IS NOT NULL")
+        let rows = sqlx::query("SELECT DISTINCT socio_id, persona_id FROM cementerios WHERE socio_id IS NOT NULL OR persona_id IS NOT NULL")
             .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-        let ids: Vec<String> = rows.iter().filter_map(|r| r.try_get::<uuid::Uuid, _>("owner_id").ok().map(|v| v.to_string())).collect();
-        return Ok(Json(json!(ids)));
+        let mut member_ids: Vec<String> = Vec::new();
+        let mut person_ids: Vec<String> = Vec::new();
+        for r in &rows {
+            if let Ok(Some(mid)) = r.try_get::<Option<uuid::Uuid>, _>("socio_id") {
+                let s = mid.to_string();
+                if !member_ids.contains(&s) { member_ids.push(s); }
+            }
+            if let Ok(Some(pid)) = r.try_get::<Option<uuid::Uuid>, _>("persona_id") {
+                let s = pid.to_string();
+                if !person_ids.contains(&s) { person_ids.push(s); }
+            }
+        }
+        return Ok(Json(json!({ "memberIds": member_ids, "personIds": person_ids })));
     }
     if let Some(owner_id) = q.owner_id.or(q.ownerId) {
         let is_socio = q.is_socio.as_deref() == Some("true") || q.isSocio.as_deref() == Some("true");
@@ -767,7 +837,7 @@ async fn get_cementerios(
             sqlx::query("SELECT * FROM cementerios WHERE socio_id = $1 ORDER BY nicho").bind(&owner_id)
                 .fetch_all(&db.pool).await
         } else {
-            sqlx::query("SELECT * FROM cementerios WHERE socio_id = $1 AND es_socio = false ORDER BY nicho").bind(&owner_id)
+            sqlx::query("SELECT * FROM cementerios WHERE persona_id = $1 ORDER BY nicho").bind(&owner_id)
                 .fetch_all(&db.pool).await
         };
         let rows = rows.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
@@ -791,16 +861,26 @@ async fn update_cementerio(
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
     if let Some(obj) = body.as_object() {
         let mut sets = Vec::new();
-        let mut idx = 1;
-        let mut binds: Vec<String> = Vec::new();
-        for (k, _v) in obj {
-                sets.push(format!("\"{}\" = ${}", k, idx));
-                binds.push(_v.as_str().unwrap_or(&_v.to_string()).to_string());
-            idx += 1;
+        let mut non_null_values: Vec<(&String, &Value)> = Vec::new();
+        for (k, v) in obj {
+            match v {
+                Value::Null => {
+                    sets.push(format!("\"{}\" = NULL", k));
+                }
+                _ => {
+                    sets.push(format!("\"{}\" = ${}", k, non_null_values.len() + 1));
+                    non_null_values.push((k, v));
+                }
+            }
         }
         if !sets.is_empty() {
-            let q_str = format!("UPDATE cementerios SET {} WHERE id = ${}", sets.join(", "), idx);
-            sqlx::query(&q_str).bind(&id).execute(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+            let q_str = format!("UPDATE cementerios SET {}, updated_at = NOW() WHERE id = ${}", sets.join(", "), non_null_values.len() + 1);
+            let mut query = sqlx::query(&q_str);
+            for (_k, v) in &non_null_values {
+                query = bind_json(query, v);
+            }
+            query = query.bind(&id);
+            query.execute(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         }
     }
     Ok(Json(json!({ "success": true })))
@@ -812,27 +892,69 @@ async fn get_dues(
 ) -> Result<Json<Value>, ErrResponse> {
     if let Some(member_id) = q.member_id.or(q.memberId) {
         if q.check.as_deref() == Some("cementerio") {
+            let count_row = sqlx::query("SELECT COUNT(*)::int AS count FROM cementerios WHERE socio_id = $1")
+                .bind(&member_id).fetch_optional(&db.pool).await.ok().flatten();
+            let has_cementerio = count_row.and_then(|r| r.try_get::<i32, _>("count").ok()).unwrap_or(0) > 0;
+
             let rows = sqlx::query(
-                "SELECT d.*, c.nicho FROM dues d
-                 LEFT JOIN cementerio_movimientos c ON c.member_id = d.member_id
-                 WHERE d.member_id = $1 ORDER BY d.payment_date"
+                "SELECT d.id, d.type, d.payment_date::text, d.period, d.member_id,
+                 m.nombre AS member_nombre, m.numero_de_socio AS member_numero_de_socio,
+                 d.person_id, p.nombre AS person_nombre, d.movement_id,
+                 pc.amount AS amount, d.family_group, d.paid_members, d.created_at::text
+                 FROM dues d
+                 LEFT JOIN members m ON d.member_id = m.id
+                 LEFT JOIN persons p ON d.person_id = p.id
+                 LEFT JOIN petty_cash pc ON d.movement_id = pc.id
+                 WHERE d.member_id = $1 OR d.paid_members::jsonb ? $1
+                 ORDER BY d.payment_date DESC, d.created_at DESC"
             ).bind(&member_id).fetch_all(&db.pool).await
-                .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-            return Ok(Json(rows_to_json(&rows)));
+             .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+            let dues: Vec<Value> = rows.iter().map(|r| row_to_json(r)).collect();
+            return Ok(Json(json!({ "hasCementerio": has_cementerio, "dues": dues })));
         }
-        let rows = sqlx::query("SELECT * FROM dues WHERE member_id = $1 ORDER BY payment_date")
-            .bind(&member_id).fetch_all(&db.pool).await
-            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        let rows = sqlx::query(
+            "SELECT d.id, d.type, d.payment_date::text, d.period, d.member_id,
+             m.nombre AS member_nombre, m.numero_de_socio AS member_numero_de_socio,
+             d.person_id, p.nombre AS person_nombre, d.movement_id,
+             pc.amount AS amount, d.family_group, d.paid_members, d.created_at::text
+             FROM dues d
+             LEFT JOIN members m ON d.member_id = m.id
+             LEFT JOIN persons p ON d.person_id = p.id
+             LEFT JOIN petty_cash pc ON d.movement_id = pc.id
+             WHERE d.member_id = $1 OR d.paid_members::jsonb ? $1
+             ORDER BY d.payment_date DESC, d.created_at DESC"
+        ).bind(&member_id).fetch_all(&db.pool).await
+         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
     }
     if let Some(person_id) = q.person_id.or(q.personId) {
-        let rows = sqlx::query("SELECT * FROM dues WHERE person_id = $1 ORDER BY payment_date")
-            .bind(&person_id).fetch_all(&db.pool).await
-            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        let rows = sqlx::query(
+            "SELECT d.id, d.type, d.payment_date::text, d.period, d.member_id,
+             m.nombre AS member_nombre, m.numero_de_socio AS member_numero_de_socio,
+             d.person_id, p.nombre AS person_nombre, d.movement_id,
+             pc.amount AS amount, d.family_group, d.paid_members, d.created_at::text
+             FROM dues d
+             LEFT JOIN members m ON d.member_id = m.id
+             LEFT JOIN persons p ON d.person_id = p.id
+             LEFT JOIN petty_cash pc ON d.movement_id = pc.id
+             WHERE d.person_id = $1
+             ORDER BY d.payment_date DESC, d.created_at DESC"
+        ).bind(&person_id).fetch_all(&db.pool).await
+         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
     }
-    let rows = sqlx::query("SELECT * FROM dues ORDER BY payment_date")
-        .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let rows = sqlx::query(
+        "SELECT d.id, d.type, d.payment_date::text, d.period, d.member_id,
+         m.nombre AS member_nombre, m.numero_de_socio AS member_numero_de_socio,
+         d.person_id, p.nombre AS person_nombre, d.movement_id,
+         pc.amount AS amount, d.family_group, d.paid_members, d.created_at::text
+         FROM dues d
+         LEFT JOIN members m ON d.member_id = m.id
+         LEFT JOIN persons p ON d.person_id = p.id
+         LEFT JOIN petty_cash pc ON d.movement_id = pc.id
+         ORDER BY d.payment_date DESC, d.created_at DESC"
+    ).fetch_all(&db.pool).await
+     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(rows_to_json(&rows)))
 }
 
@@ -842,15 +964,22 @@ async fn insert_due(
 ) -> Result<Json<Value>, ErrResponse> {
     let due_type = body.get("type").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta type"))?;
     let payment_date = body.get("payment_date").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta payment_date"))?;
+    let period_str: Option<String> = body.get("period")
+        .and_then(|v| v.as_array())
+        .filter(|a| !a.is_empty())
+        .map(|a| serde_json::to_string(a).unwrap_or_else(|_| "[]".to_string()));
+    let paid_members_str: Option<String> = body.get("paid_members")
+        .and_then(|v| v.as_array())
+        .filter(|a| !a.is_empty())
+        .map(|a| serde_json::to_string(a).unwrap_or_else(|_| "[]".to_string()));
     let row = sqlx::query(
         "INSERT INTO dues (id, type, payment_date, period, member_id, person_id, movement_id, family_group, paid_members)
          VALUES (gen_random_uuid(), $1, $2::date, $3::jsonb, $4, $5, $6, $7, $8::jsonb) RETURNING id"
     )
     .bind(due_type).bind(payment_date)
-    .bind(body.get("period").unwrap_or(&json!([])))
-    .bind(body_str(body.get("member_id"))).bind(body_str(body.get("person_id")))
+    .bind(period_str).bind(body_str(body.get("member_id"))).bind(body_str(body.get("person_id")))
     .bind(body_str(body.get("movement_id"))).bind(body_str(body.get("family_group")))
-    .bind(body.get("paid_members").unwrap_or(&Value::Null))
+    .bind(paid_members_str)
     .fetch_one(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let id = row.try_get::<uuid::Uuid, _>("id").ok().map(|v| v.to_string());
     Ok(Json(json!({ "success": true, "id": id })))
@@ -1064,29 +1193,30 @@ async fn delete_user(
 
 async fn get_cementerio_movimientos(
     State(db): State<AppState>,
-    Query(q): Query<PagosMapQuery>,
-    Query(mid): Query<MovementIdQuery>,
-    Query(nq): Query<NichoQuery>,
+    Query(q): Query<CementerioMovimientosQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
-    let movement_id = mid.movement_id.or(mid.movementId);
-    let nicho = nq.nicho;
-    let has_nicho = nq.has_nicho.or(nq.hasNicho);
+    let movement_id = q.movement_id.or(q.movementId);
+    let nicho = q.nicho;
+    let has_nicho = q.has_nicho.or(q.hasNicho);
     let pagos_map = q.pagos_map.as_deref() == Some("true") || q.pagosMap.as_deref() == Some("true");
+    let member_id = q.member_id.or(q.memberId);
+    let person_id = q.person_id.or(q.personId);
 
     if pagos_map {
-        let rows = sqlx::query("SELECT movement_id, nicho, fecha_pago FROM cementerio_movimientos ORDER BY fecha_pago")
-            .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-        let mut map: serde_json::Map<String, Value> = serde_json::Map::new();
-        for r in &rows {
-            let mid = r.try_get::<uuid::Uuid, _>("movement_id").ok().map(|v| v.to_string()).unwrap_or_default();
-            let n = r.try_get::<String, _>("nicho").unwrap_or_default();
-            let fp = r.try_get::<String, _>("fecha_pago").unwrap_or_default();
-            map.entry(mid.clone()).or_insert_with(|| json!({}));
-            if let Some(obj) = map.get_mut(&mid).and_then(|v| v.as_object_mut()) {
-                obj.insert(n, Value::String(fp));
-            }
-        }
-        return Ok(Json(Value::Object(map)));
+        let rows = sqlx::query(
+            "SELECT nicho, member_id, person_id, MAX(fecha_pago) AS ultima_fecha_pago
+             FROM cementerio_movimientos
+             GROUP BY nicho, member_id, person_id"
+        ).fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        let result: Vec<Value> = rows.iter().map(|r| {
+            json!({
+                "nicho": str_col(r, "nicho"),
+                "memberId": opt_str_col(r, "member_id"),
+                "personId": opt_str_col(r, "person_id"),
+                "ultimaFechaPago": str_col(r, "ultima_fecha_pago"),
+            })
+        }).collect();
+        return Ok(Json(Value::Array(result)));
     }
     if let Some(n) = has_nicho {
         let row = sqlx::query("SELECT EXISTS(SELECT 1 FROM cementerio_movimientos WHERE nicho = $1)").bind(&n)
@@ -1100,6 +1230,17 @@ async fn get_cementerio_movimientos(
         return Ok(Json(rows_to_json(&rows)));
     }
     if let Some(n) = nicho {
+        if member_id.is_some() || person_id.is_some() {
+            let rows = sqlx::query(
+                "SELECT * FROM cementerio_movimientos WHERE nicho = $1
+                 AND member_id IS DISTINCT FROM $2
+                 AND person_id IS DISTINCT FROM $3"
+            ).bind(&n)
+             .bind(member_id.as_deref())
+             .bind(person_id.as_deref())
+             .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+            return Ok(Json(rows_to_json(&rows)));
+        }
         let rows = sqlx::query("SELECT * FROM cementerio_movimientos WHERE nicho = $1").bind(&n)
             .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
@@ -1134,13 +1275,31 @@ async fn get_debts(
     Query(q): Query<DebtBalanceQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     if let Some(member_id) = q.member_id.or(q.memberId) {
-        let rows = sqlx::query("SELECT * FROM debts WHERE member_id = $1 ORDER BY date").bind(&member_id)
-            .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        let rows = sqlx::query(
+            "SELECT d.id, d.member_id, d.person_id, d.type, d.description,
+             d.amount, d.movement_id, d.date::text, d.created_at::text,
+             m.nombre AS member_nombre, m.numero_de_socio AS member_numero_de_socio,
+             p.nombre AS person_nombre
+             FROM debts d
+             LEFT JOIN members m ON d.member_id = m.id
+             LEFT JOIN persons p ON d.person_id = p.id
+             WHERE d.member_id = $1 ORDER BY d.date DESC, d.created_at DESC"
+        ).bind(&member_id)
+         .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
     }
     if let Some(person_id) = q.person_id.or(q.personId) {
-        let rows = sqlx::query("SELECT * FROM debts WHERE person_id = $1 ORDER BY date").bind(&person_id)
-            .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        let rows = sqlx::query(
+            "SELECT d.id, d.member_id, d.person_id, d.type, d.description,
+             d.amount, d.movement_id, d.date::text, d.created_at::text,
+             m.nombre AS member_nombre, m.numero_de_socio AS member_numero_de_socio,
+             p.nombre AS person_nombre
+             FROM debts d
+             LEFT JOIN members m ON d.member_id = m.id
+             LEFT JOIN persons p ON d.person_id = p.id
+             WHERE d.person_id = $1 ORDER BY d.date DESC, d.created_at DESC"
+        ).bind(&person_id)
+         .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
     }
     Err(err(StatusCode::BAD_REQUEST, "Falta memberId o personId"))
@@ -1439,4 +1598,23 @@ fn body_bool(v: Option<&Value>) -> bool {
 
 fn body_f64(body: &Value, key: &str) -> f64 {
     body.get(key).and_then(|v| v.as_f64()).unwrap_or(0.0)
+}
+
+fn bind_json<'q>(
+    q: sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments>,
+    value: &Value,
+) -> sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments> {
+    match value {
+        Value::Null => q.bind(Option::<String>::None),
+        Value::Bool(b) => q.bind(*b),
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                q.bind(i as f64)
+            } else {
+                q.bind(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        Value::String(s) => q.bind(s.clone()),
+        _ => q.bind(value.to_string()),
+    }
 }

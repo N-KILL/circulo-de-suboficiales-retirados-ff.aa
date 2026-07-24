@@ -1,10 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const slug = (req.query.slug as string[]) ?? [];
-  const pathname = slug.length > 0
-    ? "/api/" + slug.join("/")
-    : new URL(req.url ?? "/", "http://localhost").pathname;
+  const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
   const method = req.method ?? "GET";
 
   try {
