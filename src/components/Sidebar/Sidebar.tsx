@@ -75,7 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
       <div className="sidebar-brand">
         <img src={logo} alt="Logo FF.AA" className="sidebar-logo-img" />
         <div className="sidebar-brand-text">
-          CÍRCULO DE SUBOFICIALES<br />RETIRADOS DE LAS<br />FUERZAS ARMADAS<br /> DE LA NACION <br /> HONOR Y PATRIA
+          CÍRCULO DE SUBOFICIALES<br />RETIRADOS DE LAS<br />FUERZAS ARMADAS<br /> DE LA NACIÓN <br /> HONOR Y PATRIA
         </div>
       </div>
 
