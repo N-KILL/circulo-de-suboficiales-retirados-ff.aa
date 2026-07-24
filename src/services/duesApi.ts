@@ -21,6 +21,7 @@ export type MemberCemeteryCheck = {
 };
 
 export async function fetchDuesByMember(memberId: string): Promise<DueWithDetails[]> {
+  if (!memberId) return [];
   const response = await fetch(`/api/dues?memberId=${encodeURIComponent(memberId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -30,6 +31,7 @@ export async function fetchDuesByMember(memberId: string): Promise<DueWithDetail
 }
 
 export async function fetchMemberCemeteryCheck(memberId: string): Promise<MemberCemeteryCheck> {
+  if (!memberId) return { hasCementerio: false, dues: [] };
   const response = await fetch(`/api/dues?memberId=${encodeURIComponent(memberId)}&check=cementerio`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -80,6 +82,7 @@ export async function saveDue(data: {
 }
 
 export async function fetchFamilyMembers(memberId: string): Promise<import("../models/members").Member[]> {
+  if (!memberId) return [];
   const response = await fetch(`/api/members/family?memberId=${encodeURIComponent(memberId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;

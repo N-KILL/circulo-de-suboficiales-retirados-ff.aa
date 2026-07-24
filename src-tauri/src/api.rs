@@ -180,6 +180,14 @@ fn opt_str_col(row: &sqlx::postgres::PgRow, col: &str) -> Option<String> {
     row.try_get::<Option<String>, _>(col).ok().flatten()
 }
 
+fn uuid_col(row: &sqlx::postgres::PgRow, col: &str) -> String {
+    row.try_get::<uuid::Uuid, _>(col).map(|v| v.to_string()).unwrap_or_default()
+}
+
+fn opt_uuid_col(row: &sqlx::postgres::PgRow, col: &str) -> Option<String> {
+    row.try_get::<Option<uuid::Uuid>, _>(col).ok().flatten().map(|v| v.to_string())
+}
+
 fn map_sexo(raw: &str) -> String {
     match raw { "M" | "m" => "Masculino", "F" | "f" => "Femenino", _ => raw }.to_string()
 }
@@ -260,7 +268,7 @@ fn person_json(row: &sqlx::postgres::PgRow, prefix: &str) -> Value {
     let nombre = str_col(row, &format!("{}_nombre", prefix));
     if nombre.trim().is_empty() { return Value::Null; }
     json!({
-        "id": opt_str_col(row, &format!("{}_id", prefix)).unwrap_or_default(),
+        "id": opt_uuid_col(row, &format!("{}_id", prefix)).unwrap_or_default(),
         "nombre": nombre,
         "tipoDoc": str_col(row, &format!("{}_tipo_doc", prefix)),
         "documento": str_col(row, &format!("{}_documento", prefix)),
@@ -271,7 +279,7 @@ fn person_json(row: &sqlx::postgres::PgRow, prefix: &str) -> Value {
 
 fn row_to_member_json(row: &sqlx::postgres::PgRow) -> Value {
     json!({
-        "id": str_col(row, "id"),
+        "id": uuid_col(row, "id"),
         "numeroDeSocio": str_col(row, "numero_de_socio"),
         "nombre": str_col(row, "nombre"),
         "sexo": map_sexo(&str_col(row, "sexo")),
@@ -327,7 +335,8 @@ async fn get_members_family(
     Query(q): Query<MemberIdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let member_id = q.member_id.or(q.memberId).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta memberId"))?;
-    let current = sqlx::query("SELECT nro_familia, numero_de_socio FROM members WHERE id = $1 LIMIT 1")
+    if member_id.is_empty() { return Ok(Json(json!([]))); }
+    let current = sqlx::query("SELECT nro_familia, numero_de_socio FROM members WHERE id = $1::uuid LIMIT 1")
         .bind(&member_id).fetch_optional(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let current = current.ok_or_else(|| err(StatusCode::NOT_FOUND, "Socio no encontrado"))?;
@@ -352,7 +361,8 @@ async fn get_members_family(
          LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id
          WHERE m.nro_familia LIKE $1 OR m.nro_familia = $2 ORDER BY m.numero_de_socio"
     ).bind(&like_pattern).bind(&family_group)
-     .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+     .fetch_all(&db.pool).await
+     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let members: Vec<Value> = rows.iter().map(|r| row_to_member_json(r)).collect();
     Ok(Json(Value::Array(members)))
 }
@@ -470,18 +480,18 @@ async fn get_movement(
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
     let row = sqlx::query(
-        "SELECT id, date::text, detail, amount::float8 as amount, type, mode, concept, created_at::text FROM petty_cash WHERE id = $1"
+        "SELECT id, date::text, detail, amount::float8 as amount, type, mode, concept, created_at::text FROM petty_cash WHERE id = $1::uuid"
     ).bind(&id)
         .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let movement = row.ok_or_else(|| err(StatusCode::NOT_FOUND, "No encontrado"))?;
-    let due = sqlx::query("SELECT * FROM dues WHERE movement_id = $1").bind(&id)
+    let due = sqlx::query("SELECT * FROM dues WHERE movement_id = $1::uuid").bind(&id)
         .fetch_optional(&db.pool).await.ok().flatten().map(|r| row_to_json(&r));
-    let sr = sqlx::query("SELECT * FROM service_records WHERE movement_id = $1").bind(&id)
+    let sr = sqlx::query("SELECT * FROM service_records WHERE movement_id = $1::uuid").bind(&id)
         .fetch_all(&db.pool).await.ok().map(|r| rows_to_json(&r)).unwrap_or(json!([]));
-    let cm = sqlx::query("SELECT * FROM cementerio_movimientos WHERE movement_id = $1").bind(&id)
+    let cm = sqlx::query("SELECT * FROM cementerio_movimientos WHERE movement_id = $1::uuid").bind(&id)
         .fetch_all(&db.pool).await.ok().map(|r| rows_to_json(&r)).unwrap_or(json!([]));
     let comprobante_row = sqlx::query(
-        "SELECT id, movement_id::text, receipt_number, copies_to_print, detail, concept, payer_name, created_at::text FROM comprobantes WHERE movement_id = $1 ORDER BY created_at DESC LIMIT 1"
+        "SELECT id, movement_id::text, receipt_number, copies_to_print, detail, concept, payer_name, created_at::text FROM comprobantes WHERE movement_id = $1::uuid ORDER BY created_at DESC LIMIT 1"
     ).bind(&id)
         .fetch_optional(&db.pool).await.ok().flatten().map(|r| row_to_json(&r));
     let mut result = row_to_json(&movement);
@@ -516,7 +526,7 @@ async fn update_movement(
             }
         }
         if !sets.is_empty() {
-            let q_str = format!("UPDATE petty_cash SET {} WHERE id = ${}", sets.join(", "), sets.len() + 1);
+            let q_str = format!("UPDATE petty_cash SET {} WHERE id = ${}::uuid", sets.join(", "), sets.len() + 1);
             let mut query = sqlx::query(&q_str);
             for (_k, v) in &non_null_values {
                 query = bind_json(query, v);
@@ -535,7 +545,7 @@ async fn update_movement(
                 .and_then(|v| v.as_array())
                 .filter(|a| !a.is_empty())
                 .map(|a| serde_json::to_string(a).unwrap_or_default());
-            let q_str = "UPDATE dues SET period = COALESCE($1::jsonb, period), paid_members = COALESCE($2::jsonb, paid_members) WHERE movement_id = $3";
+            let q_str = "UPDATE dues SET period = COALESCE($1::jsonb, period), paid_members = COALESCE($2::jsonb, paid_members) WHERE movement_id = $3::uuid";
             sqlx::query(q_str)
                 .bind(period_json)
                 .bind(paid_members_json)
@@ -551,7 +561,7 @@ async fn delete_movement(
     Query(q): Query<IdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    let debts = sqlx::query("SELECT id, description, amount FROM debts WHERE movement_id = $1")
+    let debts = sqlx::query("SELECT id, description, amount FROM debts WHERE movement_id = $1::uuid")
         .bind(&id).fetch_all(&db.pool).await.unwrap_or_default();
     for debt in &debts {
         let debt_id: Option<uuid::Uuid> = debt.try_get("id").ok();
@@ -559,15 +569,15 @@ async fn delete_movement(
         let amount: f64 = debt.try_get("amount").ok().flatten().unwrap_or(0.0);
         if let Some(did) = debt_id {
             let cancel_desc = format!("Cancelados {}{:.2} - {}", if amount >= 0.0 { "+" } else { "" }, amount, desc);
-            sqlx::query("UPDATE debts SET amount = 0, description = $1 WHERE id = $2")
+            sqlx::query("UPDATE debts SET amount = 0, description = $1 WHERE id = $2::uuid")
                 .bind(cancel_desc).bind(did).execute(&db.pool).await.ok();
         }
     }
-    sqlx::query("DELETE FROM dues WHERE movement_id = $1").bind(&id).execute(&db.pool).await.ok();
-    sqlx::query("DELETE FROM service_records WHERE movement_id = $1").bind(&id).execute(&db.pool).await.ok();
-    sqlx::query("DELETE FROM cementerio_movimientos WHERE movement_id = $1").bind(&id).execute(&db.pool).await.ok();
-    sqlx::query("UPDATE external_service_payments SET movement_id = NULL WHERE movement_id = $1").bind(&id).execute(&db.pool).await.ok();
-    sqlx::query("DELETE FROM petty_cash WHERE id = $1").bind(&id).execute(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    sqlx::query("DELETE FROM dues WHERE movement_id = $1::uuid").bind(&id).execute(&db.pool).await.ok();
+    sqlx::query("DELETE FROM service_records WHERE movement_id = $1::uuid").bind(&id).execute(&db.pool).await.ok();
+    sqlx::query("DELETE FROM cementerio_movimientos WHERE movement_id = $1::uuid").bind(&id).execute(&db.pool).await.ok();
+    sqlx::query("UPDATE external_service_payments SET movement_id = NULL WHERE movement_id = $1::uuid").bind(&id).execute(&db.pool).await.ok();
+    sqlx::query("DELETE FROM petty_cash WHERE id = $1::uuid").bind(&id).execute(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
 }
 
@@ -585,7 +595,7 @@ async fn get_movements(
 
     let comprobantes_value: Value = if !movement_ids.is_empty() {
         sqlx::query(
-            "SELECT id, movement_id::text, receipt_number, copies_to_print, detail, concept, payer_name, created_at::text FROM comprobantes WHERE movement_id = ANY($1)"
+            "SELECT id, movement_id::text, receipt_number, copies_to_print, detail, concept, payer_name, created_at::text FROM comprobantes WHERE movement_id = ANY($1::uuid[])"
         )
             .bind(&movement_ids)
             .fetch_all(&db.pool).await
@@ -664,7 +674,7 @@ async fn get_member(
          ap2.id AS apoderado2_id, ap2.nombre AS apoderado2_nombre, ap2.tipo_doc AS apoderado2_tipo_doc,
          ap2.documento AS apoderado2_documento, ap2.domicilio AS apoderado2_domicilio, ap2.telefono AS apoderado2_telefono
          FROM members m LEFT JOIN persons ap1 ON m.apoderado1_id = ap1.id
-         LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id WHERE m.id = $1 LIMIT 1"
+         LEFT JOIN persons ap2 ON m.apoderado2_id = ap2.id WHERE m.id = $1::uuid LIMIT 1"
     ).bind(&id).fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     row.ok_or_else(|| err(StatusCode::NOT_FOUND, "No encontrado")).map(|r| Json(row_to_member_json(&r)))
 }
@@ -727,7 +737,7 @@ async fn delete_member(
     Query(q): Query<IdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    sqlx::query("DELETE FROM members WHERE id = $1").bind(&id).execute(&db.pool).await
+    sqlx::query("DELETE FROM members WHERE id = $1::uuid").bind(&id).execute(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
 }
@@ -737,7 +747,7 @@ async fn get_person(
     Query(q): Query<IdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    let row = sqlx::query("SELECT * FROM persons WHERE id = $1 LIMIT 1").bind(&id)
+    let row = sqlx::query("SELECT * FROM persons WHERE id = $1::uuid LIMIT 1").bind(&id)
         .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     row.ok_or_else(|| err(StatusCode::NOT_FOUND, "No encontrado")).map(|r| Json(row_to_json(&r)))
 }
@@ -767,7 +777,7 @@ async fn delete_person(
     Query(q): Query<IdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    sqlx::query("DELETE FROM persons WHERE id = $1").bind(&id).execute(&db.pool).await
+    sqlx::query("DELETE FROM persons WHERE id = $1::uuid").bind(&id).execute(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
 }
@@ -778,7 +788,7 @@ async fn get_person_members(
 ) -> Result<Json<Value>, ErrResponse> {
     let person_id = q.person_id.or(q.personId).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta personId"))?;
     let rows = sqlx::query(
-        "SELECT m.* FROM members m WHERE m.apoderado1_id = $1 OR m.apoderado2_id = $1 ORDER BY m.numero_de_socio"
+        "SELECT m.* FROM members m WHERE m.apoderado1_id = $1::uuid OR m.apoderado2_id = $1::uuid ORDER BY m.numero_de_socio"
     ).bind(&person_id).fetch_all(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let members: Vec<Value> = rows.iter().map(|r| {
@@ -834,10 +844,10 @@ async fn get_cementerios(
     if let Some(owner_id) = q.owner_id.or(q.ownerId) {
         let is_socio = q.is_socio.as_deref() == Some("true") || q.isSocio.as_deref() == Some("true");
         let rows = if is_socio {
-            sqlx::query("SELECT * FROM cementerios WHERE socio_id = $1 ORDER BY nicho").bind(&owner_id)
+            sqlx::query("SELECT * FROM cementerios WHERE socio_id = $1::uuid ORDER BY nicho").bind(&owner_id)
                 .fetch_all(&db.pool).await
         } else {
-            sqlx::query("SELECT * FROM cementerios WHERE persona_id = $1 ORDER BY nicho").bind(&owner_id)
+            sqlx::query("SELECT * FROM cementerios WHERE persona_id = $1::uuid ORDER BY nicho").bind(&owner_id)
                 .fetch_all(&db.pool).await
         };
         let rows = rows.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
@@ -874,7 +884,7 @@ async fn update_cementerio(
             }
         }
         if !sets.is_empty() {
-            let q_str = format!("UPDATE cementerios SET {}, updated_at = NOW() WHERE id = ${}", sets.join(", "), non_null_values.len() + 1);
+            let q_str = format!("UPDATE cementerios SET {}, updated_at = NOW() WHERE id = ${}::uuid", sets.join(", "), non_null_values.len() + 1);
             let mut query = sqlx::query(&q_str);
             for (_k, v) in &non_null_values {
                 query = bind_json(query, v);
@@ -891,8 +901,9 @@ async fn get_dues(
     Query(q): Query<DuesQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     if let Some(member_id) = q.member_id.or(q.memberId) {
+        if member_id.is_empty() { return Ok(Json(json!([]))); }
         if q.check.as_deref() == Some("cementerio") {
-            let count_row = sqlx::query("SELECT COUNT(*)::int AS count FROM cementerios WHERE socio_id = $1")
+            let count_row = sqlx::query("SELECT COUNT(*)::int AS count FROM cementerios WHERE socio_id = $1::uuid")
                 .bind(&member_id).fetch_optional(&db.pool).await.ok().flatten();
             let has_cementerio = count_row.and_then(|r| r.try_get::<i32, _>("count").ok()).unwrap_or(0) > 0;
 
@@ -905,7 +916,7 @@ async fn get_dues(
                  LEFT JOIN members m ON d.member_id = m.id
                  LEFT JOIN persons p ON d.person_id = p.id
                  LEFT JOIN petty_cash pc ON d.movement_id = pc.id
-                 WHERE d.member_id = $1 OR d.paid_members::jsonb ? $1
+                 WHERE d.member_id = $1::uuid OR d.paid_members::jsonb ? $1
                  ORDER BY d.payment_date DESC, d.created_at DESC"
             ).bind(&member_id).fetch_all(&db.pool).await
              .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
@@ -921,7 +932,7 @@ async fn get_dues(
              LEFT JOIN members m ON d.member_id = m.id
              LEFT JOIN persons p ON d.person_id = p.id
              LEFT JOIN petty_cash pc ON d.movement_id = pc.id
-             WHERE d.member_id = $1 OR d.paid_members::jsonb ? $1
+             WHERE d.member_id = $1::uuid OR d.paid_members::jsonb ? $1
              ORDER BY d.payment_date DESC, d.created_at DESC"
         ).bind(&member_id).fetch_all(&db.pool).await
          .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
@@ -937,7 +948,7 @@ async fn get_dues(
              LEFT JOIN members m ON d.member_id = m.id
              LEFT JOIN persons p ON d.person_id = p.id
              LEFT JOIN petty_cash pc ON d.movement_id = pc.id
-             WHERE d.person_id = $1
+             WHERE d.person_id = $1::uuid
              ORDER BY d.payment_date DESC, d.created_at DESC"
         ).bind(&person_id).fetch_all(&db.pool).await
          .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
@@ -1050,7 +1061,7 @@ async fn update_service(
     let id = body.get("id").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
     let name = body.get("name").and_then(|v| v.as_str()).and_then(|s| if s.trim().is_empty() { None } else { Some(s.trim()) })
         .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta name"))?;
-    let row = sqlx::query("UPDATE services SET name=$1, amount=$2 WHERE id=$3 RETURNING *")
+    let row = sqlx::query("UPDATE services SET name=$1, amount=$2 WHERE id=$3::uuid RETURNING *")
         .bind(name).bind(body_f64(&body, "amount")).bind(id)
         .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     row.ok_or_else(|| err(StatusCode::NOT_FOUND, "No encontrado")).map(|r| Json(row_to_json(&r)))
@@ -1061,7 +1072,7 @@ async fn delete_service(
     Query(q): Query<IdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    sqlx::query("DELETE FROM services WHERE id = $1").bind(&id).execute(&db.pool).await
+    sqlx::query("DELETE FROM services WHERE id = $1::uuid").bind(&id).execute(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
 }
@@ -1071,22 +1082,22 @@ async fn get_service_records(
     Query(q): Query<ServiceRecordQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     if let Some(id) = q.id {
-        let row = sqlx::query("SELECT * FROM service_records WHERE id = $1").bind(&id)
+        let row = sqlx::query("SELECT * FROM service_records WHERE id = $1::uuid").bind(&id)
             .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return row.ok_or_else(|| err(StatusCode::NOT_FOUND, "No encontrado")).map(|r| Json(row_to_json(&r)));
     }
     if let Some(member_id) = q.member_id.or(q.memberId) {
-        let rows = sqlx::query("SELECT * FROM service_records WHERE member_id = $1 ORDER BY date").bind(&member_id)
+        let rows = sqlx::query("SELECT * FROM service_records WHERE member_id = $1::uuid ORDER BY date").bind(&member_id)
             .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
     }
     if let Some(person_id) = q.person_id.or(q.personId) {
-        let rows = sqlx::query("SELECT * FROM service_records WHERE person_id = $1 ORDER BY date").bind(&person_id)
+        let rows = sqlx::query("SELECT * FROM service_records WHERE person_id = $1::uuid ORDER BY date").bind(&person_id)
             .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
     }
     if let Some(movement_id) = q.movement_id.or(q.movementId) {
-        let rows = sqlx::query("SELECT * FROM service_records WHERE movement_id = $1 ORDER BY date").bind(&movement_id)
+        let rows = sqlx::query("SELECT * FROM service_records WHERE movement_id = $1::uuid ORDER BY date").bind(&movement_id)
             .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
     }
@@ -1124,7 +1135,7 @@ async fn update_service_record(
     let id = body.get("id").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
     let row = sqlx::query(
         "UPDATE service_records SET service_id=$1, member_id=$2, person_id=$3, movement_id=$4,
-         amount=$5, date=$6::date, service_date=$7, detail=$8 WHERE id=$9 RETURNING *"
+         amount=$5, date=$6::date, service_date=$7, detail=$8 WHERE id=$9::uuid RETURNING *"
     )
     .bind(body_str(body.get("service_id"))).bind(body_str(body.get("member_id")))
     .bind(body_str(body.get("person_id"))).bind(body_str(body.get("movement_id")))
@@ -1140,7 +1151,7 @@ async fn delete_service_record(
     Query(q): Query<IdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    sqlx::query("DELETE FROM service_records WHERE id = $1").bind(&id).execute(&db.pool).await
+    sqlx::query("DELETE FROM service_records WHERE id = $1::uuid").bind(&id).execute(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
 }
@@ -1211,8 +1222,8 @@ async fn get_cementerio_movimientos(
         let result: Vec<Value> = rows.iter().map(|r| {
             json!({
                 "nicho": str_col(r, "nicho"),
-                "memberId": opt_str_col(r, "member_id"),
-                "personId": opt_str_col(r, "person_id"),
+                "memberId": opt_uuid_col(r, "member_id"),
+                "personId": opt_uuid_col(r, "person_id"),
                 "ultimaFechaPago": str_col(r, "ultima_fecha_pago"),
             })
         }).collect();
@@ -1225,7 +1236,7 @@ async fn get_cementerio_movimientos(
         return Ok(Json(json!({ "exists": exists })));
     }
     if let Some(mid) = movement_id {
-        let rows = sqlx::query("SELECT * FROM cementerio_movimientos WHERE movement_id = $1").bind(&mid)
+        let rows = sqlx::query("SELECT * FROM cementerio_movimientos WHERE movement_id = $1::uuid").bind(&mid)
             .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
     }
@@ -1233,8 +1244,8 @@ async fn get_cementerio_movimientos(
         if member_id.is_some() || person_id.is_some() {
             let rows = sqlx::query(
                 "SELECT * FROM cementerio_movimientos WHERE nicho = $1
-                 AND member_id IS DISTINCT FROM $2
-                 AND person_id IS DISTINCT FROM $3"
+                 AND member_id IS DISTINCT FROM $2::uuid
+                 AND person_id IS DISTINCT FROM $3::uuid"
             ).bind(&n)
              .bind(member_id.as_deref())
              .bind(person_id.as_deref())
@@ -1275,6 +1286,7 @@ async fn get_debts(
     Query(q): Query<DebtBalanceQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     if let Some(member_id) = q.member_id.or(q.memberId) {
+        if member_id.is_empty() { return Ok(Json(json!([]))); }
         let rows = sqlx::query(
             "SELECT d.id, d.member_id, d.person_id, d.type, d.description,
              d.amount, d.movement_id, d.date::text, d.created_at::text,
@@ -1283,12 +1295,13 @@ async fn get_debts(
              FROM debts d
              LEFT JOIN members m ON d.member_id = m.id
              LEFT JOIN persons p ON d.person_id = p.id
-             WHERE d.member_id = $1 ORDER BY d.date DESC, d.created_at DESC"
+             WHERE d.member_id = $1::uuid ORDER BY d.date DESC, d.created_at DESC"
         ).bind(&member_id)
          .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
     }
     if let Some(person_id) = q.person_id.or(q.personId) {
+        if person_id.is_empty() { return Ok(Json(json!([]))); }
         let rows = sqlx::query(
             "SELECT d.id, d.member_id, d.person_id, d.type, d.description,
              d.amount, d.movement_id, d.date::text, d.created_at::text,
@@ -1297,7 +1310,7 @@ async fn get_debts(
              FROM debts d
              LEFT JOIN members m ON d.member_id = m.id
              LEFT JOIN persons p ON d.person_id = p.id
-             WHERE d.person_id = $1 ORDER BY d.date DESC, d.created_at DESC"
+             WHERE d.person_id = $1::uuid ORDER BY d.date DESC, d.created_at DESC"
         ).bind(&person_id)
          .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         return Ok(Json(rows_to_json(&rows)));
@@ -1340,12 +1353,14 @@ async fn get_debts_balance(
     } else {
         return Err(err(StatusCode::BAD_REQUEST, "Falta memberId o personId"));
     };
+    if val.is_empty() { return Ok(Json(json!({ "balance": 0.0 }))); }
     let q_str = format!(
-        "SELECT COALESCE(SUM(CASE WHEN type = 'debt' THEN amount ELSE -amount END), 0) AS balance FROM debts WHERE {} = $1",
+        "SELECT COALESCE(SUM(amount), 0)::float8 AS balance FROM debts WHERE {} = $1::uuid",
         column
     );
     let row = sqlx::query(&q_str).bind(&val)
-        .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        .fetch_optional(&db.pool).await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let balance = row.and_then(|r| r.try_get::<f64, _>("balance").ok()).unwrap_or(0.0);
     Ok(Json(json!({ "balance": balance })))
 }
@@ -1385,7 +1400,7 @@ async fn update_external_service(
     let active = body.get("active").and_then(|v| v.as_bool()).unwrap_or(true);
     let row = sqlx::query(
         "UPDATE external_services SET name=$1, phone=$2, description=$3, frequency=$4, start_month=$5, active=$6, updated_at=NOW()
-         WHERE id=$7 RETURNING *"
+         WHERE id=$7::uuid RETURNING *"
     )
     .bind(name).bind(body_str(body.get("phone"))).bind(body_str(body.get("description")))
     .bind(body_str(body.get("frequency")).unwrap_or_else(|| "mensual".to_string()))
@@ -1400,7 +1415,7 @@ async fn delete_external_service(
     Query(q): Query<IdQuery>,
 ) -> Result<Json<Value>, ErrResponse> {
     let id = q.id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta id"))?;
-    sqlx::query("DELETE FROM external_services WHERE id = $1").bind(&id).execute(&db.pool).await
+    sqlx::query("DELETE FROM external_services WHERE id = $1::uuid").bind(&id).execute(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
 }
@@ -1441,7 +1456,7 @@ async fn delete_ext_service_payment(
     let service_id = body.get("service_id").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta service_id"))?;
     let month = body.get("month").and_then(|v| v.as_i64()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta month"))? as i32;
     let year = body.get("year").and_then(|v| v.as_i64()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta year"))? as i32;
-    sqlx::query("DELETE FROM external_service_payments WHERE service_id=$1 AND month=$2 AND year=$3")
+    sqlx::query("DELETE FROM external_service_payments WHERE service_id=$1::uuid AND month=$2 AND year=$3")
         .bind(service_id).bind(month).bind(year).execute(&db.pool).await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
@@ -1476,7 +1491,7 @@ async fn get_comprobante(
     let movement_id = q.movement_id.or(q.movementId)
         .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta movementId"))?;
     let row = sqlx::query(
-        "SELECT * FROM comprobantes WHERE movement_id = $1 ORDER BY created_at DESC LIMIT 1"
+        "SELECT * FROM comprobantes WHERE movement_id = $1::uuid ORDER BY created_at DESC LIMIT 1"
     ).bind(&movement_id).fetch_optional(&db.pool).await
      .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(row.map(|r| row_to_json(&r)).unwrap_or(Value::Null)))
@@ -1536,9 +1551,9 @@ async fn save_receipt_copies_config(
 
     for id in &existing_set {
         if !incoming_ids.contains(id.as_str()) {
-            sqlx::query("DELETE FROM receipt_copies_config WHERE concept_id = $1").bind(id)
+            sqlx::query("DELETE FROM receipt_copies_config WHERE concept_id = $1::uuid").bind(id)
                 .execute(&db.pool).await.ok();
-            sqlx::query("DELETE FROM receipt_concepts WHERE id = $1").bind(id)
+            sqlx::query("DELETE FROM receipt_concepts WHERE id = $1::uuid").bind(id)
                 .execute(&db.pool).await.ok();
         }
     }
@@ -1555,7 +1570,7 @@ async fn save_receipt_copies_config(
         if let Some(exist_id) = id {
             if existing_set.contains(exist_id) {
                 sqlx::query(
-                    "UPDATE receipt_concepts SET name=$1, type=$2, target=$3, sort_order=$4, active=$5 WHERE id=$6"
+                    "UPDATE receipt_concepts SET name=$1, type=$2, target=$3, sort_order=$4, active=$5 WHERE id=$6::uuid"
                 ).bind(name).bind(ctype).bind(target).bind(sort_order).bind(active).bind(exist_id)
                  .execute(&db.pool).await.ok();
                 sqlx::query(
@@ -1618,3 +1633,4 @@ fn bind_json<'q>(
         _ => q.bind(value.to_string()),
     }
 }
+

@@ -32,6 +32,7 @@ export async function fetchDebtsByPerson(personId: string): Promise<DebtWithDeta
 }
 
 export async function fetchBalanceByMember(memberId: string): Promise<number> {
+  if (!memberId) return 0;
   const response = await fetch(`/api/debts/balance?memberId=${encodeURIComponent(memberId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -42,6 +43,7 @@ export async function fetchBalanceByMember(memberId: string): Promise<number> {
 }
 
 export async function fetchBalanceByPerson(personId: string): Promise<number> {
+  if (!personId) return 0;
   const response = await fetch(`/api/debts/balance?personId=${encodeURIComponent(personId)}`);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;

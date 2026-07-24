@@ -27,6 +27,7 @@ import Variables from "./pages/Config/Variables";
 import Calendario from "./pages/Calendario/Calendario";
 import Reportes from "./pages/Reportes/Reportes";
 import Usuarios from "./pages/Usuarios/Usuarios";
+import NotFound from "./pages/NotFound/NotFound";
 
 const OWNER_OR_ADMIN: Array<"owner" | "admin"> = ["owner", "admin"];
 
@@ -142,6 +143,7 @@ function App() {
             </ProtectedRoute>
           } />
         </Route>
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );

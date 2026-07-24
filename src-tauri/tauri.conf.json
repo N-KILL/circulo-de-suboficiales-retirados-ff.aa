@@ -10,13 +10,15 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Círculo de Suboficiales Retirados",
         "width": 1400,
         "height": 900,
         "minWidth": 1024,
-        "minHeight": 700
+        "minHeight": 700,
+        "devtools": true
       }
     ],
     "security": {

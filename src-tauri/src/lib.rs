@@ -76,7 +76,9 @@ async fn start_api_server(pool: sqlx::PgPool, serve_frontend: bool) {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let mut app = api::api_router().with_state(state).layer(cors);
+    let mut app = api::api_router()
+        .with_state(state)
+        .layer(cors);
 
     if serve_frontend {
         println!("[api] Serving embedded frontend assets");
