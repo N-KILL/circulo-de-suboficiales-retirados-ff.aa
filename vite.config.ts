@@ -32,6 +32,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isCementerios = pathname === "/api/cementerios";
         const isDues = pathname === "/api/dues";
         const isDuesConfig = pathname === "/api/dues-config";
+        const isDuesConfigHistory = pathname === "/api/dues-config/history";
         const isServices = pathname === "/api/services";
         const isServiceRecords = pathname === "/api/service-records";
         const isCementerioMovimientos = pathname === "/api/cementerio-movimientos";
@@ -46,7 +47,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isComprobante = pathname === "/api/comprobante";
         const isReceiptCopiesConfig = pathname === "/api/receipt-copies-config";
 
-        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments && !isReceiptNext && !isComprobante && !isReceiptCopiesConfig) {
+        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isDuesConfigHistory && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments && !isReceiptNext && !isComprobante && !isReceiptCopiesConfig) {
           next();
           return;
         }
@@ -599,6 +600,24 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               );
               res.statusCode = 200;
               res.end(JSON.stringify(result));
+              return;
+            }
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isDuesConfigHistory) {
+            if (req.method === "GET") {
+              const { getPricingHistory } = await import("./src/database/duesConfigRepository");
+              const history = await getPricingHistory();
+              res.statusCode = 200;
+              res.end(JSON.stringify(history));
               return;
             }
             if (req.method === "OPTIONS") {

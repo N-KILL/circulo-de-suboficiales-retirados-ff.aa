@@ -445,3 +445,93 @@
 .receipt-copies-add.show-target .config-cemetery-row {
     grid-template-columns: 110px 1fr auto auto 140px auto;
 }
+
+/* Pricing History Modal */
+.pricing-history-wrapper {
+    padding: 12px;
+}
+
+.pricing-history-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.pricing-history-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.pricing-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.pricing-history-th {
+    padding: 8px 10px;
+    text-align: right;
+    font-weight: 600;
+    color: var(--azul-armada);
+    border-bottom: 2px solid var(--border);
+    background: var(--gris-claro);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.pricing-history-th:first-child,
+.pricing-history-th-date {
+    text-align: left;
+}
+
+.pricing-history-td {
+    padding: 6px 10px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+
+.pricing-history-td-date {
+    text-align: left;
+    font-weight: 500;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.pricing-history-changed {
+    background: #fff3cd;
+    color: #856404;
+    font-weight: 600;
+    border-radius: 2px;
+}
+
+.pricing-history-table tbody tr:hover {
+    background: var(--gris-claro);
+}
+
+.pricing-history-table tbody tr:hover .pricing-history-changed {
+    background: #ffec99;
+}
+
+.pricing-history-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: var(--gris-claro);
+    border: 1px solid var(--border);
+    color: var(--azul-armada);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.pricing-history-btn:hover {
+    background: var(--border);
+}

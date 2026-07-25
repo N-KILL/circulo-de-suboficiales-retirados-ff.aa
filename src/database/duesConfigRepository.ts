@@ -1,7 +1,5 @@
 import { getSql } from "./connection.js";
 
-const SINGLETON_ID = "00000000-0000-0000-0000-000000000002";
-
 type PricingRow = {
     id: string;
     member_fee: number;
@@ -19,6 +17,7 @@ type PricingRow = {
     fee_adh: number;
     fee_part: number;
     fee_vit: number;
+    updated_at: string;
 };
 
 export type DuesConfig = {
@@ -38,6 +37,7 @@ export type DuesConfig = {
     fee_adh: number;
     fee_part: number;
     fee_vit: number;
+    updated_at: string;
 };
 
 export async function ensurePricingTable(): Promise<void> {
@@ -97,6 +97,7 @@ function mapRow(row: PricingRow): DuesConfig {
         fee_adh: row.fee_adh,
         fee_part: row.fee_part,
         fee_vit: row.fee_vit,
+        updated_at: row.updated_at,
     };
 }
 
@@ -119,8 +120,10 @@ export async function getDuesConfig(): Promise<DuesConfig | null> {
             fee_act_a::float as fee_act_a,
             fee_adh::float as fee_adh,
             fee_part::float as fee_part,
-            fee_vit::float as fee_vit
+            fee_vit::float as fee_vit,
+            updated_at::text as updated_at
         FROM pricing
+        ORDER BY updated_at DESC
         LIMIT 1
     `) as PricingRow[];
     if (!rows[0]) return null;
@@ -147,35 +150,18 @@ export async function upsertDuesConfig(
     await ensurePricingTable();
     const sql = getSql();
     const rows = (await sql`
-        INSERT INTO pricing (id, member_fee, consideration_years,
+        INSERT INTO pricing (member_fee, consideration_years,
             nicho_member_fee, nicho_non_member_fee,
             urna_member_fee, urna_non_member_fee,
             bolsa_member_fee, bolsa_non_member_fee,
             asistencial_fee, plan_salud_fee,
             fee_act, fee_act_a, fee_adh, fee_part, fee_vit)
-        VALUES (${SINGLETON_ID}, ${member_fee}, ${consideration_years},
+        VALUES (${member_fee}, ${consideration_years},
             ${nicho_member_fee}, ${nicho_non_member_fee},
             ${urna_member_fee}, ${urna_non_member_fee},
             ${bolsa_member_fee}, ${bolsa_non_member_fee},
             ${asistencial_fee}, ${plan_salud_fee},
             ${fee_act}, ${fee_act_a}, ${fee_adh}, ${fee_part}, ${fee_vit})
-        ON CONFLICT (id) DO UPDATE SET
-            member_fee = EXCLUDED.member_fee,
-            consideration_years = EXCLUDED.consideration_years,
-            nicho_member_fee = EXCLUDED.nicho_member_fee,
-            nicho_non_member_fee = EXCLUDED.nicho_non_member_fee,
-            urna_member_fee = EXCLUDED.urna_member_fee,
-            urna_non_member_fee = EXCLUDED.urna_non_member_fee,
-            bolsa_member_fee = EXCLUDED.bolsa_member_fee,
-            bolsa_non_member_fee = EXCLUDED.bolsa_non_member_fee,
-            asistencial_fee = EXCLUDED.asistencial_fee,
-            plan_salud_fee = EXCLUDED.plan_salud_fee,
-            fee_act = EXCLUDED.fee_act,
-            fee_act_a = EXCLUDED.fee_act_a,
-            fee_adh = EXCLUDED.fee_adh,
-            fee_part = EXCLUDED.fee_part,
-            fee_vit = EXCLUDED.fee_vit,
-            updated_at = NOW()
         RETURNING id,
             member_fee::float as member_fee,
             consideration_years,
@@ -191,7 +177,35 @@ export async function upsertDuesConfig(
             fee_act_a::float as fee_act_a,
             fee_adh::float as fee_adh,
             fee_part::float as fee_part,
-            fee_vit::float as fee_vit
+            fee_vit::float as fee_vit,
+            updated_at::text as updated_at
     `) as PricingRow[];
     return mapRow(rows[0]);
+}
+
+export async function getPricingHistory(): Promise<DuesConfig[]> {
+    await ensurePricingTable();
+    const sql = getSql();
+    const rows = (await sql`
+        SELECT id,
+            member_fee::float as member_fee,
+            consideration_years,
+            nicho_member_fee::float as nicho_member_fee,
+            nicho_non_member_fee::float as nicho_non_member_fee,
+            urna_member_fee::float as urna_member_fee,
+            urna_non_member_fee::float as urna_non_member_fee,
+            bolsa_member_fee::float as bolsa_member_fee,
+            bolsa_non_member_fee::float as bolsa_non_member_fee,
+            asistencial_fee::float as asistencial_fee,
+            plan_salud_fee::float as plan_salud_fee,
+            fee_act::float as fee_act,
+            fee_act_a::float as fee_act_a,
+            fee_adh::float as fee_adh,
+            fee_part::float as fee_part,
+            fee_vit::float as fee_vit,
+            updated_at::text as updated_at
+        FROM pricing
+        ORDER BY updated_at DESC
+    `) as PricingRow[];
+    return rows.map(mapRow);
 }

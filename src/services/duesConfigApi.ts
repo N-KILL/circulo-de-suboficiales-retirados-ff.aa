@@ -15,6 +15,7 @@ export type DuesConfig = {
     fee_adh: number;
     fee_part: number;
     fee_vit: number;
+    updated_at: string;
 };
 
 export async function fetchDuesConfig(): Promise<DuesConfig | null> {
@@ -60,4 +61,13 @@ export async function saveDuesConfig(
         throw new Error(body?.error ?? "Error al guardar configuración de montos");
     }
     return response.json() as Promise<DuesConfig>;
+}
+
+export async function fetchDuesConfigHistory(): Promise<DuesConfig[]> {
+    const response = await fetch("/api/dues-config/history");
+    if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Error al cargar historial de cuotas");
+    }
+    return response.json() as Promise<DuesConfig[]>;
 }

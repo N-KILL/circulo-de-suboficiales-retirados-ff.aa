@@ -1,8 +1,10 @@
 import React, { useState } from "react";
-import { Save, Loader } from "lucide-react";
-import { saveDuesConfig } from "../../services/duesConfigApi";
+import { Save, Loader, History } from "lucide-react";
+import { saveDuesConfig, fetchDuesConfigHistory } from "../../services/duesConfigApi";
+import type { DuesConfig as DuesConfigData } from "../../services/duesConfigApi";
 import { parseMoney } from "../../utils/format";
 import CollapsibleCard from "../../components/ui/CollapsibleCard";
+import PricingHistoryModal from "./PricingHistoryModal";
 
 interface DuesConfigProps {
   initialMemberFee: string;
@@ -49,6 +51,8 @@ const DuesConfig: React.FC<DuesConfigProps> = (props) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<DuesConfigData[]>([]);
 
   const feeSetters: Record<string, React.Dispatch<React.SetStateAction<string>>> = {
     feeAct: setFeeAct,
@@ -85,6 +89,16 @@ const DuesConfig: React.FC<DuesConfigProps> = (props) => {
       setError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenHistory = async () => {
+    setHistoryOpen(true);
+    try {
+      const data = await fetchDuesConfigHistory();
+      setHistory(data);
+    } catch {
+      setHistory([]);
     }
   };
 
@@ -170,9 +184,19 @@ const DuesConfig: React.FC<DuesConfigProps> = (props) => {
 
       {error && <div className="config-error">{error}</div>}
       {success && <div className="config-success">Valores guardados correctamente</div>}
-      <button type="submit" className="config-save-btn" disabled={saving}>
-        {saving ? <><Loader size={16} className="spin" /> Guardando...</> : <><Save size={16} /> Guardar</>}
-      </button>
+      <div className="config-form-actions">
+        <button type="button" className="pricing-history-btn" onClick={handleOpenHistory}>
+          <History size={16} /> Ver Historial
+        </button>
+        <button type="submit" className="config-save-btn" disabled={saving}>
+          {saving ? <><Loader size={16} className="spin" /> Guardando...</> : <><Save size={16} /> Guardar</>}
+        </button>
+      </div>
+      <PricingHistoryModal
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        history={history}
+      />
     </form>
   );
 };

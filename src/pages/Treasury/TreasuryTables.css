@@ -601,7 +601,8 @@
 .col-arrendatario { min-width: 180px; }
 .col-telefono { width: 120px; }
 .col-paga-por { width: 100px; }
-.col-fecha { width: 130px; white-space: nowrap; }
+.col-fecha { width: 170px; white-space: nowrap; }
+.col-hora { color: var(--muted); font-size: 12px; }
 .col-comprobante { width: 90px; white-space: nowrap; font-family: monospace; font-size: 13px; color: var(--muted); }
 .col-anios { width: 70px; text-align: center; }
 

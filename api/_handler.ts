@@ -552,6 +552,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse, p
       return;
     }
 
+    if (pathname === "/api/dues-config/history") {
+      if (method === "GET") {
+        const { getPricingHistory } = await import("../src/database/duesConfigRepository.js");
+        const history = await getPricingHistory();
+        res.status(200).json(history);
+        return;
+      }
+
+      res.status(405).json({ error: "Método no permitido" });
+      return;
+    }
+
     if (pathname === "/api/receipt-copies-config") {
       if (method === "GET") {
         const { getAllReceiptConcepts } = await import("../src/database/receiptCopiesConfigRepository.js");

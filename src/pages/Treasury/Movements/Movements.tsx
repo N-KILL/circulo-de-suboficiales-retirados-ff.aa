@@ -95,19 +95,24 @@ const Movements: React.FC = () => {
     let rb = initialBanco;
     let rc = initialCajaChica;
     const items: Array<{
-      id: string; date: string; fecha: string;
+      id: string; date: string; fecha: string; hora: string;
       tipo: string; modalidad: string; concepto: string;
       comprobante: string;
       ingreso: string; egreso: string;
       saldoBanco: string | null; saldoCajaChica: string | null;
-      dateObj: Date;
+      dateObj: Date; created_at: string;
     }> = [];
     for (const m of rawMovements) {
       if (m.type === "ingreso") { if (m.mode === "transferencia") rb += m.amount; if (m.mode === "efectivo") rc += m.amount; }
       else if (m.type === "egreso") { if (m.mode === "transferencia") rb -= m.amount; if (m.mode === "efectivo") rc -= m.amount; }
       const fecha = formatRecordDate(m.date);
+      let hora = "";
+      if (m.created_at) {
+        const d = new Date(m.created_at);
+        hora = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      }
       items.push({
-        id: m.id, date: m.date, fecha,
+        id: m.id, date: m.date, fecha, hora,
         tipo: m.type === "ingreso" ? "Ingreso" : m.type === "egreso" ? "Egreso" : "Transferencia",
         modalidad: m.mode === "efectivo" ? "Efectivo" : "Transferencia",
         concepto: m.detail ?? "",
@@ -117,6 +122,7 @@ const Movements: React.FC = () => {
         saldoBanco: m.mode === "transferencia" ? formatCurrency(rb) : null,
         saldoCajaChica: m.mode === "efectivo" ? formatCurrency(rc) : null,
         dateObj: new Date(m.date + "T12:00:00"),
+        created_at: m.created_at ?? "",
       });
     }
     return { movementsWithSaldo: items, finalBanco: rb, finalCajaChica: rc };
@@ -143,7 +149,6 @@ const Movements: React.FC = () => {
         if (m.tipo === "Egreso" && !filtroEgreso) return false;
         return true;
       })
-      .reverse();
   }, [movementsWithSaldo, searchText, selectedMonths, selectedYears, cajaBanco, cajaChica, filtroIngreso, filtroEgreso, nichoMovementIds]);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -242,7 +247,7 @@ const Movements: React.FC = () => {
               ) : (
                 paginatedMovements.map((m, idx) => (
                   <tr key={idx} className="clickable-row" onClick={() => navigate(`/tesoreria/movimientos/detalle/${m.id}`)}>
-                    <td className="col-fecha">{m.fecha}</td>
+                    <td className="col-fecha">{m.fecha}{m.hora && <span className="col-hora"> {m.hora}</span>}</td>
                     <td className="col-comprobante">{m.comprobante}</td>
                     <td><span className={`badge ${m.tipo === "Ingreso" ? "badge-ingreso" : "badge-egreso"}`}>{m.tipo}</span></td>
                     <td>{m.modalidad}</td><td>{m.concepto}</td>
