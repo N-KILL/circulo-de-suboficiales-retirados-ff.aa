@@ -9,6 +9,7 @@ export type PettyCashRow = {
     type: "ingreso" | "egreso" | "transferencia";
     mode: "efectivo" | "transferencia";
     concept: string | null;
+    created_at: string;
 };
 
 export async function migratePettyCashSchema(): Promise<void> {
@@ -38,9 +39,10 @@ export async function migratePettyCashSchema(): Promise<void> {
 export async function getAllMovements(): Promise<PettyCashRow[]> {
     const sql = getSql();
     const rows = await sql`
-        SELECT id, date::text as date, detail, amount::float as amount, type, mode, concept
+        SELECT id, date::text as date, detail, amount::float as amount, type, mode, concept,
+               created_at::text as created_at
         FROM petty_cash
-        ORDER BY date ASC, id ASC
+        ORDER BY date DESC, created_at DESC
     `;
     return rows as PettyCashRow[];
 }

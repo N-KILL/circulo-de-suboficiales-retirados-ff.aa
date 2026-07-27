@@ -32,6 +32,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isCementerios = pathname === "/api/cementerios";
         const isDues = pathname === "/api/dues";
         const isDuesConfig = pathname === "/api/dues-config";
+        const isDuesConfigHistory = pathname === "/api/dues-config/history";
         const isServices = pathname === "/api/services";
         const isServiceRecords = pathname === "/api/service-records";
         const isCementerioMovimientos = pathname === "/api/cementerio-movimientos";
@@ -45,8 +46,9 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isReceiptNext = pathname === "/api/receipt/next";
         const isComprobante = pathname === "/api/comprobante";
         const isReceiptCopiesConfig = pathname === "/api/receipt-copies-config";
+        const isFrontendErrors = pathname === "/api/frontend-errors";
 
-        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments && !isReceiptNext && !isComprobante && !isReceiptCopiesConfig) {
+        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isDuesConfigHistory && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments && !isReceiptNext && !isComprobante && !isReceiptCopiesConfig && !isFrontendErrors) {
           next();
           return;
         }
@@ -611,6 +613,24 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             return;
           }
 
+          if (isDuesConfigHistory) {
+            if (req.method === "GET") {
+              const { getPricingHistory } = await import("./src/database/duesConfigRepository");
+              const history = await getPricingHistory();
+              res.statusCode = 200;
+              res.end(JSON.stringify(history));
+              return;
+            }
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.end();
+              return;
+            }
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
           if (isReceiptCopiesConfig) {
             if (req.method === "GET") {
               const { getAllReceiptConcepts } = await import("./src/database/receiptCopiesConfigRepository");
@@ -631,6 +651,20 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               const result = await saveAllReceiptConcepts(concepts);
               res.statusCode = 200;
               res.end(JSON.stringify({ concepts: result }));
+              return;
+            }
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Método no permitido" }));
+            return;
+          }
+
+          if (isFrontendErrors) {
+            if (req.method === "POST") {
+              const body = JSON.parse(await collectBody(req));
+              console.error("[frontend]", body.type, body.message, body.url ?? "");
+              if (body.stack) console.error("[frontend] stack:", body.stack);
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true }));
               return;
             }
             res.statusCode = 405;

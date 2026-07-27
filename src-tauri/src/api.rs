@@ -10,6 +10,7 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::{Column, Row, TypeInfo};
+use tracing::{error, info, warn};
 
 use crate::db::AppState;
 
@@ -34,6 +35,7 @@ pub fn api_router() -> Router<AppState> {
         .route("/api/cementerios", get(get_cementerios).patch(update_cementerio))
         .route("/api/dues", get(get_dues).post(insert_due))
         .route("/api/dues-config", get(get_dues_config).post(upsert_dues_config))
+        .route("/api/dues-config/history", get(get_pricing_history))
         .route("/api/services", get(get_services).post(insert_service).put(update_service).delete(delete_service))
         .route("/api/service-records", get(get_service_records).post(insert_service_record).put(update_service_record).delete(delete_service_record))
         .route("/api/users", get(get_users).post(upsert_user).patch(update_user_role).delete(delete_user))
@@ -42,6 +44,7 @@ pub fn api_router() -> Router<AppState> {
         .route("/api/debts/balance", get(get_debts_balance))
         .route("/api/external-services", get(get_external_services).post(insert_external_service).put(update_external_service).delete(delete_external_service))
         .route("/api/external-service-payments", get(get_ext_service_payments).post(upsert_ext_service_payment).delete(delete_ext_service_payment))
+        .route("/api/frontend-errors", post(receive_frontend_error))
 }
 
 type ErrResponse = (StatusCode, Json<Value>);
@@ -515,12 +518,16 @@ async fn update_movement(
         let mut non_null_values: Vec<(&String, &Value)> = Vec::new();
         for (k, v) in obj {
             if k == "due" || k == "id" { continue; }
+            let cast = match k.as_str() {
+                "date" => "::date",
+                _ => "",
+            };
             match v {
                 Value::Null => {
                     sets.push(format!("\"{}\" = NULL", k));
                 }
                 _ => {
-                    sets.push(format!("\"{}\" = ${}", k, sets.len() + 1));
+                    sets.push(format!("\"{}\" = ${}{}", k, sets.len() + 1, cast));
                     non_null_values.push((k, v));
                 }
             }
@@ -532,7 +539,7 @@ async fn update_movement(
                 query = bind_json(query, v);
             }
             query = query.bind(&id);
-            query.execute(&db.pool).await.ok();
+            query.execute(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         }
     }
     if let Some(due_data) = body.get("due") {
@@ -550,7 +557,7 @@ async fn update_movement(
                 .bind(period_json)
                 .bind(paid_members_json)
                 .bind(&id)
-                .execute(&db.pool).await.ok();
+                .execute(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         }
     }
     Ok(Json(json!({ "success": true })))
@@ -585,7 +592,7 @@ async fn get_movements(
     State(db): State<AppState>,
 ) -> Result<Json<Value>, ErrResponse> {
     let rows = sqlx::query(
-        "SELECT id, date::text, detail, amount::float8 as amount, type, mode, concept, created_at::text FROM petty_cash ORDER BY date DESC"
+        "SELECT id, date::text, detail, amount::float8 as amount, type, mode, concept, created_at::text FROM petty_cash ORDER BY date DESC, created_at DESC"
     )
         .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
 
@@ -643,8 +650,8 @@ async fn upsert_initial_balances(
     State(db): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<Json<Value>, ErrResponse> {
-    let caja = body.get("caja_chica").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    let banco = body.get("banco").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let caja = body.get("caja_chica").and_then(|v| v.as_f64()).map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default()).unwrap_or_default();
+    let banco = body.get("banco").and_then(|v| v.as_f64()).map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default()).unwrap_or_default();
     let ci = body.get("comprobante_ingreso").and_then(|v| v.as_i64()).map(|v| v as i32);
     let ce = body.get("comprobante_egreso").and_then(|v| v.as_i64()).map(|v| v as i32);
     let row = sqlx::query(
@@ -807,7 +814,9 @@ async fn create_payment(
     Json(body): Json<Value>,
 ) -> Result<Json<Value>, ErrResponse> {
     let date = body.get("date").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta date"))?;
-    let amount = body.get("amount").and_then(|v| v.as_f64()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta amount"))?;
+    let amount = body.get("amount").and_then(|v| v.as_f64())
+        .map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default())
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta amount"))?;
     let row = sqlx::query(
         "INSERT INTO petty_cash (id, date, detail, amount, type, mode, concept)
          VALUES (gen_random_uuid(), $1::date, $2, $3, $4, $5, $6) RETURNING id"
@@ -1003,24 +1012,18 @@ async fn get_dues_config(
         .fetch_optional(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(row.map(|r| row_to_json(&r)).unwrap_or(Value::Null)))
 }
-
 async fn upsert_dues_config(
     State(db): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<Json<Value>, ErrResponse> {
-    let member_fee = body.get("member_fee").and_then(|v| v.as_f64()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta member_fee"))?;
+    let member_fee = body.get("member_fee").and_then(|v| v.as_f64())
+        .map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default())
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta member_fee"))?;
     sqlx::query(
-        "INSERT INTO pricing (id, member_fee, consideration_years, nicho_member_fee, nicho_non_member_fee,
+        "INSERT INTO pricing (member_fee, consideration_years, nicho_member_fee, nicho_non_member_fee,
          urna_member_fee, urna_non_member_fee, bolsa_member_fee, bolsa_non_member_fee, asistencial_fee,
          plan_salud_fee, fee_act, fee_act_a, fee_adh, fee_part, fee_vit)
-         VALUES ('00000000-0000-0000-0000-000000000002', $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-         ON CONFLICT (id) DO UPDATE SET member_fee=EXCLUDED.member_fee, consideration_years=EXCLUDED.consideration_years,
-         nicho_member_fee=EXCLUDED.nicho_member_fee, nicho_non_member_fee=EXCLUDED.nicho_non_member_fee,
-         urna_member_fee=EXCLUDED.urna_member_fee, urna_non_member_fee=EXCLUDED.urna_non_member_fee,
-         bolsa_member_fee=EXCLUDED.bolsa_member_fee, bolsa_non_member_fee=EXCLUDED.bolsa_non_member_fee,
-         asistencial_fee=EXCLUDED.asistencial_fee, plan_salud_fee=EXCLUDED.plan_salud_fee,
-         fee_act=EXCLUDED.fee_act, fee_act_a=EXCLUDED.fee_act_a, fee_adh=EXCLUDED.fee_adh,
-         fee_part=EXCLUDED.fee_part, fee_vit=EXCLUDED.fee_vit"
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)"
     )
     .bind(member_fee)
     .bind(body_f64(&body, "consideration_years"))
@@ -1032,6 +1035,14 @@ async fn upsert_dues_config(
     .bind(body_f64(&body, "fee_adh")).bind(body_f64(&body, "fee_part")).bind(body_f64(&body, "fee_vit"))
     .execute(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "success": true })))
+}
+
+async fn get_pricing_history(
+    State(db): State<AppState>,
+) -> Result<Json<Value>, ErrResponse> {
+    let rows = sqlx::query("SELECT * FROM pricing ORDER BY updated_at DESC")
+        .fetch_all(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    Ok(Json(rows_to_json(&rows)))
 }
 
 async fn get_services(
@@ -1323,7 +1334,9 @@ async fn insert_debt(
     Json(body): Json<Value>,
 ) -> Result<Json<Value>, ErrResponse> {
     let debt_type = body.get("type").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta type"))?;
-    let amount = body.get("amount").and_then(|v| v.as_f64()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta amount"))?;
+    let amount = body.get("amount").and_then(|v| v.as_f64())
+        .map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default())
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta amount"))?;
     let date = body.get("date").and_then(|v| v.as_str()).ok_or_else(|| err(StatusCode::BAD_REQUEST, "Falta date"))?;
     let member_id = body_str(body.get("member_id"));
     let person_id = body_str(body.get("person_id"));
@@ -1443,7 +1456,7 @@ async fn upsert_ext_service_payment(
          ON CONFLICT (service_id, month, year) DO UPDATE SET amount=EXCLUDED.amount, movement_id=EXCLUDED.movement_id RETURNING *"
     )
     .bind(service_id).bind(month).bind(year)
-    .bind(body.get("amount").and_then(|v| v.as_f64()))
+    .bind(body.get("amount").and_then(|v| v.as_f64()).map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default()))
     .bind(body_str(body.get("movement_id")))
     .fetch_one(&db.pool).await.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(row_to_json(&row)))
@@ -1611,8 +1624,10 @@ fn body_bool(v: Option<&Value>) -> bool {
     v.and_then(|v| v.as_bool()).unwrap_or(false)
 }
 
-fn body_f64(body: &Value, key: &str) -> f64 {
-    body.get(key).and_then(|v| v.as_f64()).unwrap_or(0.0)
+fn body_f64(body: &Value, key: &str) -> rust_decimal::Decimal {
+    body.get(key).and_then(|v| v.as_f64())
+        .map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default())
+        .unwrap_or_default()
 }
 
 fn bind_json<'q>(
@@ -1623,14 +1638,94 @@ fn bind_json<'q>(
         Value::Null => q.bind(Option::<String>::None),
         Value::Bool(b) => q.bind(*b),
         Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                q.bind(i as f64)
-            } else {
-                q.bind(n.as_f64().unwrap_or(0.0))
-            }
+            let s = n.to_string();
+            let d: rust_decimal::Decimal = s.parse().unwrap_or_default();
+            q.bind(d)
         }
         Value::String(s) => q.bind(s.clone()),
         _ => q.bind(value.to_string()),
     }
+}
+
+/// Log a SQL error with endpoint context and return an ErrResponse.
+fn sql_err(endpoint: &str, operation: &str, e: sqlx::Error) -> ErrResponse {
+    error!(
+        endpoint = endpoint,
+        operation = operation,
+        error = %e,
+        "SQL error"
+    );
+    // Never expose SQL errors to the frontend
+    err(StatusCode::INTERNAL_SERVER_ERROR, "Error interno del servidor")
+}
+
+/// Log a validation/client error and return an ErrResponse.
+fn client_err(status: StatusCode, msg: &str) -> ErrResponse {
+    warn!(message = msg, status = status.as_u16(), "Client error");
+    err(status, msg)
+}
+
+/// Tauri command: generate debug report and return the text content.
+#[tauri::command]
+pub fn generate_debug_report() -> Result<String, String> {
+    info!("Generating debug report");
+    Ok(crate::debug::generate_debug_report())
+}
+
+/// Tauri command: export diagnostics as a zip file, returns the path.
+#[tauri::command]
+pub fn export_diagnostics() -> Result<String, String> {
+    info!("Exporting diagnostics");
+    let path = crate::debug::export_diagnostics()?;
+    Ok(path.display().to_string())
+}
+
+/// Receive frontend errors and log them via tracing.
+async fn receive_frontend_error(
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ErrResponse> {
+    let error_type = body.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+    let message = body.get("message").and_then(|v| v.as_str()).unwrap_or("");
+    let url = body.get("url").and_then(|v| v.as_str()).unwrap_or("");
+    let stack = body.get("stack").and_then(|v| v.as_str()).unwrap_or("");
+    let component = body.get("component").and_then(|v| v.as_str()).unwrap_or("");
+    let source = body.get("source").and_then(|v| v.as_str()).unwrap_or("");
+    let line = body.get("line").and_then(|v| v.as_i64()).unwrap_or(0);
+    let column = body.get("column").and_then(|v| v.as_i64()).unwrap_or(0);
+
+    if !component.is_empty() {
+        error!(
+            frontend_type = error_type,
+            message = message,
+            url = url,
+            source = source,
+            line = line,
+            column = column,
+            stack = stack,
+            component = component,
+            "Frontend error (React)"
+        );
+    } else if !source.is_empty() {
+        error!(
+            frontend_type = error_type,
+            message = message,
+            url = url,
+            source = source,
+            line = line,
+            column = column,
+            stack = stack,
+            "Frontend error"
+        );
+    } else {
+        error!(
+            frontend_type = error_type,
+            message = message,
+            url = url,
+            stack = stack,
+            "Frontend error"
+        );
+    }
+
+    Ok(Json(json!({ "success": true })))
 }
 

@@ -51,6 +51,7 @@ export interface Movement {
     type: "ingreso" | "egreso" | "transferencia";
     mode: "efectivo" | "transferencia";
     concept?: string | null;
+    created_at?: string;
     comprobante?: ComprobanteRecord | null;
     linked_due?: DueLink | null;
     linked_service_records?: ServiceRecordLink[];
