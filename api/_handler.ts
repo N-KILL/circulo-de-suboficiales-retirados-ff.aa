@@ -588,6 +588,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse, p
       return;
     }
 
+    if (pathname === "/api/frontend-errors") {
+      if (method === "POST") {
+        console.error("[frontend]", req.body?.type, req.body?.message, req.body?.url ?? "");
+        if (req.body?.stack) console.error("[frontend] stack:", req.body.stack);
+        res.status(200).json({ success: true });
+        return;
+      }
+      res.status(405).json({ error: "Método no permitido" });
+      return;
+    }
+
     if (pathname === "/api/services") {
       const { getAllServices, insertService, updateService, deleteService } = await import("../src/database/servicesRepository.js");
 

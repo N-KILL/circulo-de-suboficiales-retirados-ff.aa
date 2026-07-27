@@ -10,6 +10,7 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::{Column, Row, TypeInfo};
+use tracing::{error, info, warn};
 
 use crate::db::AppState;
 
@@ -43,6 +44,7 @@ pub fn api_router() -> Router<AppState> {
         .route("/api/debts/balance", get(get_debts_balance))
         .route("/api/external-services", get(get_external_services).post(insert_external_service).put(update_external_service).delete(delete_external_service))
         .route("/api/external-service-payments", get(get_ext_service_payments).post(upsert_ext_service_payment).delete(delete_ext_service_payment))
+        .route("/api/frontend-errors", post(receive_frontend_error))
 }
 
 type ErrResponse = (StatusCode, Json<Value>);
@@ -1643,5 +1645,87 @@ fn bind_json<'q>(
         Value::String(s) => q.bind(s.clone()),
         _ => q.bind(value.to_string()),
     }
+}
+
+/// Log a SQL error with endpoint context and return an ErrResponse.
+fn sql_err(endpoint: &str, operation: &str, e: sqlx::Error) -> ErrResponse {
+    error!(
+        endpoint = endpoint,
+        operation = operation,
+        error = %e,
+        "SQL error"
+    );
+    // Never expose SQL errors to the frontend
+    err(StatusCode::INTERNAL_SERVER_ERROR, "Error interno del servidor")
+}
+
+/// Log a validation/client error and return an ErrResponse.
+fn client_err(status: StatusCode, msg: &str) -> ErrResponse {
+    warn!(message = msg, status = status.as_u16(), "Client error");
+    err(status, msg)
+}
+
+/// Tauri command: generate debug report and return the text content.
+#[tauri::command]
+pub fn generate_debug_report() -> Result<String, String> {
+    info!("Generating debug report");
+    Ok(crate::debug::generate_debug_report())
+}
+
+/// Tauri command: export diagnostics as a zip file, returns the path.
+#[tauri::command]
+pub fn export_diagnostics() -> Result<String, String> {
+    info!("Exporting diagnostics");
+    let path = crate::debug::export_diagnostics()?;
+    Ok(path.display().to_string())
+}
+
+/// Receive frontend errors and log them via tracing.
+async fn receive_frontend_error(
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ErrResponse> {
+    let error_type = body.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+    let message = body.get("message").and_then(|v| v.as_str()).unwrap_or("");
+    let url = body.get("url").and_then(|v| v.as_str()).unwrap_or("");
+    let stack = body.get("stack").and_then(|v| v.as_str()).unwrap_or("");
+    let component = body.get("component").and_then(|v| v.as_str()).unwrap_or("");
+    let source = body.get("source").and_then(|v| v.as_str()).unwrap_or("");
+    let line = body.get("line").and_then(|v| v.as_i64()).unwrap_or(0);
+    let column = body.get("column").and_then(|v| v.as_i64()).unwrap_or(0);
+
+    if !component.is_empty() {
+        error!(
+            frontend_type = error_type,
+            message = message,
+            url = url,
+            source = source,
+            line = line,
+            column = column,
+            stack = stack,
+            component = component,
+            "Frontend error (React)"
+        );
+    } else if !source.is_empty() {
+        error!(
+            frontend_type = error_type,
+            message = message,
+            url = url,
+            source = source,
+            line = line,
+            column = column,
+            stack = stack,
+            "Frontend error"
+        );
+    } else {
+        error!(
+            frontend_type = error_type,
+            message = message,
+            url = url,
+            stack = stack,
+            "Frontend error"
+        );
+    }
+
+    Ok(Json(json!({ "success": true })))
 }
 
