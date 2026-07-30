@@ -73,7 +73,7 @@ const DashboardPage: React.FC = () => {
 
       <section className="main-grid">
         <div className="main-grid-col">
-          <Transactions />
+          <Transactions selectedCaja={selectedCaja} />
         </div>
         <div className="main-grid-col">
           <QuickActions />

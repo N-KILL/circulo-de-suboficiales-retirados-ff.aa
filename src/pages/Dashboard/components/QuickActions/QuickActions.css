@@ -19,6 +19,8 @@
   flex-direction: column;
   gap: 10px;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* Each action is a full-width button with its own border */
@@ -35,8 +37,7 @@
   text-align: left;
   transition: 
   background 0.18s ease, border-color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
-  flex: 1;
-  min-height: 0;
+  flex-shrink: 0;
 }
 
 .qa-btn:hover {

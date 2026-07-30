@@ -135,6 +135,7 @@ const CementerioDetalle: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [savingId, setSavingId] = useState<string | null>(null);
     const [arrendatarioFilter, setArrendatarioFilter] = useState<Set<string> | null>(null);
+    const [soloMostrarVacios, setSoloMostrarVacios] = useState(false);
     const [movimientosByArrendatario, setMovimientosByArrendatario] = useState<Map<string, boolean>>(new Map());
 
     const [nombreSearchValue, setNombreSearchValue] = useState("");
@@ -205,12 +206,20 @@ const CementerioDetalle: React.FC = () => {
     }, [records]);
 
     const filteredGrouped = useMemo(() => {
-        if (!arrendatarioFilter) return grouped;
-        return grouped.filter(([, groupRecords]) => {
-            const name = groupRecords[0]?.personaNombre || "Sin arrendatario";
-            return arrendatarioFilter.has(name);
-        });
-    }, [grouped, arrendatarioFilter]);
+        let result = grouped;
+        if (soloMostrarVacios) {
+            result = result.filter(([, groupRecords]) =>
+                groupRecords.some(r => !r.tipo || r.tipo === "")
+            );
+        }
+        if (arrendatarioFilter) {
+            result = result.filter(([, groupRecords]) => {
+                const name = groupRecords[0]?.personaNombre || "Sin arrendatario";
+                return arrendatarioFilter.has(name);
+            });
+        }
+        return result;
+    }, [grouped, arrendatarioFilter, soloMostrarVacios]);
 
     const handleFieldChange = (id: string, field: keyof Cementerio, value: string | boolean) => {
         setRecords((prev) =>
@@ -311,57 +320,86 @@ const CementerioDetalle: React.FC = () => {
 
             {records.length > 0 && grouped.length > 1 && (
                 <div style={{
-                    display: "flex", flexWrap: "wrap", gap: 8,
+                    display: "flex", gap: 8,
                     padding: "10px 14px", background: "#f8fafc",
                     borderRadius: 8, marginTop: 12,
                     alignItems: "center",
                 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", marginRight: 4 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", whiteSpace: "nowrap" }}>
                         Arrendatario:
                     </span>
-                    {grouped.map(([, groupRecords]) => {
-                        const name = groupRecords[0]?.personaNombre || "Sin arrendatario";
-                        const checked = !arrendatarioFilter || arrendatarioFilter.has(name);
-                        return (
-                            <label
-                                key={name}
-                                style={{
-                                    display: "inline-flex", alignItems: "center", gap: 6,
-                                    padding: "4px 10px", borderRadius: 6, cursor: "pointer",
-                                    fontSize: 13, fontWeight: 500,
-                                    background: checked ? "var(--azul-institucional)" : "#e2e8f0",
-                                    color: checked ? "#fff" : "var(--text)",
-                                    transition: "all 0.15s",
-                                    userSelect: "none",
-                                }}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => {
-                                        setArrendatarioFilter((prev) => {
-                                            const all = new Set(grouped.map(([, g]) => g[0]?.personaNombre || "Sin arrendatario"));
-                                            if (!prev) {
-                                                const next = new Set(all);
-                                                next.delete(name);
-                                                return next.size === all.size ? null : next.size === 0 ? null : next;
-                                            }
-                                            if (prev.has(name)) {
-                                                const next = new Set(prev);
-                                                next.delete(name);
-                                                return next.size === 0 ? null : next;
-                                            }
-                                            const next = new Set(prev);
-                                            next.add(name);
-                                            return next.size === all.size ? null : next;
-                                        });
+
+                    <label style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                        fontSize: 13, fontWeight: 500,
+                        background: soloMostrarVacios ? "var(--azul-institucional)" : "#e2e8f0",
+                        color: soloMostrarVacios ? "#fff" : "var(--text)",
+                        transition: "all 0.15s",
+                        userSelect: "none",
+                        whiteSpace: "nowrap",
+                        flexShrink: 0,
+                    }}>
+                        <input
+                            type="checkbox"
+                            checked={soloMostrarVacios}
+                            onChange={() => setSoloMostrarVacios(prev => !prev)}
+                            style={{ accentColor: "#fff", margin: 0 }}
+                        />
+                        Solo mostrar vacíos
+                    </label>
+
+                    <div style={{
+                        display: "flex", gap: 8,
+                        overflowX: "auto", flexWrap: "nowrap",
+                        flex: 1, paddingBottom: 4,
+                    }}>
+                        {grouped.map(([, groupRecords]) => {
+                            const name = groupRecords[0]?.personaNombre || "Sin arrendatario";
+                            const checked = !arrendatarioFilter || arrendatarioFilter.has(name);
+                            return (
+                                <label
+                                    key={name}
+                                    style={{
+                                        display: "inline-flex", alignItems: "center", gap: 6,
+                                        padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                                        fontSize: 13, fontWeight: 500,
+                                        background: checked ? "var(--azul-institucional)" : "#e2e8f0",
+                                        color: checked ? "#fff" : "var(--text)",
+                                        transition: "all 0.15s",
+                                        userSelect: "none",
+                                        whiteSpace: "nowrap",
+                                        flexShrink: 0,
                                     }}
-                                    style={{ accentColor: "#fff", margin: 0 }}
-                                />
-                                {name}
-                            </label>
-                        );
-                    })}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => {
+                                            setArrendatarioFilter((prev) => {
+                                                const all = new Set(grouped.map(([, g]) => g[0]?.personaNombre || "Sin arrendatario"));
+                                                if (!prev) {
+                                                    const next = new Set(all);
+                                                    next.delete(name);
+                                                    return next.size === all.size ? null : next.size === 0 ? null : next;
+                                                }
+                                                if (prev.has(name)) {
+                                                    const next = new Set(prev);
+                                                    next.delete(name);
+                                                    return next.size === 0 ? null : next;
+                                                }
+                                                const next = new Set(prev);
+                                                next.add(name);
+                                                return next.size === all.size ? null : next;
+                                            });
+                                        }}
+                                        style={{ accentColor: "#fff", margin: 0 }}
+                                    />
+                                    {name}
+                                </label>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
 

@@ -58,6 +58,21 @@
   color: var(--muted);
 }
 
+@media (max-width: 1400px) {
+  .stats-row {
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .stats-grid {
+    gap: 16px;
+  }
+
+  .card {
+    padding: 20px;
+  }
+}
+
 @media (max-width: 1200px) {
   .stats-row {
     flex-direction: column;
@@ -126,6 +141,7 @@
 .caja-card.active {
   border-color: var(--azul-institucional);
   color: var(--azul-institucional);
+  background: #eef2fb;
 }
 
 .caja-card:hover:not(.active) {

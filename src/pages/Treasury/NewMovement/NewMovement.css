@@ -1160,3 +1160,20 @@ input[type="date"].form-control {
   font-weight: 600;
   color: #b45309;
 }
+
+/* ─── Responsive: 1400px ──────────────────────────────────────────── */
+@media (max-width: 1400px) {
+  .new-movement-layout {
+    gap: 16px;
+  }
+
+  .new-movement-sidebar-section {
+    padding: 12px;
+  }
+}
+
+@media (max-height: 800px) {
+  .new-movement-layout {
+    gap: 12px;
+  }
+}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Save, Loader, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Loader, Trash2 } from "lucide-react";
 import "../../Members/NewMember/NewMember.css";
 import { usePersonFormStore } from "../../../store/personFormStore";
 import { fetchPersonById, deletePerson, fetchPersonMembers } from "../../../services/personsApi";
@@ -90,6 +90,18 @@ const NewPerson: React.FC = () => {
   return (
     <div className="new-member-container">
       <div className="treasury-header-row">
+        <button
+          onClick={() => navigate("/personas")}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            background: "none", border: "none",
+            color: "var(--azul-institucional)", fontWeight: 600,
+            cursor: "pointer", padding: "4px 0", fontSize: 14,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <ArrowLeft size={18} /> Volver a Personas
+        </button>
         <h2>{isEditing ? "Editar persona" : "Nueva persona"}</h2>
       </div>
       {fetchError && (

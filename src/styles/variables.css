@@ -20,10 +20,10 @@
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 
   /* Typography System */
-  --fs-sidebar: 16px;
-  --fw-sidebar: 600;
+  --fs-sidebar: 14px;
+  --fw-sidebar: 500;
 
-  --fs-title: 24px;
+  --fs-title: 20px;
   --fw-title: 700;
 
   --fs-money: 40px;

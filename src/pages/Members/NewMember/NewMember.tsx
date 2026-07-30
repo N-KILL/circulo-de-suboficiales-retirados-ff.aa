@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Loader } from "lucide-react";
+import { ArrowLeft, Loader } from "lucide-react";
 import "./NewMember.css";
 import { useMembersStore } from "../../../store/membersStore";
 import { fetchMemberById, deleteMember } from "../../../services/membersApi";
@@ -83,6 +83,18 @@ const NewMember: React.FC = () => {
   return (
     <div className="new-member-container">
       <div className="treasury-header-row">
+        <button
+          onClick={() => navigate(id ? `/socios/detalle/${id}` : "/socios")}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            background: "none", border: "none",
+            color: "var(--azul-institucional)", fontWeight: 600,
+            cursor: "pointer", padding: "4px 0", fontSize: 14,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <ArrowLeft size={18} /> Volver al detalle
+        </button>
         <h2>{isEditing ? "Editar socio" : "Nuevo socio"}</h2>
       </div>
       {loading && (

@@ -3,13 +3,18 @@ import { ArrowDown, ArrowUp, ArrowLeftRight } from "lucide-react";
 import { useDashboardStore } from "../../../../store/dashboardStore";
 import "./Transactions.css";
 
-const Transactions: React.FC = () => {
+const cajaLabel: Record<string, string> = {
+  banco: "Banco",
+  caja_chica: "Caja Chica",
+};
+
+const Transactions: React.FC<{ selectedCaja: string }> = ({ selectedCaja }) => {
   const items = useDashboardStore(state => state.transactions);
 
   return (
     <div className="card transactions-card">
       <div className="transactions-header">
-        <div className="transactions-title">Últimos Movimientos</div>
+        <div className="transactions-title">Últimos Movimientos ({cajaLabel[selectedCaja] || selectedCaja})</div>
         <a href="/tesoreria/movimientos" className="muted transactions-ver-todos">Ver todos</a>
       </div>
 
