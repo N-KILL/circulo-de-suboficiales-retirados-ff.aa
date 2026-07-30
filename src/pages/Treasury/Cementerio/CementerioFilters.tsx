@@ -8,6 +8,8 @@ interface CementerioFiltersProps {
   onSearchChange: (v: string) => void;
   filtroPagaPor: string;
   onFiltroPagaPorChange: (v: string) => void;
+  filtroVacios: string;
+  onFiltroVaciosChange: (v: string) => void;
   filtroAnios: number | null;
   onStepperDown: () => void;
   onStepperUp: () => void;
@@ -23,11 +25,25 @@ interface CementerioFiltersProps {
   onToggleFilters: () => void;
 }
 
+const VACIOS_OPTS = [
+  { value: "", label: "Todos" },
+  { value: "vacios", label: "Vacío" },
+  { value: "ocupados", label: "Ocupado" },
+] as const;
+
+const REDUCIBLE_OPTS = [
+  { value: "todo" as const, label: "Todo" },
+  { value: "solo" as const, label: "Solo reducibles" },
+  { value: "ocultar" as const, label: "Ocultar" },
+] as const;
+
 const CementerioFilters: React.FC<CementerioFiltersProps> = ({
   searchText,
   onSearchChange,
   filtroPagaPor,
   onFiltroPagaPorChange,
+  filtroVacios,
+  onFiltroVaciosChange,
   filtroAnios,
   onStepperDown,
   onStepperUp,
@@ -76,17 +92,31 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
         <div className="filters-bottom-row" style={{ marginTop: 8 }}>
           <div className="filter-group">
             <span className="filter-group-label">Paga por</span>
-            <div className="filter-btns">
+            <select
+              className="filter-select"
+              value={filtroPagaPor}
+              onChange={(e) => onFiltroPagaPorChange(e.target.value)}
+            >
               {PAGA_POR_OPTS.map((opt) => (
-                <button
-                  key={opt}
-                  className={`filter-btn ${filtroPagaPor === opt ? "active" : ""}`}
-                  onClick={() => onFiltroPagaPorChange(opt)}
-                >
-                  {opt === "" ? "TODOS" : PAGA_POR_LABEL[opt]}
-                </button>
+                <option key={opt} value={opt}>
+                  {opt === "" ? "Todos" : PAGA_POR_LABEL[opt]}
+                </option>
               ))}
-            </div>
+            </select>
+          </div>
+          <div className="filter-group">
+            <span className="filter-group-label">Nichos vacíos</span>
+            <select
+              className="filter-select"
+              value={filtroVacios}
+              onChange={(e) => onFiltroVaciosChange(e.target.value)}
+            >
+              {VACIOS_OPTS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="filter-group">
             <span className="filter-group-label">Años desde último pago</span>
@@ -116,26 +146,17 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
           </div>
           <div className="filter-group">
             <span className="filter-group-label">Reducible</span>
-            <div className="filter-btns">
-              <button
-                className={`filter-btn ${filtroReducible === "todo" ? "active" : ""}`}
-                onClick={() => onFiltroReducibleChange("todo")}
-              >
-                TODO
-              </button>
-              <button
-                className={`filter-btn ${filtroReducible === "solo" ? "active" : ""}`}
-                onClick={() => onFiltroReducibleChange("solo")}
-              >
-                SOLO REDUCIBLES
-              </button>
-              <button
-                className={`filter-btn ${filtroReducible === "ocultar" ? "active" : ""}`}
-                onClick={() => onFiltroReducibleChange("ocultar")}
-              >
-                OCULTAR
-              </button>
-            </div>
+            <select
+              className="filter-select"
+              value={filtroReducible}
+              onChange={(e) => onFiltroReducibleChange(e.target.value as "ocultar" | "todo" | "solo")}
+            >
+              {REDUCIBLE_OPTS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       )}

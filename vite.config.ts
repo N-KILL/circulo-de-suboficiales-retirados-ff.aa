@@ -19,6 +19,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const url = new URL(req.url ?? "", "http://localhost");
         const pathname = url.pathname;
         const isMembers = pathname === "/api/members";
+        const isMembersSearch = pathname === "/api/members/search";
         const isMembersFamily = pathname === "/api/members/family";
         const isMembersDebt = pathname === "/api/members/debt-status";
         const isPersons = pathname === "/api/persons";
@@ -48,7 +49,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isReceiptCopiesConfig = pathname === "/api/receipt-copies-config";
         const isFrontendErrors = pathname === "/api/frontend-errors";
 
-        if (!isMembers && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isDuesConfigHistory && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments && !isReceiptNext && !isComprobante && !isReceiptCopiesConfig && !isFrontendErrors) {
+        if (!isMembers && !isMembersSearch && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isDuesConfigHistory && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments && !isReceiptNext && !isComprobante && !isReceiptCopiesConfig && !isFrontendErrors) {
           next();
           return;
         }
@@ -63,6 +64,20 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
           if (isMembers && req.method === "GET") {
             const { getAllMembers } = await import("./src/database/membersRepository");
             const members = await getAllMembers();
+            res.statusCode = 200;
+            res.end(JSON.stringify(members));
+            return;
+          }
+
+          if (isMembersSearch && req.method === "GET") {
+            const q = url.searchParams.get("q") || "";
+            if (!q) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "Falta el parámetro q" }));
+              return;
+            }
+            const { searchActiveMembers } = await import("./src/database/membersRepository");
+            const members = await searchActiveMembers(q);
             res.statusCode = 200;
             res.end(JSON.stringify(members));
             return;

@@ -79,6 +79,21 @@ function upsertMemberQuery(
     `;
 }
 
+export async function searchActiveMembers(query: string): Promise<Member[]> {
+    const sql = getSql();
+    const q = `%${query}%`;
+    const rows = await sql`
+        SELECT m.*
+        FROM members m
+        WHERE (m.nombre ILIKE ${q} OR m.documento ILIKE ${q} OR m.numero_de_socio ILIKE ${q})
+          AND (m.fecha_baja IS NULL OR m.fecha_baja = '')
+          AND m.fallecido = FALSE
+        ORDER BY m.nombre
+        LIMIT 20
+    `;
+    return (rows as MemberRow[]).map(rowToMember);
+}
+
 export async function searchPersons(query: string): Promise<Person[]> {
     const sql = getSql();
     const q = `%${query}%`;

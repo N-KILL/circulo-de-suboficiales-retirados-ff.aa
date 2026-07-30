@@ -14,10 +14,10 @@ const Layout: React.FC = () => {
   const getHeaderContent = (path: string) => {
     if (path === "/tesoreria/movimientos") return { title: "Movimientos", subtitle: "Consulta todos los movimientos registrados en la tesorería.", breadcrumbs: ["Tesorería", "Movimientos"] };
     if (path === "/tesoreria/nuevo-movimiento") return { title: "Nuevo ingreso", subtitle: "Registrá un nuevo ingreso en caja chica o banco.", breadcrumbs: ["Tesorería", "Nuevo ingreso"] };
-    if (path === "/tesoreria/egresos/nuevo-egreso") return { title: "Nuevo egreso", subtitle: "Registrar un nuevo egreso del club", breadcrumbs: ["Tesorería", "Nuevo egreso"] };
-    if (path === "/tesoreria/dashboard") return { title: "Dashboard Tesorería", subtitle: "Resumen general del estado financiero del club.", breadcrumbs: ["Tesorería", "Dashboard"] };
-    if (path === "/socios") return { title: "Socios", subtitle: "Gestioná la información de los socios del club." };
-    if (path === "/socios/nuevo") return { title: "Nuevo Socio", subtitle: "Registrar un nuevo socio en el club.", breadcrumbs: ["Socios", "Nuevo Socio"] };
+    if (path === "/tesoreria/egresos/nuevo-egreso") return { title: "Nuevo egreso", subtitle: "Registrar un nuevo egreso del circulo", breadcrumbs: ["Tesorería", "Nuevo egreso"] };
+    if (path === "/tesoreria/dashboard") return { title: "Dashboard Tesorería", subtitle: "Resumen general del estado financiero del circulo.", breadcrumbs: ["Tesorería", "Dashboard"] };
+    if (path === "/socios") return { title: "Socios", subtitle: "Gestioná la información de los socios del circulo." };
+    if (path === "/socios/nuevo") return { title: "Nuevo Socio", subtitle: "Registrar un nuevo socio en el circulo.", breadcrumbs: ["Socios", "Nuevo Socio"] };
     if (path.startsWith("/socios/detalle/")) return { title: "Detalle del Socio", subtitle: "Información y cuotas del socio.", breadcrumbs: ["Socios", "Detalle"] };
     if (path.startsWith("/socios/editar/")) return { title: "Editar Socio", subtitle: "Modificar los datos del socio.", breadcrumbs: ["Socios", "Editar"] };
     if (path === "/personas") return { title: "Personas", subtitle: "Gestioná la información de las personas." };

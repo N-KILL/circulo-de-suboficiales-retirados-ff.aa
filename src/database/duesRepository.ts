@@ -28,6 +28,7 @@ export type DueWithDetails = {
     amount: number | null;
     family_group: string | null;
     paid_members: string[] | null;
+    receipt_number: number | null;
     created_at: string;
 };
 
@@ -126,11 +127,13 @@ export async function getDuesByMember(memberId: string): Promise<DueWithDetails[
             pc.amount::float AS amount,
             d.family_group,
             d.paid_members,
+            c.receipt_number,
             d.created_at::text as created_at
         FROM dues d
         LEFT JOIN members m ON d.member_id = m.id
         LEFT JOIN persons p ON d.person_id = p.id
         LEFT JOIN petty_cash pc ON d.movement_id = pc.id
+        LEFT JOIN comprobantes c ON d.movement_id = c.movement_id
         WHERE d.member_id = ${memberId}
            OR d.paid_members::jsonb ? ${memberId}
         ORDER BY d.payment_date DESC, d.created_at DESC
@@ -155,11 +158,13 @@ export async function getDuesByPerson(personId: string): Promise<DueWithDetails[
             pc.amount::float AS amount,
             d.family_group,
             d.paid_members,
+            c.receipt_number,
             d.created_at::text as created_at
         FROM dues d
         LEFT JOIN members m ON d.member_id = m.id
         LEFT JOIN persons p ON d.person_id = p.id
         LEFT JOIN petty_cash pc ON d.movement_id = pc.id
+        LEFT JOIN comprobantes c ON d.movement_id = c.movement_id
         WHERE d.person_id = ${personId}
         ORDER BY d.payment_date DESC, d.created_at DESC
     `;
@@ -183,11 +188,13 @@ export async function getAllDues(): Promise<DueWithDetails[]> {
             pc.amount::float AS amount,
             d.family_group,
             d.paid_members,
+            c.receipt_number,
             d.created_at::text as created_at
         FROM dues d
         LEFT JOIN members m ON d.member_id = m.id
         LEFT JOIN persons p ON d.person_id = p.id
         LEFT JOIN petty_cash pc ON d.movement_id = pc.id
+        LEFT JOIN comprobantes c ON d.movement_id = c.movement_id
         ORDER BY d.payment_date DESC, d.created_at DESC
     `;
     return mapDues(rows as unknown as Record<string, unknown>[]);
@@ -210,11 +217,13 @@ export async function getDueByMovementId(movementId: string): Promise<DueWithDet
             pc.amount::float AS amount,
             d.family_group,
             d.paid_members,
+            c.receipt_number,
             d.created_at::text as created_at
         FROM dues d
         LEFT JOIN members m ON d.member_id = m.id
         LEFT JOIN persons p ON d.person_id = p.id
         LEFT JOIN petty_cash pc ON d.movement_id = pc.id
+        LEFT JOIN comprobantes c ON d.movement_id = c.movement_id
         WHERE d.movement_id = ${movementId}
         LIMIT 1
     `;

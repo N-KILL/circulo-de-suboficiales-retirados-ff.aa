@@ -52,6 +52,15 @@ export async function fetchPersons(query: string): Promise<Person[]> {
     return response.json() as Promise<Person[]>;
 }
 
+export async function fetchActiveMembers(query: string): Promise<Member[]> {
+    const response = await fetch(`/api/members/search?q=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Error al buscar socios activos");
+    }
+    return response.json() as Promise<Member[]>;
+}
+
 export async function deleteMember(id: string): Promise<void> {
     const response = await fetch(`/api/member?id=${encodeURIComponent(id)}`, {
         method: "DELETE",

@@ -16,6 +16,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse, p
       return;
     }
 
+    if (pathname === "/api/members/search" && method === "GET") {
+      const q = (req.query.q as string) || "";
+      if (q) {
+        const { searchActiveMembers } = await import("../src/database/membersRepository.js");
+        const members = await searchActiveMembers(q);
+        res.status(200).json(members);
+      } else {
+        res.status(400).json({ error: "Falta el parámetro q" });
+      }
+      return;
+    }
+
     if (pathname === "/api/members/family" && method === "GET") {
       const memberId = req.query.memberId as string | undefined;
       if (!memberId) {

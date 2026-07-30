@@ -36,7 +36,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick, title, subtitle, breadcrum
       <div className="topbar-header-info">
         <h2 className="topbar-title">{title || "¡Bienvenido, Administrador!"}</h2>
         <div className="muted topbar-subtitle">
-          {subtitle || "Resumen general de la tesorería del club."}
+          {subtitle || "Resumen general de la tesorería del circulo."}
         </div>
         
         {breadcrumbs && (

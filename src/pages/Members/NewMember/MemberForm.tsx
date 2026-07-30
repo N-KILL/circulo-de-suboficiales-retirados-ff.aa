@@ -231,15 +231,6 @@ const MemberForm: React.FC<MemberFormProps> = ({
             onChange={(e) => handleChange("depositarEn", e.target.value)}
           />
         </div>
-
-        <div className="form-group">
-          <label>Cementerio</label>
-          <input
-            className="form-control"
-            value={form.cementerio}
-            onChange={(e) => handleChange("cementerio", e.target.value)}
-          />
-        </div>
       </div>
 
       <div className="optional-section">
@@ -354,7 +345,15 @@ const MemberForm: React.FC<MemberFormProps> = ({
                   type="checkbox"
                   className="form-control-checkbox"
                   checked={form.fallecido}
-                  onChange={(e) => handleChange("fallecido", e.target.checked)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    handleChange("fallecido", checked);
+                    if (checked) {
+                      setConBaja(true);
+                      if (!form.fechaBaja) handleChange("fechaBaja", todayLocal());
+                      handleChange("motivoBaja", "fallecimiento");
+                    }
+                  }}
                 />
                 Fallecido
               </label>

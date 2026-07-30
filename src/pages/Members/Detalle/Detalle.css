@@ -451,6 +451,14 @@
   border-color: var(--azul-institucional);
 }
 
+.period-month-btn.paid {
+  background: #d4edda;
+  color: #155724;
+  border-color: #c3e6cb;
+  cursor: default;
+  opacity: 0.85;
+}
+
 .btn-view-detail {
   display: inline-flex;
   align-items: center;

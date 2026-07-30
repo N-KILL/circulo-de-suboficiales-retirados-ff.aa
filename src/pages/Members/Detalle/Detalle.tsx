@@ -26,6 +26,7 @@ const DetalleSocio: React.FC = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [periods, setPeriods] = useState<string[]>([]);
+  const [paidPeriods, setPaidPeriods] = useState<Set<string>>(new Set());
   const [periodYear, setPeriodYear] = useState(new Date().getFullYear());
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
   const [selectedFamily, setSelectedFamily] = useState<Set<string>>(new Set());
@@ -51,7 +52,7 @@ const DetalleSocio: React.FC = () => {
     return [...new Set(cementerioDues.filter((d) => d.movement_id).map((d) => d.movement_id!))];
   }, [cementerioDues]);
 
-  const [cementerioAsync, setCementerioAsync] = useState<{ movement_id: string; nichos: string; dues: typeof cementerioDues; amount: number; payment_date: string; period: string[] | null }[]>([]);
+  const [cementerioAsync, setCementerioAsync] = useState<{ movement_id: string; receipt_number: number | null; nichos: string; dues: typeof cementerioDues; amount: number; payment_date: string; period: string[] | null }[]>([]);
 
   useEffect(() => {
     if (cementerioMovementIds.length === 0) return;
@@ -65,6 +66,7 @@ const DetalleSocio: React.FC = () => {
           const totalAmount = relatedDues.reduce((sum, d) => sum + (d.amount ?? 0), 0);
           return {
             movement_id: mid,
+            receipt_number: relatedDues[0]?.receipt_number ?? null,
             nichos,
             dues: relatedDues,
             amount: totalAmount,
@@ -75,6 +77,7 @@ const DetalleSocio: React.FC = () => {
           const relatedDues = cementerioDues.filter((d) => d.movement_id === mid);
           return {
             movement_id: mid,
+            receipt_number: relatedDues[0]?.receipt_number ?? null,
             nichos: "—",
             dues: relatedDues,
             amount: relatedDues.reduce((sum, d) => sum + (d.amount ?? 0), 0),
@@ -102,6 +105,14 @@ const DetalleSocio: React.FC = () => {
     setPeriodYear(new Date().getFullYear());
     setSelectedFamily(new Set(id ? [id] : []));
     setShowModal(true);
+    const allPaid = new Set<string>();
+    try {
+      const allDues = await fetchDuesByMember(id);
+      for (const d of allDues) {
+        if (d.period) d.period.forEach((p) => allPaid.add(p));
+      }
+    } catch {}
+    setPaidPeriods(allPaid);
     if (familyGroupPrefix) {
       try { const fMembers = await fetchFamilyMembers(id); setFamilyMembers(fMembers.filter((m) => !m.fallecido && !m.fechaBaja)); }
       catch { setFamilyMembers([]); }
@@ -177,7 +188,7 @@ const DetalleSocio: React.FC = () => {
                       <td>{d.payment_date}</td>
                       <td className="amount-ingreso">{d.amount != null ? formatCurrency(d.amount) : "\u2014"}</td>
                       <td>{isSelf ? <span className="due-badge due-badge-self">Propio</span> : isFamilyPaid ? <span className="due-badge due-badge-family" title={`Pagado por ${d.member_nombre ?? "familiar"}`}>Familiar</span> : <span className="due-badge due-badge-other">\u2014</span>}</td>
-                      <td>{d.movement_id ? d.movement_id.slice(0, 8) + "\u2026" : "\u2014"}</td>
+                      <td>{d.receipt_number ? String(d.receipt_number).padStart(6, "0") : d.movement_id ? d.movement_id.slice(0, 8) + "\u2026" : "\u2014"}</td>
                       <td>{d.movement_id && <button className="btn-view-detail" type="button" onClick={() => navigate(`/tesoreria/movimientos/detalle/${d.movement_id}`)}><Eye size={14} /> Ver detalles</button>}</td>
                     </tr>
                   );
@@ -202,7 +213,7 @@ const DetalleSocio: React.FC = () => {
                     <td>{formatPeriodsDisplay(g.period && g.period.length > 0 ? g.period : null)}</td>
                     <td>{g.payment_date}</td>
                     <td className="amount-ingreso">{g.amount > 0 ? formatCurrency(g.amount) : "\u2014"}</td>
-                    <td>{g.movement_id ? g.movement_id.slice(0, 8) + "\u2026" : "\u2014"}</td>
+                    <td>{g.receipt_number ? String(g.receipt_number).padStart(6, "0") : g.movement_id ? g.movement_id.slice(0, 8) + "\u2026" : "\u2014"}</td>
                     <td>{g.movement_id && <button className="btn-view-detail" type="button" onClick={() => navigate(`/tesoreria/movimientos/detalle/${g.movement_id}`)}><Eye size={14} /> Ver detalles</button>}</td>
                   </tr>
                 ))}
@@ -257,6 +268,7 @@ const DetalleSocio: React.FC = () => {
                       onYearChange={setPeriodYear}
                       periods={periods}
                       onTogglePeriod={(val) => setPeriods((prev) => prev.includes(val) ? prev.filter((p) => p !== val) : [...prev, val].sort())}
+                      disabledPeriods={paidPeriods}
                     />
                   </div>
                 </div>

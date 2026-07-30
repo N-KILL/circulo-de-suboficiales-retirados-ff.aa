@@ -45,3 +45,74 @@
 .date-picker-btn:hover {
     color: var(--azul-institucional);
 }
+
+.member-search-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.member-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.member-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.member-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.member-dropdown-item:hover {
+    background: #f1f5f9;
+}
+
+.member-dropdown-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.member-dropdown-name {
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.member-dropdown-detail {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

@@ -12,6 +12,7 @@ export type DueWithDetails = {
   amount: number | null;
   family_group: string | null;
   paid_members: string[] | null;
+  receipt_number: number | null;
   created_at: string;
 };
 

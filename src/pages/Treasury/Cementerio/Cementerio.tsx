@@ -32,6 +32,7 @@ const Cementerio: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchText, setSearchText] = useState("");
     const [filtroPagaPor, setFiltroPagaPor] = useState<string>("");
+    const [filtroVacios, setFiltroVacios] = useState<string>("");
     const [filtroAnios, setFiltroAnios] = useState<number | null>(null);
     const [filtroReducible, setFiltroReducible] = useState<"ocultar" | "todo" | "solo">("ocultar");
     const [debtFilterActive, setDebtFilterActive] = useState(false);
@@ -46,7 +47,7 @@ const Cementerio: React.FC = () => {
         try { return localStorage.getItem("lastReducibleUpdate"); } catch { return null; }
     });
 
-    const filterDeps = `${searchText}|${filtroPagaPor}|${filtroAnios}|${filtroReducible}|${debtFilterActive}|${debtFilterYears}|${sortField}|${sortDir}`;
+    const filterDeps = `${searchText}|${filtroPagaPor}|${filtroVacios}|${filtroAnios}|${filtroReducible}|${debtFilterActive}|${debtFilterYears}|${sortField}|${sortDir}`;
     const [prevFilterDeps, setPrevFilterDeps] = useState(filterDeps);
     if (filterDeps !== prevFilterDeps) {
         setPrevFilterDeps(filterDeps);
@@ -105,6 +106,8 @@ const Cementerio: React.FC = () => {
                 !d.arrendatario.toLowerCase().includes(q) &&
                 !d.telefono.includes(q)) return false;
             if (filtroPagaPor && d.pagaPor.toUpperCase() !== filtroPagaPor) return false;
+            if (filtroVacios === "vacios" && d.arrendatario.trim() !== "") return false;
+            if (filtroVacios === "ocupados" && d.arrendatario.trim() === "") return false;
             if (filtroAnios !== null) {
                 const anos = calcYearsAgo(d.ultimaFechaPago ? formatRecordDate(d.ultimaFechaPago) : d.fechaDePago);
                 if (anos !== filtroAnios) return false;
@@ -116,7 +119,7 @@ const Cementerio: React.FC = () => {
             }
             return true;
         });
-    }, [dataWithReducible, searchText, filtroPagaPor, filtroAnios, filtroReducible, debtFilterActive, debtFilterYears]);
+    }, [dataWithReducible, searchText, filtroPagaPor, filtroVacios, filtroAnios, filtroReducible, debtFilterActive, debtFilterYears]);
 
     const sorted = useMemo(() => {
         const list = [...filtered];
@@ -160,6 +163,7 @@ const Cementerio: React.FC = () => {
     const clearFilters = () => {
         setSearchText("");
         setFiltroPagaPor("");
+        setFiltroVacios("");
         setFiltroAnios(null);
         setFiltroReducible("ocultar");
         setDebtFilterActive(false);
@@ -222,6 +226,8 @@ const Cementerio: React.FC = () => {
                 onSearchChange={setSearchText}
                 filtroPagaPor={filtroPagaPor}
                 onFiltroPagaPorChange={setFiltroPagaPor}
+                filtroVacios={filtroVacios}
+                onFiltroVaciosChange={setFiltroVacios}
                 filtroAnios={filtroAnios}
                 onStepperDown={stepperDown}
                 onStepperUp={stepperUp}

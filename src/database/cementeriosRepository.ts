@@ -15,30 +15,80 @@ export type InsertCementeriosResult = {
     issues: CementerioSeedIssue[];
 };
 
+function normalizeSearch(s: string): string {
+    return s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s*\([^)]*\)\s*/g, " ")
+        .replace(/\s+/g, " ")
+        .replace(/\s*,\s*/g, ",")
+        .trim()
+        .toLowerCase();
+}
+
+function buildSearchPatterns(raw: string): string[] {
+    const patterns = new Set<string>();
+    const n = normalizeSearch(raw);
+    patterns.add(n);
+
+    if (raw.includes(",")) {
+        const noComma = n.replace(",", " ");
+        patterns.add(noComma);
+        const parts = n.split(",").map((s) => s.trim());
+        if (parts.length === 2) {
+            patterns.add(`${parts[1]},${parts[0]}`);
+        }
+    } else {
+        const lastSpace = raw.trim().replace(/\s+/g, " ").lastIndexOf(" ");
+        if (lastSpace !== -1) {
+            const surname = raw.slice(0, lastSpace).trim();
+            const given = raw.slice(lastSpace + 1).trim();
+            patterns.add(normalizeSearch(`${surname}, ${given}`));
+        }
+    }
+
+    return [...patterns];
+}
+
 export async function searchMemberByNombre(nombre: string): Promise<{ id: string; numero_de_socio: string } | null> {
     const sql = getSql();
 
+    const trimmed = nombre.trim();
+
     const exact = await sql`
         SELECT id, numero_de_socio FROM members
-        WHERE nombre = ${nombre.trim()}
+        WHERE nombre = ${trimmed}
         LIMIT 1
     ` as { id: string; numero_de_socio: string }[];
     if (exact.length > 0) return exact[0];
 
-    const normalized = nombre.trim().replace(/\s+/g, " ");
-    const ilike = await sql`
-        SELECT id, numero_de_socio FROM members
-        WHERE REPLACE(nombre, '  ', ' ') ILIKE ${normalized}
-        LIMIT 1
-    ` as { id: string; numero_de_socio: string }[];
-    if (ilike.length > 0) return ilike[0];
+    const patterns = buildSearchPatterns(nombre);
 
-    const fuzzy = await sql`
-        SELECT id, numero_de_socio FROM members
-        WHERE nombre ILIKE ${`%${normalized}%`}
-        LIMIT 1
-    ` as { id: string; numero_de_socio: string }[];
-    if (fuzzy.length > 0) return fuzzy[0];
+    for (const pattern of patterns) {
+        const rows = await sql.unsafe(
+            `SELECT id, numero_de_socio FROM members
+             WHERE TRANSLATE(LOWER(nombre), 'áéíóúüñ', 'aeiouun') ILIKE $1
+             LIMIT 1`,
+            [`%${pattern}%`],
+        ) as { id: string; numero_de_socio: string }[];
+        if (rows.length > 0) return rows[0];
+    }
+
+    const words = normalizeSearch(trimmed).split(",").join(" ").split(/\s+/).filter((w) => w.length > 2);
+    if (words.length > 0) {
+        const all = await sql`SELECT id, numero_de_socio, nombre FROM members` as { id: string; numero_de_socio: string; nombre: string }[];
+        let bestScore = 0;
+        let best: { id: string; numero_de_socio: string } | null = null;
+        for (const m of all) {
+            const mn = normalizeSearch(m.nombre);
+            let score = 0;
+            for (const w of words) {
+                if (mn.includes(w)) score++;
+            }
+            if (score > bestScore) { bestScore = score; best = { id: m.id, numero_de_socio: m.numero_de_socio }; }
+        }
+        if (best && bestScore >= Math.min(words.length, 2)) return best;
+    }
 
     return null;
 }

@@ -60,7 +60,8 @@ function buildConceptDetail(
         if (base > 0) items.push(`Cuota base: ${fmt(base)}`);
         if (fm.asistencial) items.push(`Asistencial: ${fmt(duesConfig.asistencial_fee)}`);
         if (fm.planSalud) items.push(`Plan Salud: ${fmt(duesConfig.plan_salud_fee)}`);
-        parts.push(`${fm.nombre}: Cuota socio (${items.length > 0 ? items.join(" + ") : fmt(fee)})`);
+        const detail = items.length > 0 ? ` (${items.join(", ")})` : `: ${fmt(fee)}`;
+        parts.push(`- ${fm.nombre}: Cuota socio${detail}`);
       }
     } else if (selectedMember) {
       const fee = getMemberFee(selectedMember);
@@ -69,7 +70,8 @@ function buildConceptDetail(
       if (base > 0) items.push(`Cuota base: ${fmt(base)}`);
       if (selectedMember.asistencial) items.push(`Asistencial: ${fmt(duesConfig.asistencial_fee)}`);
       if (selectedMember.planSalud) items.push(`Plan Salud: ${fmt(duesConfig.plan_salud_fee)}`);
-      parts.push(`${selectedMember.nombre}: Cuota socio (${items.length > 0 ? items.join(" + ") : fmt(fee)})`);
+      const detail = items.length > 0 ? ` (${items.join(", ")})` : `: ${fmt(fee)}`;
+      parts.push(`- ${selectedMember.nombre}: Cuota socio${detail}`);
     }
     if (periods.length > 0) {
       const byYear: Record<string, string[]> = {};
@@ -81,7 +83,7 @@ function buildConceptDetail(
       const periodStr = Object.entries(byYear)
         .map(([year, months]) => `${months.join(", ")} ${year}`)
         .join(" — ");
-      parts.push(`Período: ${periodStr}`);
+      parts.push(`- Período: ${periodStr}`);
     }
     return parts.join("\n");
   }
@@ -91,10 +93,11 @@ function buildConceptDetail(
       const yearList = years ? [...years].sort().join(", ") : "";
       return `${c.nicho}${yearList ? ` (Años: ${yearList})` : ""}`;
     });
-    return `Cementerio — ${items.join("; ")}`;
+    const list = items.map((i) => `- ${i}`).join("\n");
+    return `Cementerio\n${list}`;
   }
   if (concept === "Servicios" && servicio) {
-    return `Servicio: ${servicio}${selectedServiceAmount != null ? ` (${fmt(selectedServiceAmount)})` : ""}`;
+    return `- Servicio: ${servicio}${selectedServiceAmount != null ? ` (${fmt(selectedServiceAmount)})` : ""}`;
   }
   return undefined;
 }

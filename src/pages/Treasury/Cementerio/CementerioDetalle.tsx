@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, User, ExternalLink, Calendar, History } from "lucide-react";
-import type { Cementerio } from "../../../models/members";
+import { ArrowLeft, Save, User, ExternalLink, Calendar, History, Loader } from "lucide-react";
+import type { Cementerio, Member, Person } from "../../../models/members";
 import {
     fetchCementeriosByNicho,
     updateCementerioRecord,
     fetchCementerioMovimientosByNicho,
     type CementerioDetalleRecord,
 } from "../../../services/cementeriosApi";
+import { fetchActiveMembers, fetchPersons } from "../../../services/membersApi";
 import "./Cementerio.css";
 
 const PAGA_POR_OPTS = [
@@ -136,6 +137,13 @@ const CementerioDetalle: React.FC = () => {
     const [arrendatarioFilter, setArrendatarioFilter] = useState<Set<string> | null>(null);
     const [movimientosByArrendatario, setMovimientosByArrendatario] = useState<Map<string, boolean>>(new Map());
 
+    const [nombreSearchValue, setNombreSearchValue] = useState("");
+    const [nombreResults, setNombreResults] = useState<(Member | Person)[]>([]);
+    const [showNombreDropdown, setShowNombreDropdown] = useState(false);
+    const [nombreSearchRecordId, setNombreSearchRecordId] = useState<string | null>(null);
+    const [nombreSearchLoading, setNombreSearchLoading] = useState(false);
+    const nombreSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     useEffect(() => {
         document.querySelector(".content")?.classList.add("custom-scroll");
         return () => document.querySelector(".content")?.classList.remove("custom-scroll");
@@ -206,8 +214,20 @@ const CementerioDetalle: React.FC = () => {
 
     const handleFieldChange = (id: string, field: keyof Cementerio, value: string | boolean) => {
         setRecords((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+            prev.map((r) => {
+                if (r.id !== id) return r;
+                const updated = { ...r, [field]: value };
+                if (field === "esSocio") {
+                    updated.socioId = value ? r.socioId : null;
+                    updated.personaId = value ? null : r.personaId;
+                }
+                return updated;
+            })
         );
+        if (field === "esSocio") {
+            setNombreSearchValue("");
+            setNombreResults([]);
+        }
     };
 
     const handleSave = async (id: string) => {
@@ -224,6 +244,54 @@ const CementerioDetalle: React.FC = () => {
             setSavingId(null);
             setError(err instanceof Error ? err.message : "Error al guardar");
         }
+    };
+
+    const doNombreSearch = useCallback(async (q: string, esSocio: boolean) => {
+        if (!q.trim()) { setNombreResults([]); return; }
+        setNombreSearchLoading(true);
+        try {
+            const result = esSocio ? await fetchActiveMembers(q) : await fetchPersons(q);
+            setNombreResults(result);
+        } catch { setNombreResults([]); }
+        finally { setNombreSearchLoading(false); }
+    }, []);
+
+    const handleNombreInputChange = (value: string, recordId: string, esSocio: boolean) => {
+        setNombreSearchValue(value);
+        setNombreSearchRecordId(recordId);
+        setShowNombreDropdown(true);
+        if (nombreSearchTimer.current) clearTimeout(nombreSearchTimer.current);
+        nombreSearchTimer.current = setTimeout(() => doNombreSearch(value, esSocio), 300);
+    };
+
+    const handleNombreSelect = (recordId: string, selected: Member | Person) => {
+        const isSocio = "numeroDeSocio" in selected;
+        setRecords((prev) =>
+            prev.map((r) =>
+                r.id === recordId
+                    ? {
+                          ...r,
+                          socioId: isSocio ? selected.id : null,
+                          personaId: isSocio ? null : selected.id,
+                          esSocio: isSocio,
+                          personaNombre: selected.nombre,
+                          personaDomicilio: isSocio ? (selected as Member).domicilio : (selected as Person).domicilio,
+                          telefono: selected.telefono || r.telefono,
+                      }
+                    : r
+            )
+        );
+        setNombreSearchValue("");
+        setNombreResults([]);
+        setShowNombreDropdown(false);
+        setNombreSearchRecordId(null);
+    };
+
+    const handleNombreFocus = (recordId: string, currentName: string) => {
+        setNombreSearchRecordId(recordId);
+        setNombreSearchValue(currentName);
+        setShowNombreDropdown(true);
+        if (currentName) doNombreSearch(currentName, records.find((r) => r.id === recordId)?.esSocio ?? false);
     };
 
     if (isLoading) return <div className="dashboard-loading">Cargando nicho {nicho}...</div>;
@@ -401,17 +469,72 @@ const CementerioDetalle: React.FC = () => {
                                         </span>
                                     </div>
 
-                                    {/* Fila 3: Datos del arrendatario */}
+                                    {/* Fila 3: Datos del arrendatario (editable) */}
                                     <div style={{
                                         display: "grid",
                                         gridTemplateColumns: "repeat(5, 1fr)",
                                         gap: 12, marginBottom: 12,
                                     }}>
-                                        <ReadOnlyField label="Nombre" value={rec.personaNombre} />
-                                        <ReadOnlyField label="Domicilio" value={rec.personaDomicilio} />
-                                        <Field label="Teléfono" value={rec.telefono} onChange={(v) => handleFieldChange(rec.id, "telefono", v)} />
-                                        <Field label="Paga por" value={rec.pagaPor} onChange={(v) => handleFieldChange(rec.id, "pagaPor", v)} isSelect options={PAGA_POR_OPTS} />
+                                        {/* 1 - Nombre con buscador */}
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 4, position: "relative" }}>
+                                            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>Nombre</label>
+                                            <div className="member-search-wrapper">
+                                                <input
+                                                    type="text"
+                                                    className="field-input"
+                                                    style={{ width: "100%" }}
+                                                    value={nombreSearchRecordId === rec.id ? nombreSearchValue : rec.personaNombre}
+                                                    onChange={(e) => handleNombreInputChange(e.target.value, rec.id, rec.esSocio)}
+                                                    onFocus={() => handleNombreFocus(rec.id, rec.personaNombre)}
+                                                    onBlur={() => setTimeout(() => setShowNombreDropdown(false), 200)}
+                                                    placeholder="Buscar arrendatario..."
+                                                />
+                                                {showNombreDropdown && nombreSearchRecordId === rec.id && (
+                                                    <div className="member-dropdown" style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10 }}>
+                                                        {nombreSearchLoading ? (
+                                                            <div className="member-dropdown-item" style={{ justifyContent: "center" }}>
+                                                                <Loader size={14} className="spin" /> Buscando...
+                                                            </div>
+                                                        ) : nombreSearchValue && nombreResults.length === 0 ? (
+                                                            <div className="member-dropdown-item" style={{ justifyContent: "center", color: "var(--muted)" }}>
+                                                                Sin resultados
+                                                            </div>
+                                                        ) : (
+                                                            nombreResults.map((p) => (
+                                                                <button
+                                                                    type="button"
+                                                                    key={p.id}
+                                                                    className="member-dropdown-item"
+                                                                    onMouseDown={() => handleNombreSelect(rec.id, p)}
+                                                                >
+                                                                    <User size={16} />
+                                                                    <div className="member-dropdown-info">
+                                                                        <span className="member-dropdown-name">{p.nombre}</span>
+                                                                        <span className="member-dropdown-detail">
+                                                                            {"numeroDeSocio" in p
+                                                                                ? `DNI ${p.documento} · Nº ${p.numeroDeSocio}`
+                                                                                : `${p.tipoDoc} ${p.documento}`}
+                                                                        </span>
+                                                                    </div>
+                                                                </button>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* 2 - Es Socio */}
                                         <Field label="Es Socio" value={rec.esSocio ? "SI" : "NO"} onChange={(v) => handleFieldChange(rec.id, "esSocio", v === "SI")} isSelect options={["NO", "SI"]} />
+
+                                        {/* 3 - Domicilio */}
+                                        <Field label="Domicilio" value={rec.personaDomicilio} onChange={(v) => setRecords((prev) => prev.map((r) => r.id === rec.id ? { ...r, personaDomicilio: v } : r))} />
+
+                                        {/* 4 - Teléfono */}
+                                        <Field label="Teléfono" value={rec.telefono} onChange={(v) => handleFieldChange(rec.id, "telefono", v)} />
+
+                                        {/* 5 - Paga por */}
+                                        <Field label="Paga por" value={rec.pagaPor} onChange={(v) => handleFieldChange(rec.id, "pagaPor", v)} isSelect options={PAGA_POR_OPTS} />
                                     </div>
 
                                     <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end", gap: 8 }}>

@@ -70,7 +70,7 @@ function buildSingleReceiptHtml(data: ComprobanteData, copyLabel: string): strin
 
       <div class="receipt-concept">
         <span class="concept-label">En concepto de:</span>
-        <div class="field-value">${data.conceptDetail || data.detail || "—"}</div>
+        <div class="field-value">${(data.conceptDetail || data.detail || "—").replace(/\n/g, '<br>')}</div>
       </div>
 
       <div class="receipt-footer">
@@ -281,7 +281,7 @@ const Comprobante: React.FC<ComprobanteProps> = ({ data, onClose }) => {
             )}
             <div className="comprobante-detail-row">
               <span className="comprobante-detail-label">Detalle</span>
-              <span className="comprobante-detail-value">{data.detail}</span>
+              <span className="comprobante-detail-value" style={{ whiteSpace: "pre-line" }}>{data.conceptDetail ?? data.detail}</span>
             </div>
             <div className="comprobante-detail-row">
               <span className="comprobante-detail-label">Importe</span>
