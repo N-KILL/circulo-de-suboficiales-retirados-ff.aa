@@ -65,12 +65,11 @@ export async function searchMemberByNombre(nombre: string): Promise<{ id: string
     const patterns = buildSearchPatterns(nombre);
 
     for (const pattern of patterns) {
-        const rows = await sql.unsafe(
-            `SELECT id, numero_de_socio FROM members
-             WHERE TRANSLATE(LOWER(nombre), 'áéíóúüñ', 'aeiouun') ILIKE $1
-             LIMIT 1`,
-            [`%${pattern}%`],
-        ) as { id: string; numero_de_socio: string }[];
+        const rows = await sql`
+            SELECT id, numero_de_socio FROM members
+            WHERE TRANSLATE(LOWER(nombre), 'áéíóúüñ', 'aeiouun') ILIKE ${`%${pattern}%`}
+            LIMIT 1
+        ` as { id: string; numero_de_socio: string }[];
         if (rows.length > 0) return rows[0];
     }
 
