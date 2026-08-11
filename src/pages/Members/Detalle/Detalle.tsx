@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Loader, Plus, X, Eye, Pencil } from "lucide-react";
-import { useAuthStore } from "../../../store/authStore";
 import { fetchMemberById } from "../../../services/membersApi";
 import { fetchDuesByMember, saveDue, fetchFamilyMembers } from "../../../services/duesApi";
 import { fetchCementeriosByOwner, fetchCementerioMovimientosByMovement } from "../../../services/cementeriosApi";
@@ -17,8 +16,7 @@ import "./Detalle.css";
 const DetalleSocio: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const canModify = user?.role !== "secretario";
+  const canModify = true;
   const [member, setMember] = useState<Member | null>(null);
   const [dues, setDues] = useState<DueWithDetails[]>([]);
   const [loading, setLoading] = useState(true);

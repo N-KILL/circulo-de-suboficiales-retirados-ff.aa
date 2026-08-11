@@ -5,7 +5,6 @@ import TablePagination from "../../components/TablePagination/TablePagination";
 import SearchInput from "../../components/ui/SearchInput";
 import "../Treasury/TreasuryTables.css";
 import { useMembersListStore } from "../../store/membersListStore";
-import { useAuthStore } from "../../store/authStore";
 import { fetchMembersDebtStatus } from "../../services/membersDebtApi";
 import { todayLocal, parseDateYMD } from "../../utils/format";
 import type { Member } from "../../models/members";
@@ -130,8 +129,6 @@ function printList(members: Member[], name: string, download: boolean): void {
 const Members: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuthStore();
-  const isSecretario = user?.role === "secretario";
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tipoSocioDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -374,31 +371,27 @@ const Members: React.FC = () => {
             <ListChecks size={16} />
             Crear lista
           </button>
-          {!isSecretario && (
-            <>
-              <button
-                className="header-btn"
-                onClick={handleActualizarVitalicios}
-                disabled={updatingVitalicios}
-                title="Cambiar a Vitalicio a todos los activos con más de 35 años"
-              >
-                <RefreshCw size={16} className={updatingVitalicios ? "spin" : ""} />
-                Actualizar vitalicios
-              </button>
-              {lastVitaliciosUpdate && (
-                <span style={{ fontSize: 12, color: "var(--muted)", alignSelf: "center", whiteSpace: "nowrap" }}>
-                  Última vez: {lastVitaliciosUpdate}
-                </span>
-              )}
-              <button
-                className="header-btn"
-                onClick={() => navigate("/socios/nuevo")}
-              >
-                <UserPlus size={16} />
-                Agregar socio
-              </button>
-            </>
+          <button
+            className="header-btn"
+            onClick={handleActualizarVitalicios}
+            disabled={updatingVitalicios}
+            title="Cambiar a Vitalicio a todos los activos con más de 35 años"
+          >
+            <RefreshCw size={16} className={updatingVitalicios ? "spin" : ""} />
+            Actualizar vitalicios
+          </button>
+          {lastVitaliciosUpdate && (
+            <span style={{ fontSize: 12, color: "var(--muted)", alignSelf: "center", whiteSpace: "nowrap" }}>
+              Última vez: {lastVitaliciosUpdate}
+            </span>
           )}
+          <button
+            className="header-btn"
+            onClick={() => navigate("/socios/nuevo")}
+          >
+            <UserPlus size={16} />
+            Agregar socio
+          </button>
         </div>
       </div>
 

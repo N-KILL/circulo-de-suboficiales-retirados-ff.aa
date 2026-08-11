@@ -30,6 +30,7 @@ import Usuarios from "./pages/Usuarios/Usuarios";
 import NotFound from "./pages/NotFound/NotFound";
 
 const OWNER_OR_ADMIN: Array<"owner" | "admin"> = ["owner", "admin"];
+const MEMBERS_EDITOR: Array<"owner" | "admin" | "secretario"> = ["owner", "admin", "secretario"];
 
 function App() {
   return (
@@ -99,24 +100,24 @@ function App() {
           } />
           <Route path="socios" element={<Members />} />
           <Route path="socios/nuevo" element={
-            <ProtectedRoute allowedRoles={OWNER_OR_ADMIN}>
+            <ProtectedRoute allowedRoles={MEMBERS_EDITOR}>
               <NewMember />
             </ProtectedRoute>
           } />
           <Route path="socios/editar/:id" element={
-            <ProtectedRoute allowedRoles={OWNER_OR_ADMIN}>
+            <ProtectedRoute allowedRoles={MEMBERS_EDITOR}>
               <NewMember />
             </ProtectedRoute>
           } />
           <Route path="socios/detalle/:id" element={<DetalleSocio />} />
           <Route path="personas" element={<Persons />} />
           <Route path="personas/nuevo" element={
-            <ProtectedRoute allowedRoles={OWNER_OR_ADMIN}>
+            <ProtectedRoute allowedRoles={MEMBERS_EDITOR}>
               <NewPerson />
             </ProtectedRoute>
           } />
           <Route path="personas/editar/:id" element={
-            <ProtectedRoute allowedRoles={OWNER_OR_ADMIN}>
+            <ProtectedRoute allowedRoles={MEMBERS_EDITOR}>
               <NewPerson />
             </ProtectedRoute>
           } />

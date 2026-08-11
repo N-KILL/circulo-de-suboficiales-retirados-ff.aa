@@ -1,16 +1,13 @@
 import React, { useEffect, useMemo } from "react";
-import { Search, UserPlus, Eye } from "lucide-react";
+import { Search, UserPlus } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import "../Treasury/TreasuryTables.css";
 import { usePersonsListStore } from "../../store/personsListStore";
-import { useAuthStore } from "../../store/authStore";
 
 const Persons: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuthStore();
-  const isSecretario = user?.role === "secretario";
 
   const allPersons = usePersonsListStore((s) => s.allPersons);
   const searchText = usePersonsListStore((s) => s.searchText);
@@ -48,15 +45,13 @@ const Persons: React.FC = () => {
     <div className="treasury-container">
       <div className="treasury-header-row">
         <h2></h2>
-        {!isSecretario && (
-          <button
-            className="header-btn"
-            onClick={() => navigate("/personas/nuevo")}
-          >
-            <UserPlus size={16} />
-            Agregar persona
-          </button>
-        )}
+        <button
+          className="header-btn"
+          onClick={() => navigate("/personas/nuevo")}
+        >
+          <UserPlus size={16} />
+          Agregar persona
+        </button>
       </div>
 
       <div className="filters-bar">
@@ -89,25 +84,24 @@ const Persons: React.FC = () => {
                 <th>Documento</th>
                 <th>Domicilio</th>
                 <th>Teléfono</th>
-                <th style={{ width: 100 }}></th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                     Cargando personas...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                     {error}
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                     No se encontraron personas.
                   </td>
                 </tr>
@@ -115,7 +109,7 @@ const Persons: React.FC = () => {
                 paginated.map((p) => (
                   <tr
                     key={p.id}
-                    onClick={() => navigate(isSecretario ? `/personas/detalle/${p.id}` : `/personas/editar/${p.id}`)}
+                    onClick={() => navigate(`/personas/editar/${p.id}`)}
                     style={{ cursor: "pointer" }}
                   >
                     <td>{p.nombre}</td>
@@ -123,19 +117,6 @@ const Persons: React.FC = () => {
                     <td>{p.documento}</td>
                     <td>{p.domicilio}</td>
                     <td>{p.telefono}</td>
-                    <td>
-                      <button
-                        className="header-btn-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/personas/detalle/${p.id}`);
-                        }}
-                        title="Ver cuotas"
-                      >
-                        <Eye size={14} />
-                        Cuotas
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}

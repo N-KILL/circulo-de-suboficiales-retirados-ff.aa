@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Loader, Eye } from "lucide-react";
+import { ArrowLeft, User, Loader, Eye, Pencil } from "lucide-react";
 import { fetchPersonById } from "../../../services/personsApi";
 import { fetchDuesByPerson } from "../../../services/duesApi";
 import { fetchCementerioMovimientosByMovement } from "../../../services/cementeriosApi";
@@ -104,9 +104,14 @@ const DetallePersona: React.FC = () => {
 
   return (
     <div className="detalle-container">
-      <button className="btn-back" onClick={() => navigate("/personas")}>
-        <ArrowLeft size={18} /> Volver a Personas
-      </button>
+      <div className="detalle-actions-row">
+        <button className="btn-back" onClick={() => navigate("/personas")}>
+          <ArrowLeft size={18} /> Volver a Personas
+        </button>
+        <button className="btn-register-period" onClick={() => navigate(`/personas/editar/${id}`)}>
+          <Pencil size={16} /> Editar persona
+        </button>
+      </div>
 
       <div className="detalle-card">
         <div className="detalle-header">
