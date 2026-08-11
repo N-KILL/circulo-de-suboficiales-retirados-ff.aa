@@ -29,6 +29,7 @@ export type DueWithDetails = {
     family_group: string | null;
     paid_members: string[] | null;
     receipt_number: number | null;
+    anulado: boolean;
     created_at: string;
 };
 
@@ -128,6 +129,7 @@ export async function getDuesByMember(memberId: string): Promise<DueWithDetails[
             d.family_group,
             d.paid_members,
             c.receipt_number,
+            pc.anulado,
             d.created_at::text as created_at
         FROM dues d
         LEFT JOIN members m ON d.member_id = m.id
@@ -159,6 +161,7 @@ export async function getDuesByPerson(personId: string): Promise<DueWithDetails[
             d.family_group,
             d.paid_members,
             c.receipt_number,
+            pc.anulado,
             d.created_at::text as created_at
         FROM dues d
         LEFT JOIN members m ON d.member_id = m.id
@@ -189,6 +192,7 @@ export async function getAllDues(): Promise<DueWithDetails[]> {
             d.family_group,
             d.paid_members,
             c.receipt_number,
+            pc.anulado,
             d.created_at::text as created_at
         FROM dues d
         LEFT JOIN members m ON d.member_id = m.id
@@ -218,6 +222,7 @@ export async function getDueByMovementId(movementId: string): Promise<DueWithDet
             d.family_group,
             d.paid_members,
             c.receipt_number,
+            pc.anulado,
             d.created_at::text as created_at
         FROM dues d
         LEFT JOIN members m ON d.member_id = m.id
@@ -274,9 +279,11 @@ export async function getDuesByMemberWithCemeteryCheck(memberId: string): Promis
 export async function getMembersDebtStatus(): Promise<Record<string, string | null>> {
     const sql = getSql();
     const rows = (await sql`
-        SELECT member_id, paid_members, period
-        FROM dues
-        WHERE type = 'socio'
+        SELECT d.member_id, d.paid_members, d.period
+        FROM dues d
+        LEFT JOIN petty_cash pc ON d.movement_id = pc.id
+        WHERE d.type = 'socio'
+          AND (pc.anulado = false OR d.movement_id IS NULL)
     `) as { member_id: string | null; paid_members: unknown; period: unknown }[];
     const map: Record<string, string | null> = {};
     for (const row of rows) {

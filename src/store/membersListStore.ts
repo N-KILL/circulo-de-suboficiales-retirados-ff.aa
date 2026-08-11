@@ -9,7 +9,7 @@ function filterAndSort(
     showFallecidos: boolean,
     showBaja: boolean,
     pagaPorFilter: string,
-    tipoSocioFilter: string
+    tipoSocioFilter: string[]
 ): Member[] {
     const s = searchText.toLowerCase().trim();
     const list = all.filter((m) => {
@@ -24,7 +24,7 @@ function filterAndSort(
             (showFallecidos && m.fallecido) ||
             (showBaja && !!m.fechaBaja);
         const matchPagaPor = !pagaPorFilter || m.pagaPor === pagaPorFilter;
-        const matchTipoSocio = !tipoSocioFilter || m.tipoSocio === tipoSocioFilter;
+        const matchTipoSocio = tipoSocioFilter.length === 0 || tipoSocioFilter.includes(m.tipoSocio);
         return matchSearch && matchEstado && matchPagaPor && matchTipoSocio;
     });
     return list.sort((a, b) => {
@@ -43,7 +43,7 @@ export const useMembersListStore = create<MembersListState>((set, get) => ({
     showFallecidos: false,
     showBaja: false,
     pagaPorFilter: "",
-    tipoSocioFilter: "",
+    tipoSocioFilter: [],
     currentPage: 1,
     rowsPerPage: 15,
 
@@ -72,7 +72,7 @@ export const useMembersListStore = create<MembersListState>((set, get) => ({
         set(() => ({ showBaja: v, currentPage: 1 })),
     setPagaPorFilter: (v: string) =>
         set(() => ({ pagaPorFilter: v, currentPage: 1 })),
-    setTipoSocioFilter: (v: string) =>
+    setTipoSocioFilter: (v: string[]) =>
         set(() => ({ tipoSocioFilter: v, currentPage: 1 })),
     setCurrentPage: (p: number) => set(() => ({ currentPage: p })),
     setRowsPerPage: (r: number) =>

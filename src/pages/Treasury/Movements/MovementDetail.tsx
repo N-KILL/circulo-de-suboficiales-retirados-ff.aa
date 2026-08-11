@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader, Edit3, Trash2, X, Eye, FileText } from "lucide-react";
-import { fetchMovementById, deleteMovement, type Movement, type ServiceRecordLink, type CementerioMovimientoLink } from "../../../services/movementsApi";
+import { ArrowLeft, Loader, Edit3, Trash2, X, Eye, FileText, Ban } from "lucide-react";
+import { fetchMovementById, setMovementAnulado, type Movement, type ServiceRecordLink, type CementerioMovimientoLink } from "../../../services/movementsApi";
 import { fetchMemberById } from "../../../services/membersApi";
 import ServiceRecordModal from "../../../components/service/ServiceRecordModal";
 import Comprobante from "../../../components/comprobante/Comprobante";
@@ -49,8 +49,8 @@ const MovementDetail: React.FC = () => {
         if (!id) return;
         setDeleting(true);
         setError(null);
-        try { await deleteMovement(id); navigate("/tesoreria/movimientos"); }
-        catch (err) { setError(err instanceof Error ? err.message : "Error al eliminar"); setDeleting(false); }
+        try { await setMovementAnulado(id, true); navigate("/tesoreria/movimientos"); }
+        catch (err) { setError(err instanceof Error ? err.message : "Error al anular"); setDeleting(false); }
     }, [id, navigate]);
 
     if (loading) return <div className="dashboard-loading"><Loader size={24} className="spin" /> Cargando movimiento...</div>;
@@ -74,7 +74,13 @@ const MovementDetail: React.FC = () => {
                 <div className="error-banner">{error}<button type="button" className="success-close" onClick={() => setError(null)}><X size={16} /></button></div>
             )}
 
-            <div className="movement-detail-card">
+            {movement.anulado && (
+                <div className="anulado-banner">
+                    <Ban size={18} /> ESTE MOVIMIENTO ESTÁ ANULADO. No se cuenta en los totales ni en las cuotas vinculadas.
+                </div>
+            )}
+
+            <div className={`movement-detail-card${movement.anulado ? " is-anulado" : ""}`}>
                 <div className="movement-detail-header">
                     <h2>Detalle del Movimiento</h2>
                     {!confirmDelete && (
@@ -84,18 +90,22 @@ const MovementDetail: React.FC = () => {
                                     <button className="btn-comprobante" onClick={() => setShowComprobante(true)}><FileText size={16} /> Ver Comprobante</button>
                                 </div>
                             )}
-                            <button className="btn-edit" onClick={() => navigate(`/tesoreria/nuevo-movimiento/${movement.id}`)}><Edit3 size={16} /> Editar</button>
-                            <button className="btn-delete" onClick={() => setConfirmDelete(true)}><Trash2 size={16} /> Eliminar</button>
+                            {!movement.anulado && (
+                                <button className="btn-edit" onClick={() => navigate(`/tesoreria/nuevo-movimiento/${movement.id}`)}><Edit3 size={16} /> Editar</button>
+                            )}
+                            {!movement.anulado && (
+                                <button className="btn-delete" onClick={() => setConfirmDelete(true)}><Trash2 size={16} /> Anular</button>
+                            )}
                         </div>
                     )}
                 </div>
 
                 {confirmDelete && (
                     <div className="delete-confirm-box">
-                        <p>{hasAnyLinked ? "Este movimiento está asociado a registros vinculados (cuotas, servicios y/o cementerio). Se eliminarán todos los registros vinculados." : "¿Estás seguro de eliminar este movimiento? Esta acción no se puede deshacer."}</p>
+                        <p>{hasAnyLinked ? "Este movimiento está asociado a registros vinculados (cuotas, servicios y/o cementerio). Al anularlo no se contará en los totales ni en las cuotas/servicios vinculados, pero el registro se conservará marcado como anulado." : "¿Estás seguro de anular este movimiento? El registro se conservará pero no se contará en los totales."}</p>
                         <div className="delete-confirm-actions">
                             <button className="btn-cancel" onClick={() => setConfirmDelete(false)} disabled={deleting}>Cancelar</button>
-                            <button className="btn-delete-confirm" onClick={handleDelete} disabled={deleting}>{deleting ? "Eliminando..." : "Sí, eliminar"}</button>
+                            <button className="btn-delete-confirm" onClick={handleDelete} disabled={deleting}>{deleting ? "Anulando..." : "Sí, anular"}</button>
                         </div>
                     </div>
                 )}
@@ -188,6 +198,7 @@ const MovementDetail: React.FC = () => {
                         payerName: movement.comprobante.payer_name ?? movement.linked_due?.member_nombre ?? movement.linked_due?.person_nombre ?? undefined,
                         copies_to_print: movement.comprobante.copies_to_print,
                         paymentMethod: movement.mode === "efectivo" ? "Efectivo" : "Transferencia",
+                        anulado: movement.anulado ?? false,
                     }}
                     onClose={() => setShowComprobante(false)}
                 />

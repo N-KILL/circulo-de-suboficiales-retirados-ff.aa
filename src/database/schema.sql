@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS petty_cash (
     amount              NUMERIC(12,2)   NOT NULL DEFAULT 0,
     type                VARCHAR(20)     NOT NULL,
     mode                VARCHAR(20)     NOT NULL DEFAULT 'efectivo',
+    anulado             BOOLEAN         NOT NULL DEFAULT FALSE,
     total_balance       NUMERIC(12,2),
     caja_chica_balance  NUMERIC(12,2),
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()

@@ -48,6 +48,35 @@
   font-size: 14px;
 }
 
+.anulado-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fef2f2;
+  color: var(--rojo-alerta);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.movement-detail-card.is-anulado {
+  border-color: #fecaca;
+  background: #fffafa;
+}
+
+.movement-detail-card.is-anulado .detail-value,
+.movement-detail-card.is-anulado .detail-label {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.movement-detail-card.is-anulado .amount-ingreso,
+.movement-detail-card.is-anulado .amount-egreso {
+  color: var(--muted);
+}
+
 .success-close {
   background: none;
   border: none;

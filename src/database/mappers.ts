@@ -14,15 +14,15 @@ const displayToSexo: Record<string, string> = {
 
 // ── Estado (militar) ───────────────────────────────────
 const estadoToDisplay: Record<string, string> = {
-    "":     "En servicio",
-    "(R)":  "Retirado",
-    RET:    "Retirado",
-    Baja:   "Baja",
-    PENS:   "Pensionado",
+    EN_SERVICIO: "En servicio",
+    "(R)":       "Retirado",
+    RET:         "Retirado",
+    Baja:        "Baja",
+    PENS:        "Pensionado",
 };
 
 const displayToEstado: Record<string, string> = {
-    "En servicio": "",
+    "En servicio": "EN_SERVICIO",
     Retirado:      "RET",
     Baja:          "Baja",
     Pensionado:    "PENS",

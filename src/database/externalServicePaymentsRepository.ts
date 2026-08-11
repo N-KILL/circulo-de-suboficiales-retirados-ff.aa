@@ -31,10 +31,12 @@ export async function getPaymentsByYear(year: number): Promise<ExternalServicePa
     await ensureExternalServicePaymentsTable();
     const sql = getSql();
     const rows = (await sql`
-        SELECT id, service_id, month, year, amount, movement_id, created_at
-        FROM external_service_payments
-        WHERE year = ${year}
-        ORDER BY service_id, month
+        SELECT esp.id, esp.service_id, esp.month, esp.year, esp.amount, esp.movement_id, esp.created_at
+        FROM external_service_payments esp
+        LEFT JOIN petty_cash pc ON esp.movement_id = pc.id
+        WHERE esp.year = ${year}
+          AND (pc.anulado = false OR esp.movement_id IS NULL)
+        ORDER BY esp.service_id, esp.month
     `) as ExternalServicePaymentRow[];
     return rows;
 }

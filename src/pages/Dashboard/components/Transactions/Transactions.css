@@ -43,6 +43,19 @@
   border-bottom: 1px solid var(--border);
 }
 
+.txn-clickable {
+  cursor: pointer;
+  border-radius: 8px;
+  padding-left: 8px;
+  margin-left: -8px;
+  padding-top: 4px;
+  transition: background 0.15s;
+}
+
+.txn-clickable:hover {
+  background: #eef2ff;
+}
+
 .txn-item:last-child {
   border-bottom: none;
   padding-bottom: 0;
@@ -115,4 +128,38 @@
 
 .txn-transferencia .txn-amount {
   color: #ca8a04;
+}
+
+/* Annulled transaction */
+.txn-anulado {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(220, 38, 38, 0.07),
+    rgba(220, 38, 38, 0.07) 6px,
+    rgba(220, 38, 38, 0.02) 6px,
+    rgba(220, 38, 38, 0.02) 12px
+  );
+  border-left: 3px solid var(--rojo-alerta);
+  padding-left: 12px;
+  border-radius: 6px;
+}
+
+.txn-anulado .txn-title,
+.txn-anulado .txn-subtitle,
+.txn-anulado .txn-date,
+.txn-anulado .txn-amount {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.txn-anulado-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 100px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
 }

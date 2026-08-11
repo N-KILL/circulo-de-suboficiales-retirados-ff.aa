@@ -120,7 +120,7 @@ export type MembersListState = {
     showFallecidos: boolean;
     showBaja: boolean;
     pagaPorFilter: string;
-    tipoSocioFilter: string;
+    tipoSocioFilter: string[];
     currentPage: number;
     rowsPerPage: number;
     loadMembers: () => Promise<void>;
@@ -129,7 +129,7 @@ export type MembersListState = {
     setShowFallecidos: (v: boolean) => void;
     setShowBaja: (v: boolean) => void;
     setPagaPorFilter: (v: string) => void;
-    setTipoSocioFilter: (v: string) => void;
+    setTipoSocioFilter: (v: string[]) => void;
     setCurrentPage: (p: number) => void;
     setRowsPerPage: (r: number) => void;
     getFiltered: () => Member[];

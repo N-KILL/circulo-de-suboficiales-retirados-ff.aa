@@ -102,7 +102,6 @@ const NewPerson: React.FC = () => {
         >
           <ArrowLeft size={18} /> Volver a Personas
         </button>
-        <h2>{isEditing ? "Editar persona" : "Nueva persona"}</h2>
       </div>
       {fetchError && (
         <div className="table-card" style={{ padding: 20, color: "var(--danger, #dc3545)" }}>

@@ -91,10 +91,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse, p
     }
 
     if (pathname === "/api/movement") {
-      const { getMovementById, updateMovement, deleteMovement } = await import("../src/database/pettyCashRepository.js");
-      const { getDueByMovementId, deleteDueByMovementId, updateDueByMovementId } = await import("../src/database/duesRepository.js");
-      const { getServiceRecordsByMovement, deleteServiceRecordsByMovement } = await import("../src/database/serviceRecordsRepository.js");
-      const { getCementerioMovimientosByMovement, deleteCementerioMovimientosByMovement } = await import("../src/database/cementerioMovimientosRepository.js");
+      const { getMovementById, updateMovement, setMovementAnulado } = await import("../src/database/pettyCashRepository.js");
+      const { getDueByMovementId, updateDueByMovementId } = await import("../src/database/duesRepository.js");
+      const { getServiceRecordsByMovement } = await import("../src/database/serviceRecordsRepository.js");
+      const { getCementerioMovimientosByMovement } = await import("../src/database/cementerioMovimientosRepository.js");
       const { getComprobanteByMovementId } = await import("../src/database/comprobantesRepository.js");
       const id = req.query.id as string | undefined;
 
@@ -134,15 +134,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse, p
         return;
       }
 
-      if (method === "DELETE") {
-        const { reverseDebtsByMovementId } = await import("../src/database/debtsRepository.js");
-        const { deletePaymentsByMovementId } = await import("../src/database/externalServicePaymentsRepository.js");
-        await reverseDebtsByMovementId(id);
-        await deleteDueByMovementId(id);
-        await deleteServiceRecordsByMovement(id);
-        await deleteCementerioMovimientosByMovement(id);
-        await deletePaymentsByMovementId(id);
-        await deleteMovement(id);
+      if (method === "PATCH") {
+        await setMovementAnulado(id, req.body?.anulado !== false);
         res.status(200).json({ success: true });
         return;
       }

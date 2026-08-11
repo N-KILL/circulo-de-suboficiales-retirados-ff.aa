@@ -51,6 +51,7 @@ export interface Movement {
     type: "ingreso" | "egreso" | "transferencia";
     mode: "efectivo" | "transferencia";
     concept?: string | null;
+    anulado?: boolean;
     created_at?: string;
     comprobante?: ComprobanteRecord | null;
     linked_due?: DueLink | null;
@@ -102,15 +103,17 @@ export async function updateMovement(
     }
 }
 
-export async function deleteMovement(id: string): Promise<void> {
+export async function setMovementAnulado(id: string, anulado: boolean): Promise<void> {
     const response = await fetch(`/api/movement?id=${encodeURIComponent(id)}`, {
-        method: "DELETE",
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anulado }),
     });
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
             error?: string;
         } | null;
-        throw new Error(body?.error ?? "No se pudo eliminar el movimiento");
+        throw new Error(body?.error ?? "No se pudo anular el movimiento");
     }
 }

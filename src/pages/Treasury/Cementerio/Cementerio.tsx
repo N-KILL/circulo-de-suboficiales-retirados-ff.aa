@@ -25,6 +25,12 @@ function esReducible(tipo: string, fechaFallecimiento: string): boolean {
     return new Date().getFullYear() - year >= 25;
 }
 
+const VACIO_TIPOS = ["vacio", "vf", "vu"];
+
+function esNichoVacio(tipo: string): boolean {
+    return VACIO_TIPOS.includes(tipo.trim().toLowerCase());
+}
+
 const Cementerio: React.FC = () => {
     const [data, setData] = useState<CementerioGridItem[]>([]);
     const [pagosMap, setPagosMap] = useState<Map<string, string>>(new Map());
@@ -106,8 +112,8 @@ const Cementerio: React.FC = () => {
                 !d.arrendatario.toLowerCase().includes(q) &&
                 !d.telefono.includes(q)) return false;
             if (filtroPagaPor && d.pagaPor.toUpperCase() !== filtroPagaPor) return false;
-            if (filtroVacios === "vacios" && d.arrendatario.trim() !== "") return false;
-            if (filtroVacios === "ocupados" && d.arrendatario.trim() === "") return false;
+            if (filtroVacios === "vacios" && !esNichoVacio(d.tipo)) return false;
+            if (filtroVacios === "ocupados" && esNichoVacio(d.tipo)) return false;
             if (filtroAnios !== null) {
                 const anos = calcYearsAgo(d.ultimaFechaPago ? formatRecordDate(d.ultimaFechaPago) : d.fechaDePago);
                 if (anos !== filtroAnios) return false;

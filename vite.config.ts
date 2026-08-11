@@ -129,10 +129,10 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
           }
 
           if (isMovement) {
-            const { getMovementById, updateMovement, deleteMovement } = await import("./src/database/pettyCashRepository");
-            const { getDueByMovementId, deleteDueByMovementId, updateDueByMovementId } = await import("./src/database/duesRepository");
-            const { getServiceRecordsByMovement, deleteServiceRecordsByMovement } = await import("./src/database/serviceRecordsRepository");
-            const { getCementerioMovimientosByMovement, deleteCementerioMovimientosByMovement } = await import("./src/database/cementerioMovimientosRepository");
+            const { getMovementById, updateMovement, setMovementAnulado } = await import("./src/database/pettyCashRepository");
+            const { getDueByMovementId, updateDueByMovementId } = await import("./src/database/duesRepository");
+            const { getServiceRecordsByMovement } = await import("./src/database/serviceRecordsRepository");
+            const { getCementerioMovimientosByMovement } = await import("./src/database/cementerioMovimientosRepository");
             const { getComprobanteByMovementId } = await import("./src/database/comprobantesRepository");
             const id = url.searchParams.get("id") ?? undefined;
 
@@ -176,20 +176,14 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               return;
             }
 
-            if (req.method === "DELETE") {
+            if (req.method === "PATCH") {
               if (!id) {
                 res.statusCode = 400;
                 res.end(JSON.stringify({ error: "Falta el parámetro id" }));
                 return;
               }
-              const { reverseDebtsByMovementId } = await import("./src/database/debtsRepository");
-              const { deletePaymentsByMovementId } = await import("./src/database/externalServicePaymentsRepository");
-              await reverseDebtsByMovementId(id);
-              await deleteDueByMovementId(id);
-              await deleteServiceRecordsByMovement(id);
-              await deleteCementerioMovimientosByMovement(id);
-              await deletePaymentsByMovementId(id);
-              await deleteMovement(id);
+              const body = JSON.parse(await collectBody(req));
+              await setMovementAnulado(id, body.anulado !== false);
               res.statusCode = 200;
               res.end(JSON.stringify({ success: true }));
               return;

@@ -13,6 +13,7 @@ export type DueWithDetails = {
   family_group: string | null;
   paid_members: string[] | null;
   receipt_number: number | null;
+  anulado: boolean;
   created_at: string;
 };
 

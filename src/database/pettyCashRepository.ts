@@ -9,6 +9,7 @@ export type PettyCashRow = {
     type: "ingreso" | "egreso" | "transferencia";
     mode: "efectivo" | "transferencia";
     concept: string | null;
+    anulado: boolean;
     created_at: string;
 };
 
@@ -22,6 +23,7 @@ export async function migratePettyCashSchema(): Promise<void> {
             amount              NUMERIC(12,2)   NOT NULL DEFAULT 0,
             type                VARCHAR(20)     NOT NULL,
             mode                VARCHAR(20)     NOT NULL DEFAULT 'efectivo',
+            anulado             BOOLEAN         NOT NULL DEFAULT FALSE,
             created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
         )
     `;
@@ -34,13 +36,16 @@ export async function migratePettyCashSchema(): Promise<void> {
     await sql`
         ALTER TABLE petty_cash ADD COLUMN IF NOT EXISTS receipt_number INT
     `;
+    await sql`
+        ALTER TABLE petty_cash ADD COLUMN IF NOT EXISTS anulado BOOLEAN NOT NULL DEFAULT FALSE
+    `;
 }
 
 export async function getAllMovements(): Promise<PettyCashRow[]> {
     const sql = getSql();
     const rows = await sql`
         SELECT id, date::text as date, detail, amount::float as amount, type, mode, concept,
-               created_at::text as created_at
+               anulado, created_at::text as created_at
         FROM petty_cash
         ORDER BY date DESC, created_at DESC
     `;
@@ -50,7 +55,7 @@ export async function getAllMovements(): Promise<PettyCashRow[]> {
 export async function getMovementById(id: string): Promise<PettyCashRow | null> {
     const sql = getSql();
     const rows = await sql`
-        SELECT id, date::text as date, detail, amount::float as amount, type, mode, concept
+        SELECT id, date::text as date, detail, amount::float as amount, type, mode, concept, anulado
         FROM petty_cash
         WHERE id = ${id}
     `;
@@ -79,6 +84,13 @@ export async function updateMovement(
 export async function deleteMovement(id: string): Promise<void> {
     const sql = getSql();
     await sql`DELETE FROM petty_cash WHERE id = ${id}`;
+}
+
+export async function setMovementAnulado(id: string, anulado: boolean): Promise<void> {
+    const sql = getSql();
+    await sql`
+        UPDATE petty_cash SET anulado = ${anulado} WHERE id = ${id}
+    `;
 }
 
 export async function clearAllMovements(): Promise<void> {

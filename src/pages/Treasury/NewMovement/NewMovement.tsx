@@ -510,6 +510,7 @@ const NewMovement: React.FC = () => {
         const all = new Set<string>();
         for (const d of dues) {
           if (d.movement_id === id) continue;
+          if (d.anulado) continue;
           if (d.period) d.period.forEach((p) => all.add(p));
         }
         setPaidPeriods(all);

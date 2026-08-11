@@ -15,6 +15,7 @@ export interface ComprobanteData {
   conceptDetail?: string;
   copies_to_print: number;
   paymentMethod?: string;
+  anulado?: boolean;
 }
 
 interface ComprobanteProps {
@@ -35,6 +36,7 @@ function buildSingleReceiptHtml(data: ComprobanteData, copyLabel: string): strin
 
   return `
     <div class="receipt-page">
+      ${data.anulado ? `<div class="receipt-watermark">ANULADO</div>` : ""}
       ${copyLabel ? `<div class="copy-label">${copyLabel}</div>` : ""}
       <div class="receipt-header">
         <div class="header-row-1">
@@ -84,6 +86,146 @@ function buildSingleReceiptHtml(data: ComprobanteData, copyLabel: string): strin
   `;
 }
 
+interface ReceiptSizes {
+  padding: string;
+  label: string;
+  labelMb: string;
+  gridCols: string;
+  gap: string;
+  logo: string;
+  name: string;
+  motto: string;
+  mottoMt: string;
+  addr: string;
+  addrMt: string;
+  headerMb: string;
+  headerPb: string;
+  row1Mb: string;
+  title: string;
+  titleMt: string;
+  body: string;
+  bodyLh: string;
+  bodyMt: string;
+  fieldMb: string;
+  concept: string;
+  conceptLh: string;
+  conceptMt: string;
+  amount: string;
+  underlineMin: string;
+  sigMinW: string;
+  sigMt: string;
+  aclMt: string;
+  sig: string;
+  aclW: string;
+  watermark: string;
+}
+
+function getSizes(copies: number): ReceiptSizes {
+  if (copies === 3) {
+    return {
+      padding: "5px 10px",
+      label: "10px",
+      labelMb: "4px",
+      gridCols: "32px 1fr 32px",
+      gap: "5px",
+      logo: "28px",
+      name: "12px",
+      motto: "11px",
+      mottoMt: "1px",
+      addr: "8px",
+      addrMt: "2px",
+      headerMb: "4px",
+      headerPb: "4px",
+      row1Mb: "2px",
+      title: "12px",
+      titleMt: "6px 0",
+      body: "11px",
+      bodyLh: "1.25",
+      bodyMt: "4px 0",
+      fieldMb: "3px",
+      concept: "11px",
+      conceptLh: "1.25",
+      conceptMt: "3px 0",
+      amount: "13px",
+      underlineMin: "100px",
+      sigMinW: "100px",
+      sigMt: "8px",
+      aclMt: "4px",
+      sig: "10px",
+      aclW: "80px",
+      watermark: "20px",
+    };
+  }
+  if (copies === 2) {
+    return {
+      padding: "8px 14px",
+      label: "12px",
+      labelMb: "6px",
+      gridCols: "40px 1fr 40px",
+      gap: "6px",
+      logo: "36px",
+      name: "16px",
+      motto: "15px",
+      mottoMt: "2px",
+      addr: "10px",
+      addrMt: "3px",
+      headerMb: "6px",
+      headerPb: "6px",
+      row1Mb: "3px",
+      title: "15px",
+      titleMt: "8px 0",
+      body: "15px",
+      bodyLh: "1.35",
+      bodyMt: "6px 0",
+      fieldMb: "4px",
+      concept: "15px",
+      conceptLh: "1.3",
+      conceptMt: "5px 0",
+      amount: "16px",
+      underlineMin: "120px",
+      sigMinW: "120px",
+      sigMt: "12px",
+      aclMt: "6px",
+      sig: "12px",
+      aclW: "90px",
+      watermark: "26px",
+    };
+  }
+  return {
+    padding: "16px 20px",
+    label: "16px",
+    labelMb: "12px",
+    gridCols: "50px 1fr 50px",
+    gap: "8px",
+    logo: "46px",
+    name: "19px",
+    motto: "19px",
+    mottoMt: "4px",
+    addr: "13px",
+    addrMt: "8px",
+    headerMb: "16px",
+    headerPb: "14px",
+    row1Mb: "8px",
+    title: "18px",
+    titleMt: "14px 0",
+    body: "17px",
+    bodyLh: "1.7",
+    bodyMt: "16px 0",
+    fieldMb: "10px",
+    concept: "17px",
+    conceptLh: "1.6",
+    conceptMt: "14px 0",
+    amount: "19px",
+    underlineMin: "160px",
+    sigMinW: "160px",
+    sigMt: "50px",
+    aclMt: "16px",
+    sig: "15px",
+    aclW: "150px",
+    watermark: "34px",
+  };
+}
+
 function buildPrintHtml(data: ComprobanteData, overrideLabel?: string): string {
   const copies = overrideLabel ? 1 : Math.max(1, Math.min(3, data.copies_to_print));
   const pages: string[] = [];
@@ -92,7 +234,8 @@ function buildPrintHtml(data: ComprobanteData, overrideLabel?: string): string {
     pages.push(buildSingleReceiptHtml(data, overrideLabel ?? COPY_LABELS[i + 1] ?? ""));
   }
 
-  const isMulti = copies > 1;
+  const s = getSizes(copies);
+  const pageHeightRule = copies === 1 ? "flex: none; height: 50%;" : "flex: 1 1 0; min-height: 0;";
 
   return `
     <!DOCTYPE html>
@@ -105,6 +248,7 @@ function buildPrintHtml(data: ComprobanteData, overrideLabel?: string): string {
           margin: 10mm;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
         body {
           font-family: Arial, sans-serif;
           color: #333;
@@ -112,57 +256,86 @@ function buildPrintHtml(data: ComprobanteData, overrideLabel?: string): string {
           print-color-adjust: exact;
         }
 
+        .receipts-row {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
+
         .receipt-page {
-          padding: ${isMulti ? "10px 16px" : "20px"};
-          ${isMulti ? "" : "page-break-after: always;"}
+          ${pageHeightRule}
+          padding: ${s.padding};
           position: relative;
           display: flex;
           flex-direction: column;
-          ${isMulti ? "border-bottom: 2px dashed #aaa;" : ""}
           overflow: hidden;
         }
-        ${isMulti ? "" : ".receipt-page:last-child { page-break-after: auto; }"}
-        ${isMulti ? ".receipt-page:last-child { border-bottom: none; }" : ""}
+        .receipt-page + .receipt-page { border-top: 2px dashed #aaa; }
+
+        .receipt-watermark {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+          z-index: 10;
+        }
+        .receipt-watermark::before {
+          content: "ANULADO";
+          color: rgba(220, 38, 38, 0.3);
+          border: 4px solid rgba(220, 38, 38, 0.3);
+          border-radius: 12px;
+          padding: 8px 28px;
+          font-size: ${s.watermark};
+          font-weight: 900;
+          letter-spacing: 6px;
+          text-transform: uppercase;
+          transform: rotate(45deg);
+          white-space: nowrap;
+        }
 
         .copy-label {
           text-align: center;
-          font-size: ${isMulti ? "9px" : "12px"};
+          font-size: ${s.label};
           font-weight: 700;
           color: #999;
           letter-spacing: 2px;
           text-transform: uppercase;
-          margin-bottom: ${isMulti ? "4px" : "12px"};
+          margin-bottom: ${s.labelMb};
           padding: 2px 0;
           border-bottom: 1px dashed #ccc;
         }
 
         .receipt-header {
-          margin-bottom: ${isMulti ? "6px" : "20px"};
-          padding-bottom: ${isMulti ? "6px" : "16px"};
+          margin-bottom: ${s.headerMb};
+          padding-bottom: ${s.headerPb};
           border-bottom: 2px solid #1a3a5c;
         }
         .header-row-1 {
           display: grid;
-          grid-template-columns: ${isMulti ? "50px 1fr 50px" : "80px 1fr 80px"};
+          grid-template-columns: ${s.gridCols};
           align-items: center;
-          gap: ${isMulti ? "6px" : "12px"};
-          margin-bottom: ${isMulti ? "2px" : "8px"};
+          gap: ${s.gap};
+          margin-bottom: ${s.row1Mb};
         }
         .header-logo { text-align: center; }
-        .header-logo img { width: ${isMulti ? "40px" : "70px"}; height: auto; }
+        .header-logo img { width: ${s.logo}; height: auto; }
         .header-text { text-align: center; }
         .header-text .institution-name {
-          font-size: ${isMulti ? "9px" : "14px"};
+          font-size: ${s.name};
           font-weight: 700;
           color: #1a3a5c;
-          line-height: 1.3;
-          white-space: nowrap;
+          line-height: 1.2;
         }
         .header-text .motto {
-          font-size: ${isMulti ? "9px" : "15px"};
+          font-size: ${s.motto};
           font-weight: 700;
           color: #1a3a5c;
-          margin-top: ${isMulti ? "0px" : "4px"};
+          margin-top: ${s.mottoMt};
         }
         .header-spacer { }
         .header-row-2 {
@@ -170,33 +343,35 @@ function buildPrintHtml(data: ComprobanteData, overrideLabel?: string): string {
           grid-template-columns: 1fr 1fr 1fr;
           align-items: center;
           text-align: center;
-          font-size: ${isMulti ? "7px" : "10px"};
+          font-size: ${s.addr};
           color: #555;
-          margin-top: ${isMulti ? "2px" : "8px"};
+          margin-top: ${s.addrMt};
         }
 
-        .receipt-title { text-align: center; font-size: ${isMulti ? "8px" : "14px"}; font-weight: 700; color: #1a3a5c; margin: ${isMulti ? "4px 0" : "16px 0"}; text-transform: uppercase; }
+        .receipt-title { text-align: center; font-size: ${s.title}; font-weight: 700; color: #1a3a5c; margin: ${s.titleMt}; text-transform: uppercase; }
 
-        .receipt-body { font-size: ${isMulti ? "8px" : "13px"}; line-height: ${isMulti ? "1.3" : "1.8"}; margin: ${isMulti ? "4px 0" : "20px 0"}; }
-        .receipt-body .field { margin-bottom: ${isMulti ? "2px" : "10px"}; }
+        .receipt-body { font-size: ${s.body}; line-height: ${s.bodyLh}; margin: ${s.bodyMt}; }
+        .receipt-body .field { margin-bottom: ${s.fieldMb}; }
         .receipt-body .field-label { font-weight: 600; }
         .receipt-body .field-value { margin-top: 2px; }
-        .receipt-body .underline { border-bottom: 1px solid #999; display: inline-block; min-width: 200px; }
+        .receipt-body .underline { border-bottom: 1px solid #999; display: inline-block; min-width: ${s.underlineMin}; }
         .receipt-body .amount-words { font-style: italic; margin-top: 4px; }
 
-        .receipt-concept { margin: ${isMulti ? "4px 0" : "16px 0"}; font-size: ${isMulti ? "8px" : "13px"}; line-height: ${isMulti ? "1.2" : "1.6"}; }
+        .receipt-concept { margin: ${s.conceptMt}; font-size: ${s.concept}; line-height: ${s.conceptLh}; }
         .receipt-concept .concept-label { font-weight: 600; }
 
         .receipt-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; }
-        .footer-amount { font-size: ${isMulti ? "9px" : "14px"}; font-weight: 700; color: #1a3a5c; }
-        .footer-signature { text-align: center; min-width: ${isMulti ? "140px" : "240px"}; }
-        .footer-signature .sig-line { border-top: 1px solid #333; margin-top: ${isMulti ? "10px" : "60px"}; padding-top: ${isMulti ? "2px" : "6px"}; font-size: ${isMulti ? "7px" : "12px"}; color: #555; }
-        .footer-signature .acl-line { margin-top: ${isMulti ? "4px" : "20px"}; font-size: ${isMulti ? "7px" : "12px"}; color: #555; }
-        .footer-signature .acl-line span { border-bottom: 1px solid #333; display: inline-block; min-width: ${isMulti ? "100px" : "180px"}; }
+        .footer-amount { font-size: ${s.amount}; font-weight: 700; color: #1a3a5c; }
+        .footer-signature { text-align: center; min-width: ${s.sigMinW}; }
+        .footer-signature .sig-line { border-top: 1px solid #333; margin-top: ${s.sigMt}; padding-top: 3px; font-size: ${s.sig}; color: #555; }
+        .footer-signature .acl-line { margin-top: ${s.aclMt}; font-size: ${s.sig}; color: #555; }
+        .footer-signature .acl-line span { border-bottom: 1px solid #333; display: inline-block; min-width: ${s.aclW}; }
       </style>
     </head>
     <body>
-      ${pages.join("")}
+      <div class="receipts-row">
+        ${pages.join("")}
+      </div>
     </body>
     </html>
   `;

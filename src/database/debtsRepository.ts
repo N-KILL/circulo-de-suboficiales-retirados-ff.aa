@@ -69,7 +69,9 @@ export async function getDebtsByMember(memberId: string): Promise<DebtWithDetail
         FROM debts d
         LEFT JOIN members m ON d.member_id = m.id
         LEFT JOIN persons p ON d.person_id = p.id
+        LEFT JOIN petty_cash pc ON d.movement_id = pc.id
         WHERE d.member_id = ${memberId}
+          AND (pc.anulado = false OR d.movement_id IS NULL)
         ORDER BY d.date DESC, d.created_at DESC
     `;
     return rows as DebtWithDetails[];
@@ -87,7 +89,9 @@ export async function getDebtsByPerson(personId: string): Promise<DebtWithDetail
         FROM debts d
         LEFT JOIN members m ON d.member_id = m.id
         LEFT JOIN persons p ON d.person_id = p.id
+        LEFT JOIN petty_cash pc ON d.movement_id = pc.id
         WHERE d.person_id = ${personId}
+          AND (pc.anulado = false OR d.movement_id IS NULL)
         ORDER BY d.date DESC, d.created_at DESC
     `;
     return rows as DebtWithDetails[];

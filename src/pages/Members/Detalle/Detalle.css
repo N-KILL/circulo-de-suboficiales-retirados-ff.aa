@@ -74,6 +74,16 @@
   gap: 12px;
 }
 
+.detalle-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detalle-group-body {
+  padding: 14px 16px 16px;
+}
+
 .info-item {
   display: flex;
   flex-direction: column;

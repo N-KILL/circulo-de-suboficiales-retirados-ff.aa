@@ -52,6 +52,7 @@ export async function getAllServiceRecords(): Promise<ServiceRecordWithDetails[]
         LEFT JOIN members m ON sr.member_id = m.id
         LEFT JOIN persons p ON sr.person_id = p.id
         LEFT JOIN petty_cash pc ON sr.movement_id = pc.id
+        WHERE (pc.anulado = false OR sr.movement_id IS NULL)
         ORDER BY sr.date DESC, sr.created_at DESC
     `;
     return rows as ServiceRecordWithDetails[];
@@ -117,6 +118,7 @@ export async function getServiceRecordsByMember(memberId: string): Promise<Servi
         LEFT JOIN persons p ON sr.person_id = p.id
         LEFT JOIN petty_cash pc ON sr.movement_id = pc.id
         WHERE sr.member_id = ${memberId}
+          AND (pc.anulado = false OR sr.movement_id IS NULL)
         ORDER BY sr.date DESC, sr.created_at DESC
     `;
     return rows as ServiceRecordWithDetails[];
@@ -149,6 +151,7 @@ export async function getServiceRecordsByPerson(personId: string): Promise<Servi
         LEFT JOIN persons p ON sr.person_id = p.id
         LEFT JOIN petty_cash pc ON sr.movement_id = pc.id
         WHERE sr.person_id = ${personId}
+          AND (pc.anulado = false OR sr.movement_id IS NULL)
         ORDER BY sr.date DESC, sr.created_at DESC
     `;
     return rows as ServiceRecordWithDetails[];

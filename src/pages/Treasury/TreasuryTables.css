@@ -596,6 +596,11 @@
   color: var(--azul-institucional);
 }
 
+.treasury-table th .sort-neutral {
+  font-size: 12px;
+  color: #c3cbd9;
+}
+
 /* Cementerio column widths */
 .col-nicho { width: 90px; }
 .col-arrendatario { min-width: 180px; }
@@ -626,6 +631,34 @@
 
 .treasury-table tr.clickable-row:hover {
   background: #eef2ff;
+}
+
+.treasury-table tr.row-anulado {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(220, 38, 38, 0.08),
+    rgba(220, 38, 38, 0.08) 8px,
+    rgba(220, 38, 38, 0.02) 8px,
+    rgba(220, 38, 38, 0.02) 16px
+  );
+  opacity: 0.85;
+}
+
+.treasury-table tr.row-anulado td {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.treasury-table tr.row-anulado .amount-ingreso,
+.treasury-table tr.row-anulado .amount-egreso,
+.treasury-table tr.row-anulado .amount-saldo {
+  color: var(--muted);
+}
+
+.badge-anulado {
+  background: #fee2e2;
+  color: #dc2626;
+  margin-left: 8px;
 }
 
 /* Stepper */
@@ -984,4 +1017,70 @@ body,
   .table-footer {
     padding: 6px 12px;
   }
+}
+
+/* Lista de socios (selección para impresión) */
+.treasury-table .column-check {
+  width: 36px;
+}
+
+.treasury-table .column-baja {
+  width: 110px;
+}
+
+.treasury-table tr.row-lista-selected {
+  background: #eef6ff;
+}
+
+.treasury-table tr.row-lista-selected:hover {
+  background: #e2f0ff;
+}
+
+.lista-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #eef6ff;
+  border: 1px solid #bcd9f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.lista-toolbar .lista-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--azul-institucional);
+  margin-right: auto;
+  white-space: nowrap;
+}
+
+.header-btn-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.header-btn-active {
+  background: #e2efff;
+  border: 1px solid var(--azul-institucional);
+  color: var(--azul-institucional);
+}
+
+.header-btn-danger {
+  background: #fff;
+  border: 1px solid #dc3545;
+  color: #dc3545;
+}
+
+.header-btn-danger:hover {
+  background: #fdeaea;
+}
+
+.header-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.family-picker-modal-header h3 {
+  margin: 0;
+  color: var(--azul-armada);
 }

@@ -95,7 +95,6 @@ const NewMember: React.FC = () => {
         >
           <ArrowLeft size={18} /> Volver al detalle
         </button>
-        <h2>{isEditing ? "Editar socio" : "Nuevo socio"}</h2>
       </div>
       {loading && (
         <div className="table-card" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 32 }}>

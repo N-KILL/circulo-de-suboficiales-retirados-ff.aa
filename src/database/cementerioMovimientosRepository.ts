@@ -69,7 +69,9 @@ export async function getCementerioMovimientosByNicho(nicho: string): Promise<Ce
             cm.person_id::text,
             cm.created_at::text
         FROM cementerio_movimientos cm
+        LEFT JOIN petty_cash pc ON cm.movement_id = pc.id
         WHERE cm.nicho = ${nicho}
+          AND (pc.anulado = false OR cm.movement_id IS NULL)
         ORDER BY cm.fecha_pago DESC, cm.created_at DESC
     `;
     return (rows as unknown as CementerioMovimientoRecord[]).map((r) => ({
@@ -109,9 +111,11 @@ export async function getCementerioMovimientosByNichoAndArrendatario(
             cm.person_id::text,
             cm.created_at::text
         FROM cementerio_movimientos cm
+        LEFT JOIN petty_cash pc ON cm.movement_id = pc.id
         WHERE cm.nicho = ${nicho}
           AND cm.member_id IS NOT DISTINCT FROM ${memberId}
           AND cm.person_id IS NOT DISTINCT FROM ${personId}
+          AND (pc.anulado = false OR cm.movement_id IS NULL)
         ORDER BY cm.fecha_pago DESC, cm.created_at DESC
     `;
     return (rows as unknown as CementerioMovimientoRecord[]).map((r) => ({
@@ -162,7 +166,14 @@ export async function deleteCementerioMovimientosByMovement(movementId: string):
 
 export async function hasCementerioMovimientosByNicho(nicho: string): Promise<boolean> {
     const sql = getSql();
-    const rows = await sql`SELECT 1 FROM cementerio_movimientos WHERE nicho = ${nicho} LIMIT 1` as unknown[];
+    const rows = await sql`
+        SELECT 1
+        FROM cementerio_movimientos cm
+        LEFT JOIN petty_cash pc ON cm.movement_id = pc.id
+        WHERE cm.nicho = ${nicho}
+          AND (pc.anulado = false OR cm.movement_id IS NULL)
+        LIMIT 1
+    ` as unknown[];
     return rows.length > 0;
 }
 
@@ -177,12 +188,14 @@ export async function getCementerioPagosMap(): Promise<CementerioPagoInfo[]> {
     const sql = getSql();
     const rows = await sql`
         SELECT
-            nicho,
-            member_id,
-            person_id,
-            MAX(fecha_pago) AS ultima_fecha_pago
-        FROM cementerio_movimientos
-        GROUP BY nicho, member_id, person_id
+            cm.nicho,
+            cm.member_id,
+            cm.person_id,
+            MAX(cm.fecha_pago) AS ultima_fecha_pago
+        FROM cementerio_movimientos cm
+        LEFT JOIN petty_cash pc ON cm.movement_id = pc.id
+        WHERE (pc.anulado = false OR cm.movement_id IS NULL)
+        GROUP BY cm.nicho, cm.member_id, cm.person_id
     ` as { nicho: string; member_id: string | null; person_id: string | null; ultima_fecha_pago: string }[];
     return rows.map((r) => ({
         nicho: r.nicho ?? "",

@@ -580,7 +580,7 @@ const CementerioDetalle: React.FC = () => {
                                             <button
                                                 className="header-btn"
                                                 style={{ background: "transparent", color: "var(--azul-institucional)", border: "1px solid var(--azul-institucional)" }}
-                                                onClick={() => navigate(`/socios/editar/${rec.socioId}`)}
+                                                onClick={() => navigate(`/socios/detalle/${rec.socioId}`)}
                                             >
                                                 <ExternalLink size={16} /> Ver Socio
                                             </button>

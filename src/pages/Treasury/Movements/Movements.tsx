@@ -100,11 +100,13 @@ const Movements: React.FC = () => {
       comprobante: string;
       ingreso: string; egreso: string;
       saldoBanco: string | null; saldoCajaChica: string | null;
-      dateObj: Date; created_at: string;
+      dateObj: Date; created_at: string; anulado: boolean;
     }> = [];
     for (const m of rawMovements) {
-      if (m.type === "ingreso") { if (m.mode === "transferencia") rb += m.amount; if (m.mode === "efectivo") rc += m.amount; }
-      else if (m.type === "egreso") { if (m.mode === "transferencia") rb -= m.amount; if (m.mode === "efectivo") rc -= m.amount; }
+      if (!m.anulado) {
+        if (m.type === "ingreso") { if (m.mode === "transferencia") rb += m.amount; if (m.mode === "efectivo") rc += m.amount; }
+        else if (m.type === "egreso") { if (m.mode === "transferencia") rb -= m.amount; if (m.mode === "efectivo") rc -= m.amount; }
+      }
       const fecha = formatRecordDate(m.date);
       let hora = "";
       if (m.created_at) {
@@ -123,6 +125,7 @@ const Movements: React.FC = () => {
         saldoCajaChica: m.mode === "efectivo" ? formatCurrency(rc) : null,
         dateObj: new Date(m.date + "T12:00:00"),
         created_at: m.created_at ?? "",
+        anulado: m.anulado ?? false,
       });
     }
     return { movementsWithSaldo: items, finalBanco: rb, finalCajaChica: rc };
@@ -246,8 +249,8 @@ const Movements: React.FC = () => {
                 <tr><td colSpan={showSaldoColumns ? 9 : 7} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No se encontraron movimientos con los filtros aplicados.</td></tr>
               ) : (
                 paginatedMovements.map((m, idx) => (
-                  <tr key={idx} className="clickable-row" onClick={() => navigate(`/tesoreria/movimientos/detalle/${m.id}`)}>
-                    <td className="col-fecha">{m.fecha}{m.hora && <span className="col-hora"> {m.hora}</span>}</td>
+                  <tr key={idx} className={`clickable-row${m.anulado ? " row-anulado" : ""}`} onClick={() => navigate(`/tesoreria/movimientos/detalle/${m.id}`)}>
+                    <td className="col-fecha">{m.fecha}{m.hora && <span className="col-hora"> {m.hora}</span>}{m.anulado && <span className="badge badge-anulado">ANULADO</span>}</td>
                     <td className="col-comprobante">{m.comprobante}</td>
                     <td><span className={`badge ${m.tipo === "Ingreso" ? "badge-ingreso" : "badge-egreso"}`}>{m.tipo}</span></td>
                     <td>{m.modalidad}</td><td>{m.concepto}</td>

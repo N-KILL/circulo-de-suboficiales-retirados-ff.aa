@@ -10,6 +10,8 @@ export type Transaction = {
   date: string;
   amount: string;
   type: 'ingreso' | 'egreso' | 'transferencia';
+  anulado?: boolean;
+  id: string;
 };
 
 export type DashboardStats = {
@@ -61,15 +63,18 @@ function computeStats(
     isBanco ? m.mode === 'transferencia' : m.mode === 'efectivo'
   );
 
+  // Movements that count for balances (excludes annulled)
+  const active = filtered.filter((m) => !m.anulado);
+
   // Total balance
   let totalBalance = initial;
-  for (const m of filtered) {
+  for (const m of active) {
     if (m.type === 'ingreso') totalBalance += m.amount;
     else if (m.type === 'egreso') totalBalance -= m.amount;
   }
 
   // Latest month
-  const latestMove = filtered.length > 0 ? filtered[0] : null;
+  const latestMove = active.length > 0 ? active[0] : null;
   let monthLabel = 'Sin datos';
   let latestYear = 0;
   let latestMonth = 0;
@@ -84,7 +89,7 @@ function computeStats(
   // Monthly incomes/expenses
   let monthlyIncomes = 0;
   let monthlyExpenses = 0;
-  for (const m of filtered) {
+  for (const m of active) {
     const d = new Date((m.date ?? '') + 'T12:00:00');
     if (d.getFullYear() === latestYear && d.getMonth() === latestMonth) {
       if (m.type === 'ingreso') monthlyIncomes += m.amount;
@@ -110,7 +115,7 @@ function computeStats(
       subtitle = 'Transferencia • Interno';
       amountStr = formatCurrency(m.amount);
     }
-    return { title: m.detail ?? '(Sin detalle)', subtitle, date: formattedDate, amount: amountStr, type: m.type };
+    return { title: m.detail ?? '(Sin detalle)', subtitle, date: formattedDate, amount: amountStr, type: m.type, anulado: m.anulado ?? false, id: m.id };
   });
 
   return {
