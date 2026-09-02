@@ -3,6 +3,21 @@ import { Save, Loader } from "lucide-react";
 import { saveInitialBalances } from "../../services/initialBalancesApi";
 import { parseMoney } from "../../utils/format";
 
+function formatMoneyInput(raw: string): string {
+  const v = raw.replace(/[^0-9,]/g, "");
+  const hasComma = v.includes(",");
+  const firstComma = v.indexOf(",");
+  let intPart = v;
+  let decPart = "";
+  if (hasComma) {
+    intPart = v.slice(0, firstComma);
+    decPart = v.slice(firstComma + 1).replace(/,/g, "").slice(0, 2);
+  }
+  intPart = intPart.replace(/\D/g, "");
+  const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return hasComma ? `${withThousands},${decPart}` : withThousands;
+}
+
 interface BalancesConfigProps {
   initialCajaChica: string;
   initialBanco: string;
@@ -46,11 +61,11 @@ const BalancesConfig: React.FC<BalancesConfigProps> = ({ initialCajaChica, initi
     <form onSubmit={handleSave} className="config-form">
       <div className="config-field">
         <label>Caja Chica (efectivo)</label>
-        <input type="text" className="config-input" value={cajaChica} onChange={(e) => setCajaChica(e.target.value)} placeholder="0.00" />
+        <input type="text" className="config-input" value={cajaChica} onChange={(e) => setCajaChica(formatMoneyInput(e.target.value))} placeholder="0,00" />
       </div>
       <div className="config-field">
         <label>Banco (transferencias)</label>
-        <input type="text" className="config-input" value={banco} onChange={(e) => setBanco(e.target.value)} placeholder="0.00" />
+        <input type="text" className="config-input" value={banco} onChange={(e) => setBanco(formatMoneyInput(e.target.value))} placeholder="0,00" />
       </div>
       <div className="config-field">
         <label>Nro. Comprobante Ingreso (próximo)</label>

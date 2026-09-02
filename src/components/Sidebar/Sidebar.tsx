@@ -92,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
               >
                 <div className="sidebar-link-inner">
                   <l.icon size={20} />
-                  {l.label}
+                  <span className="sidebar-label">{l.label}</span>
                 </div>
               </NavLink>
               {l.hasSubmenu && (

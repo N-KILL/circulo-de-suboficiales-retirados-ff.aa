@@ -4,8 +4,7 @@ import {
 } from "../../services/initialBalancesApi";
 import {
     fetchDuesConfig,
-} from "../../services/duesConfigApi";
-import {
+} from "../../services/duesConfigApi";import {
     fetchServices,
     type ServiceItem,
 } from "../../services/servicesApi";
@@ -17,6 +16,7 @@ import {
     fetchReceiptConcepts,
     type ReceiptConcept,
 } from "../../services/receiptCopiesConfigApi";
+import { formatNumberInput } from "../../utils/format";
 import CollapsibleCard from "../../components/ui/CollapsibleCard";
 import BalancesConfig from "./BalancesConfig";
 import DuesConfig from "./DuesConfig";
@@ -62,8 +62,8 @@ const Variables: React.FC = () => {
         ])
             .then(([balances, duesCfg, svcs, extSvcs, receiptCfg]) => {
                 if (balances) {
-                    setCajaChica(balances.caja_chica.toString());
-                    setBanco(balances.banco.toString());
+                    setCajaChica(formatNumberInput(balances.caja_chica));
+                    setBanco(formatNumberInput(balances.banco));
                     setComprobanteIngreso(balances.comprobante_ingreso ?? 1);
                     setComprobanteEgreso(balances.comprobante_egreso ?? 1);
                 }

@@ -14,10 +14,51 @@
 }
 
 .sidebar.collapsed {
-  width: 0;
-  min-width: 0;
-  padding: 0;
-  overflow: hidden;
+  width: 74px;
+  min-width: 74px;
+  padding: 16px 10px;
+}
+
+.sidebar.collapsed .sidebar-brand {
+  padding-bottom: 12px;
+}
+
+.sidebar.collapsed .sidebar-brand-text {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-logo-img {
+  width: 46px;
+  height: 46px;
+}
+
+.sidebar.collapsed .sidebar-link {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.sidebar.collapsed .sidebar-label {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-link-inner {
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-chevron {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-submenu {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-user-info {
+  display: none;
 }
 
 /* Brand */

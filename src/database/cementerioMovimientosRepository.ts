@@ -134,6 +134,23 @@ export async function getCementerioMovimientosByNichoAndArrendatario(
     }));
 }
 
+function extractYear(value: string | null | undefined): number | null {
+    if (!value) return null;
+    const m = String(value).match(/(\d{4})/);
+    if (!m) return null;
+    const year = parseInt(m[1], 10);
+    return Number.isFinite(year) ? year : null;
+}
+
+function maxYearPaid(anios: string[] | undefined): number | null {
+    let max: number | null = null;
+    for (const a of anios ?? []) {
+        const year = extractYear(a);
+        if (year !== null && (max === null || year > max)) max = year;
+    }
+    return max;
+}
+
 export async function insertCementerioMovimiento(data: {
     movement_id: string;
     cementerio_id: string;
@@ -156,12 +173,75 @@ export async function insertCementerioMovimiento(data: {
              ${data.ocupante ?? null}, ${data.anios_pagados}, ${data.importe}, ${data.fecha_pago},
              ${data.member_id ?? null}, ${data.person_id ?? null})
     `;
+
+    const maxYear = maxYearPaid(data.anios_pagados);
+    if (maxYear !== null && data.nicho) {
+        const existing = data.cementerio_id
+            ? await sql`SELECT ultimo_pago FROM cementerios WHERE id = ${data.cementerio_id}`
+            : await sql`SELECT ultimo_pago FROM cementerios WHERE nicho = ${data.nicho}`;
+        const rows = existing as { ultimo_pago: string | null }[];
+        const currentYear = rows.length > 0
+            ? Math.max(...rows.map((r) => extractYear(r.ultimo_pago) ?? 0))
+            : 0;
+        if (maxYear > currentYear) {
+            if (data.cementerio_id) {
+                await sql`
+                    UPDATE cementerios
+                    SET ultimo_pago = ${String(maxYear)},
+                        fecha_de_pago = ${data.fecha_pago},
+                        updated_at = NOW()
+                    WHERE id = ${data.cementerio_id}
+                `;
+            } else {
+                await sql`
+                    UPDATE cementerios
+                    SET ultimo_pago = ${String(maxYear)},
+                        fecha_de_pago = ${data.fecha_pago},
+                        updated_at = NOW()
+                    WHERE nicho = ${data.nicho}
+                `;
+            }
+        }
+    }
+
     return id;
 }
 
 export async function deleteCementerioMovimientosByMovement(movementId: string): Promise<void> {
     const sql = getSql();
+
+    const affected = await sql`
+        SELECT DISTINCT nicho FROM cementerio_movimientos WHERE movement_id = ${movementId}
+    ` as { nicho: string }[];
+
     await sql`DELETE FROM cementerio_movimientos WHERE movement_id = ${movementId}`;
+
+    for (const row of affected) {
+        const remaining = await sql`
+            SELECT anios_pagados
+            FROM cementerio_movimientos cm
+            LEFT JOIN petty_cash pc ON cm.movement_id = pc.id
+            WHERE cm.nicho = ${row.nicho}
+              AND (pc.anulado = false OR cm.movement_id IS NULL)
+            ORDER BY cm.fecha_pago DESC
+        ` as { anios_pagados: string[] }[];
+
+        let bestYear: number | null = null;
+        for (const r of remaining) {
+            const y = maxYearPaid(r.anios_pagados);
+            if (y !== null && (bestYear === null || y > bestYear)) bestYear = y;
+        }
+
+        const lastFecha = remaining.length > 0 ? remaining[0].anios_pagados : null;
+        const lastPagoFecha = lastFecha ? bestYear !== null ? String(bestYear) : null : null;
+
+        await sql`
+            UPDATE cementerios
+            SET ultimo_pago = ${lastPagoFecha},
+                updated_at = NOW()
+            WHERE nicho = ${row.nicho}
+        `;
+    }
 }
 
 export async function hasCementerioMovimientosByNicho(nicho: string): Promise<boolean> {

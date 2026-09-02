@@ -36,6 +36,12 @@ export function formatCurrency(val: number): string {
   return `${val < 0 ? "- " : ""}$ ${formatted}`;
 }
 
+export function formatNumberInput(n: number): string {
+  return new Intl.NumberFormat("es-AR", {
+    maximumFractionDigits: 2,
+  }).format(n);
+}
+
 export function formatPeriodsDisplay(periods: string[] | null): string {
   if (!periods || periods.length === 0) return "\u2014";
   const byYear: Record<string, string[]> = {};

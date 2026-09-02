@@ -16,21 +16,21 @@ const StatCard: React.FC<Props> = ({ title, amount, Icon, trend, variant = 'azul
     <div className="card stat-card-wrapper">
       <div className="stat-card-header">
         <div className={`stat-icon-container ${variant}`}>
-          <Icon size={24} />
+          <Icon size={17} />
         </div>
         <div className="muted stat-card-title">{title}</div>
       </div>
       <div className="stat-amount">
         {amount}
       </div>
-      <div className="stat-card-footer">
-        {trend && (
+      {trend && (
+        <div className="stat-card-footer">
           <div className={`stat-trend ${trend.isPositive ? 'positive' : 'negative'}`}>
             {trend.isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
             {trend.value}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

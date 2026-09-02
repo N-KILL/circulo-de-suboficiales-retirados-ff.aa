@@ -31,14 +31,14 @@ const DashboardPage: React.FC = () => {
             className={`caja-card ${selectedCaja === "banco" ? "active" : ""}`}
             onClick={() => setSelectedCaja("banco")}
           >
-            <Landmark size={24} />
+            <Landmark size={20} />
             <span>Banco</span>
           </button>
           <button
             className={`caja-card ${selectedCaja === "caja_chica" ? "active" : ""}`}
             onClick={() => setSelectedCaja("caja_chica")}
           >
-            <Wallet size={24} />
+            <Wallet size={20} />
             <span>Caja<br />Chica</span>
           </button>
         </div>

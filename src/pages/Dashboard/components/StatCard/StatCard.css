@@ -1,19 +1,21 @@
-.stat-card-wrapper {
+.card.stat-card-wrapper {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   container-type: inline-size;
+  padding: 12px 16px;
 }
 
 .stat-card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .stat-icon-container {
-  width: 48px;
-  height: 48px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -37,15 +39,15 @@
 
 .stat-card-title {
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .stat-amount {
   line-height: 1.2;
-  font-size: clamp(20px, 12cqw, 40px);
+  font-size: clamp(15px, 9cqw, 24px);
   font-weight: var(--fw-money);
   color: var(--azul-armada);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -56,6 +58,8 @@
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
+  margin-top: 4px;
+  min-height: 16px;
 }
 
 .stat-trend {

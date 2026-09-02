@@ -51,7 +51,10 @@ const isHome = location.pathname === "/";
           breadcrumbs={breadcrumbs}
           onMenuClick={() => setSidebarOpen((prev) => !prev)}
         />
-        <main className="content">
+        <main
+          className="content"
+          onClick={() => setSidebarOpen(false)}
+        >
           <Outlet />
         </main>
         {!isHome && (
