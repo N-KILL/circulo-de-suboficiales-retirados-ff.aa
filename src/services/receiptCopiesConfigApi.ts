@@ -10,14 +10,18 @@ export type ReceiptConcept = {
 
 export type ReceiptCopiesDefaults = Record<string, number>;
 
+import { getOrFetch, invalidate, CACHE_KEY } from "./apiCache";
+
 export async function fetchReceiptConcepts(): Promise<ReceiptConcept[]> {
-    const response = await fetch("/api/receipt-copies-config");
-    if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Error al cargar conceptos de comprobantes");
-    }
-    const data = (await response.json()) as { concepts: ReceiptConcept[] } | null;
-    return data?.concepts ?? [];
+    return getOrFetch(CACHE_KEY.receiptConcepts, async () => {
+        const response = await fetch("/api/receipt-copies-config");
+        if (!response.ok) {
+            const body = (await response.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(body?.error ?? "Error al cargar conceptos de comprobantes");
+        }
+        const data = (await response.json()) as { concepts: ReceiptConcept[] } | null;
+        return data?.concepts ?? [];
+    });
 }
 
 export async function saveReceiptConcepts(
@@ -33,6 +37,7 @@ export async function saveReceiptConcepts(
         throw new Error(body?.error ?? "Error al guardar conceptos de comprobantes");
     }
     const data = (await response.json()) as { concepts: ReceiptConcept[] };
+    invalidate(CACHE_KEY.receiptConcepts);
     return data.concepts;
 }
 

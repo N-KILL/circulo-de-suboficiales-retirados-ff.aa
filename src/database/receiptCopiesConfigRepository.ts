@@ -102,12 +102,22 @@ export async function saveAllReceiptConcepts(
     await ensureReceiptConceptsTables();
     const sql = getSql();
 
-    const existingIds = (await sql`SELECT id FROM receipt_concepts`) as { id: string }[];
+    const BASE_INGRESO = ["Cuota Socio", "Servicios", "Cementerio"].map((n) => n.toLowerCase());
+    const BASE_EGRESO = ["Servicios Varios", "Pago de servicio externo", "Otros"].map((n) => n.toLowerCase());
+    const isBase = (name: string, type: string) => {
+        const key = name.toLowerCase();
+        return type === "ingreso" ? BASE_INGRESO.includes(key) : BASE_EGRESO.includes(key);
+    };
+
+    const existingIds = (await sql`SELECT id, name, type FROM receipt_concepts`) as { id: string; name: string; type: string }[];
     const existingSet = new Set(existingIds.map((r) => r.id));
+    const existingNameById = new Map(existingIds.map((r) => [r.id, r] as const));
     const incomingIds = new Set(concepts.filter((c) => c.id).map((c) => c.id!));
 
     for (const id of existingSet) {
         if (!incomingIds.has(id)) {
+            const existing = existingNameById.get(id);
+            if (existing && isBase(existing.name, existing.type)) continue;
             await sql`DELETE FROM receipt_copies_config WHERE concept_id = ${id}`;
             await sql`DELETE FROM receipt_concepts WHERE id = ${id}`;
         }
@@ -115,16 +125,26 @@ export async function saveAllReceiptConcepts(
 
     for (const c of concepts) {
         if (c.id && existingSet.has(c.id)) {
-            await sql`
-                UPDATE receipt_concepts
-                SET name = ${c.name}, type = ${c.type}, target = ${c.target}, sort_order = ${c.sort_order}, active = ${c.active}
-                WHERE id = ${c.id}
-            `;
-            await sql`
-                INSERT INTO receipt_copies_config (concept_id, copies_to_print)
-                VALUES (${c.id}, ${c.copies_to_print})
-                ON CONFLICT (concept_id) DO UPDATE SET copies_to_print = EXCLUDED.copies_to_print
-            `;
+            const existing = existingNameById.get(c.id);
+            const base = existing && isBase(existing.name, existing.type);
+            if (base) {
+                await sql`
+                    INSERT INTO receipt_copies_config (concept_id, copies_to_print)
+                    VALUES (${c.id}, ${c.copies_to_print})
+                    ON CONFLICT (concept_id) DO UPDATE SET copies_to_print = EXCLUDED.copies_to_print
+                `;
+            } else {
+                await sql`
+                    UPDATE receipt_concepts
+                    SET name = ${c.name}, type = ${c.type}, target = ${c.target}, sort_order = ${c.sort_order}, active = ${c.active}
+                    WHERE id = ${c.id}
+                `;
+                await sql`
+                    INSERT INTO receipt_copies_config (concept_id, copies_to_print)
+                    VALUES (${c.id}, ${c.copies_to_print})
+                    ON CONFLICT (concept_id) DO UPDATE SET copies_to_print = EXCLUDED.copies_to_print
+                `;
+            }
         } else {
             const rows = (await sql`
                 INSERT INTO receipt_concepts (type, name, target, sort_order, active)

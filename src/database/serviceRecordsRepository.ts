@@ -190,7 +190,7 @@ export async function getServiceRecordsByMovement(movementId: string): Promise<S
 }
 
 export async function insertServiceRecord(data: {
-    service_id: string;
+    service_id?: string | null;
     member_id?: string | null;
     person_id?: string | null;
     movement_id?: string | null;
@@ -203,7 +203,7 @@ export async function insertServiceRecord(data: {
     const id = randomUUID();
     await sql`
         INSERT INTO service_records (id, service_id, member_id, person_id, movement_id, amount, date, service_date, detail)
-        VALUES (${id}, ${data.service_id}, ${data.member_id ?? null}, ${data.person_id ?? null}, ${data.movement_id ?? null}, ${data.amount}, ${data.date}, ${data.service_date ?? null}, ${data.detail ?? null})
+        VALUES (${id}, ${data.service_id ?? null}, ${data.member_id ?? null}, ${data.person_id ?? null}, ${data.movement_id ?? null}, ${data.amount}, ${data.date}, ${data.service_date ?? null}, ${data.detail ?? null})
     `;
     const record = await getServiceRecordById(id);
     return record!;

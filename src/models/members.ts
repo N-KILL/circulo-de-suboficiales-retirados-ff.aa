@@ -5,6 +5,7 @@ export type Person = {
     documento: string;
     domicilio: string;
     telefono: string;
+    brindaServicios?: boolean;
 };
 
 export type Member = {

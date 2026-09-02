@@ -4,13 +4,17 @@ export type ServiceItem = {
     amount: number;
 };
 
+import { getOrFetch, invalidate, CACHE_KEY } from "./apiCache";
+
 export async function fetchServices(): Promise<ServiceItem[]> {
-    const response = await fetch("/api/services");
-    if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Error al cargar servicios");
-    }
-    return response.json() as Promise<ServiceItem[]>;
+    return getOrFetch(CACHE_KEY.services, async () => {
+        const response = await fetch("/api/services");
+        if (!response.ok) {
+            const body = (await response.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(body?.error ?? "Error al cargar servicios");
+        }
+        return response.json() as Promise<ServiceItem[]>;
+    });
 }
 
 export async function saveService(name: string, amount: number): Promise<ServiceItem> {
@@ -23,7 +27,9 @@ export async function saveService(name: string, amount: number): Promise<Service
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al guardar servicio");
     }
-    return response.json() as Promise<ServiceItem>;
+    const data = (await response.json()) as ServiceItem;
+    invalidate(CACHE_KEY.services);
+    return data;
 }
 
 export async function updateService(id: string, name: string, amount: number): Promise<ServiceItem> {
@@ -36,7 +42,9 @@ export async function updateService(id: string, name: string, amount: number): P
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al actualizar servicio");
     }
-    return response.json() as Promise<ServiceItem>;
+    const data = (await response.json()) as ServiceItem;
+    invalidate(CACHE_KEY.services);
+    return data;
 }
 
 export async function deleteService(id: string): Promise<void> {
@@ -47,4 +55,5 @@ export async function deleteService(id: string): Promise<void> {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al eliminar servicio");
     }
+    invalidate(CACHE_KEY.services);
 }

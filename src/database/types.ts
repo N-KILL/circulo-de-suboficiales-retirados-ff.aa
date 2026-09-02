@@ -31,6 +31,7 @@ export type PersonRow = {
     documento: string | null;
     domicilio: string | null;
     telefono: string | null;
+    brinda_servicios: boolean;
     created_at: string;
 };
 

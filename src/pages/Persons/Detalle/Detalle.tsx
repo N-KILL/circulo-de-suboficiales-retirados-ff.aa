@@ -4,6 +4,7 @@ import { ArrowLeft, User, Loader, Eye, Pencil } from "lucide-react";
 import { fetchPersonById } from "../../../services/personsApi";
 import { fetchDuesByPerson } from "../../../services/duesApi";
 import { fetchCementerioMovimientosByMovement } from "../../../services/cementeriosApi";
+import { fetchServiceRecordsByPerson, type ServiceRecordItem } from "../../../services/serviceRecordsApi";
 import AccountSection from "../../../components/account/AccountSection";
 import type { Person } from "../../../models/members";
 import type { DueWithDetails } from "../../../services/duesApi";
@@ -22,6 +23,7 @@ const DetallePersona: React.FC = () => {
   const navigate = useNavigate();
   const [person, setPerson] = useState<Person | null>(null);
   const [dues, setDues] = useState<DueWithDetails[]>([]);
+  const [serviceRecords, setServiceRecords] = useState<ServiceRecordItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +35,11 @@ const DetallePersona: React.FC = () => {
         if (mounted) {
           setPerson(p);
           setDues(d);
+          if (p?.brindaServicios) {
+            fetchServiceRecordsByPerson(id)
+              .then((records) => { if (mounted) setServiceRecords(records); })
+              .catch(() => { if (mounted) setServiceRecords([]); });
+          }
           setLoading(false);
         }
       })
@@ -168,6 +175,46 @@ const DetallePersona: React.FC = () => {
           </div>
         )}
       </div>
+
+      {person.brindaServicios && (
+        <div className="detalle-card">
+          <h3 className="detalle-section-title">Historial de Servicios Brindados</h3>
+          {serviceRecords.length === 0 ? (
+            <p className="detalle-empty">No tiene servicios brindados registrados.</p>
+          ) : (
+            <div className="table-wrapper">
+              <table className="treasury-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Importe</th>
+                    <th>Detalle</th>
+                    <th>Movimiento</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serviceRecords.map((sr) => (
+                    <tr key={sr.id}>
+                      <td>{sr.date}</td>
+                      <td className="amount-ingreso">{sr.amount > 0 ? formatCurrency(sr.amount) : "—"}</td>
+                      <td>{sr.detail || sr.service_name || "—"}</td>
+                      <td>{sr.movement_id ? sr.movement_id.slice(0, 8) + "…" : "—"}</td>
+                      <td>
+                        {sr.movement_id && (
+                          <button className="btn-view-detail" type="button" onClick={() => navigate(`/tesoreria/movimientos/detalle/${sr.movement_id}`)}>
+                            <Eye size={14} /> Ver detalles
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <AccountSection personId={id} />
     </div>

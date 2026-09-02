@@ -12,6 +12,14 @@ const COPIES_OPTIONS = [
   { value: 3, label: "Triplicado (3)" },
 ];
 
+const BASE_INGRESO = ["Cuota Socio", "Servicios", "Cementerio"].map((n) => n.toLowerCase());
+const BASE_EGRESO = ["Servicios Varios", "Pago de servicio externo", "Otros"].map((n) => n.toLowerCase());
+
+function isBaseConcept(name: string, type: "ingreso" | "egreso"): boolean {
+  const key = name.toLowerCase();
+  return type === "ingreso" ? BASE_INGRESO.includes(key) : BASE_EGRESO.includes(key);
+}
+
 const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcepts }) => {
   const [concepts, setConcepts] = useState<ReceiptConcept[]>(() =>
     [...initialConcepts].sort((a, b) => a.type.localeCompare(b.type) || a.sort_order - b.sort_order)
@@ -109,6 +117,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
       {items.map((c) => {
         const isSocios = c.target === "socios" || c.target === "ambos";
         const isPersonas = c.target === "personas" || c.target === "ambos";
+        const isBase = isBaseConcept(c.name, c.type);
         return (
           <div key={c.id} className="config-cemetery-row" style={{ opacity: c.active ? 1 : 0.5, alignItems: "center" }}>
             <div className="config-cemetery-cell config-cemetery-row-label">
@@ -118,6 +127,9 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
                 value={c.name}
                 onChange={(e) => updateConcept(c.id, "name", e.target.value)}
                 style={{ fontWeight: 500 }}
+                readOnly={isBase}
+                disabled={isBase}
+                title={isBase ? "Concepto base, no se puede modificar" : undefined}
               />
             </div>
             {showTarget && (
@@ -127,6 +139,8 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
                   checked={isSocios}
                   onChange={(e) => updateTarget(c.id, "socios", e.target.checked)}
                   style={{ cursor: "pointer" }}
+                  disabled={isBase}
+                  title={isBase ? "Concepto base" : undefined}
                 />
               </div>
             )}
@@ -137,6 +151,8 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
                   checked={isPersonas}
                   onChange={(e) => updateTarget(c.id, "personas", e.target.checked)}
                   style={{ cursor: "pointer" }}
+                  disabled={isBase}
+                  title={isBase ? "Concepto base" : undefined}
                 />
               </div>
             )}
@@ -157,6 +173,8 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
                 checked={c.active}
                 onChange={(e) => updateConcept(c.id, "active", e.target.checked)}
                 style={{ cursor: "pointer" }}
+                disabled={isBase}
+                title={isBase ? "Concepto base, no se puede desactivar" : undefined}
               />
             </div>
             <div className="config-cemetery-cell" style={{ justifyContent: "center" }}>
@@ -164,7 +182,9 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
                 type="button"
                 onClick={() => removeConcept(c.id)}
                 className="config-delete-btn"
-                title="Eliminar concepto"
+                title={isBase ? "Concepto base, no se puede eliminar" : "Eliminar concepto"}
+                disabled={isBase}
+                style={isBase ? { opacity: 0.3, cursor: "not-allowed" } : undefined}
               >
                 <Trash2 size={15} />
               </button>
@@ -189,6 +209,9 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
     <form onSubmit={handleSave} className="config-form">
       <p className="config-cemetery-subtitle">
         Definí los conceptos de comprobantes, la cantidad de copias por defecto y a quién aplica cada concepto de ingreso.
+      </p>
+      <p className="config-cemetery-subtitle" style={{ color: "var(--muted)", fontSize: 12 }}>
+        Los conceptos base (Cuota Socio, Servicios, Cementerio, Servicios Varios, Pago de servicio externo y Otros) no se pueden modificar ni eliminar; solo se puede cambiar la cantidad de copias.
       </p>
 
       {renderTable("Conceptos de Ingreso", ingresoConcepts, true)}

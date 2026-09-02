@@ -246,6 +246,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse, p
       return;
     }
 
+    if (pathname === "/api/service-providers" && method === "GET") {
+      const { getServiceProviders } = await import("../src/database/personsRepository.js");
+      const providers = await getServiceProviders();
+      res.status(200).json(providers);
+      return;
+    }
+
     if (pathname === "/api/initial-balances") {
       if (method === "GET") {
         const { getInitialBalances } = await import("../src/database/initialBalancesRepository.js");
@@ -704,10 +711,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse, p
 
       if (method === "POST") {
         const { service_id, member_id, person_id, movement_id, amount, date, service_date, detail } = req.body;
-        if (!service_id) {
-          res.status(400).json({ error: "Falta el parámetro service_id" });
-          return;
-        }
         if (!date) {
           res.status(400).json({ error: "Falta el parámetro date" });
           return;

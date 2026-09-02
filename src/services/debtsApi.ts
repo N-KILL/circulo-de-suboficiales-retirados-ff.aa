@@ -1,3 +1,5 @@
+import { invalidateMembersDebtStatus } from "./membersDebtApi";
+
 export type DebtWithDetails = {
   id: string;
   member_id: string | null;
@@ -72,5 +74,6 @@ export async function saveDebt(data: {
     throw new Error(body?.error ?? "Error al guardar la deuda");
   }
   const result = (await response.json()) as { id: string };
+  invalidateMembersDebtStatus();
   return result.id;
 }

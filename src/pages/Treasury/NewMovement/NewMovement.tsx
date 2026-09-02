@@ -944,7 +944,7 @@ const NewMovement: React.FC = () => {
           await saveComprobante({
             movement_id: movementId,
             receipt_number: receiptNumber,
-            copies_to_print: receiptCopiesDefaults[conceptLabel] ?? 1,
+            copies_to_print: receiptCopiesDefaults[concept] ?? 1,
             detail: conceptDetail || detail,
             concept: conceptLabel,
             payer_name: payerName || null,
@@ -1038,7 +1038,7 @@ const NewMovement: React.FC = () => {
             amount: importeNum,
             origin: originLabel,
             payerName: payerName || undefined,
-            copies_to_print: receiptCopiesDefaults[conceptLabel] ?? 1,
+            copies_to_print: receiptCopiesDefaults[concept] ?? 1,
             conceptDetail: conceptDetail || undefined,
             paymentMethod: formaPagoLabel,
           });

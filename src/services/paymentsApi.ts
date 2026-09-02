@@ -1,3 +1,5 @@
+import { invalidate, CACHE_KEY } from "./apiCache";
+
 export interface PaymentData {
   date: string;
   detail: string;
@@ -20,6 +22,8 @@ export async function savePayment(payment: PaymentData): Promise<{ id: string }>
     } | null;
     throw new Error(body?.error ?? "Error al guardar el pago");
   }
+
+  invalidate(CACHE_KEY.membersDebtStatus);
 
   return response.json() as Promise<{ id: string }>;
 }

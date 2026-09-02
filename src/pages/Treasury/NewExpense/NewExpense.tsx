@@ -1,12 +1,17 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { DollarSign, Save, Loader, Landmark, CreditCard, Info, Calendar, Trash2 } from "lucide-react";
+import { DollarSign, Save, Loader, Landmark, CreditCard, Info, Calendar, Trash2, Plus } from "lucide-react";
 import { savePayment } from "../../../services/paymentsApi";
 import { fetchNextReceipt } from "../../../services/initialBalancesApi";
 import { fetchExternalServices, saveExternalServicePayment, type ExternalServiceItem } from "../../../services/externalServicesApi";
+import { fetchServiceProviders } from "../../../services/personsApi";
+import { saveServiceRecord } from "../../../services/serviceRecordsApi";
 import Banner from "../../../components/ui/Banner";
 import Comprobante, { type ComprobanteData } from "../../../components/comprobante/Comprobante";
 import { saveComprobante } from "../../../services/comprobantesApi";
 import { fetchReceiptCopiesConfig, fetchReceiptConcepts, type ReceiptCopiesDefaults } from "../../../services/receiptCopiesConfigApi";
+import PersonSearch from "../../../components/person/PersonSearch";
+import ProviderPersonModal from "./ProviderPersonModal";
+import type { Person } from "../../../models/members";
 import DateInput from "../../../components/ui/DateInput";
 import { toCurrency, todayLocal } from "../../../utils/format";
 import "../NewMovement/NewMovement.css";
@@ -14,7 +19,7 @@ import "./NewExpense.css";
 
 const FALLBACK_EXPENSE_CONCEPTS = [
   "Sueldos",
-  "Servicios",
+  "Servicios varios",
   "Impuestos",
   "Mantenimiento",
   "Proveedores",
@@ -30,6 +35,7 @@ type FieldErrors = {
   concepto?: string;
   fecha?: string;
   importe?: string;
+  persona?: string;
 };
 
 const NewExpense: React.FC = () => {
@@ -48,6 +54,13 @@ const NewExpense: React.FC = () => {
   const [receiptCopiesDefaults, setReceiptCopiesDefaults] = useState<ReceiptCopiesDefaults>({});
   const [egresoConcepts, setEgresoConcepts] = useState<string[]>(FALLBACK_EXPENSE_CONCEPTS);
 
+  const [serviceProviders, setServiceProviders] = useState<Person[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<Person | null>(null);
+  const [providerSearch, setProviderSearch] = useState("");
+  const [showProviderDropdown, setShowProviderDropdown] = useState(false);
+  const [providersFetched, setProvidersFetched] = useState(false);
+  const [showProviderModal, setShowProviderModal] = useState(false);
+
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -57,6 +70,7 @@ const NewExpense: React.FC = () => {
   const mode = cajaOrigen === "caja_chica" ? "efectivo" : "transferencia";
   const originLabel = cajaOrigen === "caja_chica" ? "Caja Chica" : "Banco";
   const formaPagoLabel = mode === "efectivo" ? "Efectivo" : "Transferencia";
+  const isServiciosVarios = concepto?.toLowerCase() === "servicios varios";
 
   useEffect(() => {
     if (egresoConcepts.length > 0 && !egresoConcepts.includes(concepto)) {
@@ -71,6 +85,14 @@ const NewExpense: React.FC = () => {
         .catch(() => {});
     }
   }, [concepto, externalServices.length]);
+
+  useEffect(() => {
+    if (isServiciosVarios && !providersFetched) {
+      fetchServiceProviders()
+        .then((providers) => { setServiceProviders(providers); setProvidersFetched(true); })
+        .catch(() => { setServiceProviders([]); setProvidersFetched(true); });
+    }
+  }, [concepto, providersFetched, isServiciosVarios]);
 
   useEffect(() => {
     Promise.all([
@@ -91,14 +113,40 @@ const NewExpense: React.FC = () => {
     return parseFloat(cleaned) || 0;
   }, [importeStr]);
 
+  const providerResults = useMemo(() => {
+    if (providerSearch.trim() === "") {
+      return selectedProvider ? [] : serviceProviders;
+    }
+    const s = providerSearch.toLowerCase().trim();
+    return serviceProviders.filter((p) =>
+      p.nombre.toLowerCase().includes(s) ||
+      p.documento.includes(s)
+    );
+  }, [providerSearch, serviceProviders, selectedProvider]);
+
+  const handleProviderSaved = useCallback((person: Person) => {
+    const saved = { ...person, brindaServicios: true };
+    setServiceProviders((prev) => {
+      const exists = prev.some((p) => p.id === saved.id || (saved.documento && p.documento === saved.documento));
+      return exists ? prev.map((p) => (p.id === saved.id || p.documento === saved.documento ? saved : p)) : [...prev, saved];
+    });
+    setSelectedProvider(saved);
+    setProviderSearch(saved.nombre);
+    setShowProviderDropdown(false);
+    setProvidersFetched(true);
+    setErrors((prev) => { const next = { ...prev }; delete next.persona; return next; });
+    setTouched((prev) => { const next = { ...prev }; delete next.persona; return next; });
+  }, []);
+
   const validate = useCallback((): FieldErrors => {
     const errs: FieldErrors = {};
     if (!concepto) errs.concepto = "Seleccioná un concepto";
     if (concepto === "Pago de servicio externo" && !selectedExtService) errs.concepto = "Seleccioná un servicio externo";
+    if (isServiciosVarios && !selectedProvider) errs.persona = "Seleccioná una persona que brinde servicios";
     if (!fecha) errs.fecha = "Ingresá una fecha";
     if (!importeNum || importeNum <= 0) errs.importe = "Ingresá un importe válido mayor a cero";
     return errs;
-  }, [concepto, fecha, importeNum, selectedExtService]);
+  }, [concepto, fecha, importeNum, selectedExtService, selectedProvider, isServiciosVarios]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -117,6 +165,8 @@ const NewExpense: React.FC = () => {
         const svcName = externalServices.find((s) => s.id === selectedExtService)?.name;
         const detail = concepto === "Pago de servicio externo" && svcName
           ? `Pago servicio externo: ${svcName}${descripcion ? ` - ${descripcion}` : ""}`
+          : isServiciosVarios && selectedProvider
+          ? `Pago a ${selectedProvider.nombre}${descripcion ? `: ${descripcion}` : ""}`
           : `${concepto}${descripcion ? `: ${descripcion}` : ""}`;
 
         const payment = await savePayment({
@@ -135,13 +185,24 @@ const NewExpense: React.FC = () => {
           await saveExternalServicePayment(selectedExtService, month, year, importeNum, payment.id);
         }
 
+        if (isServiciosVarios && selectedProvider) {
+          await saveServiceRecord({
+            service_id: null,
+            person_id: selectedProvider.id,
+            movement_id: payment.id,
+            amount: importeNum,
+            date: fecha,
+            detail: descripcion || null,
+          });
+        }
+
         await saveComprobante({
           movement_id: payment.id,
           receipt_number: receiptNumber,
           copies_to_print: receiptCopiesDefaults[concepto] ?? 1,
           detail: detail,
           concept: concepto,
-          payer_name: null,
+          payer_name: isServiciosVarios && selectedProvider ? selectedProvider.nombre : null,
         });
 
         setComprobanteData({
@@ -151,12 +212,16 @@ const NewExpense: React.FC = () => {
           detail,
           amount: importeNum,
           origin: originLabel,
+          payerName: isServiciosVarios && selectedProvider ? selectedProvider.nombre : undefined,
           copies_to_print: receiptCopiesDefaults[concepto] ?? 1,
           paymentMethod: formaPagoLabel,
         });
         setSuccess(true);
         setImporteStr("");
         setDescripcion("");
+        setSelectedProvider(null);
+        setProviderSearch("");
+        setShowProviderDropdown(false);
         setErrors({});
         setTouched({});
         setApiError(null);
@@ -166,7 +231,7 @@ const NewExpense: React.FC = () => {
         setSaving(false);
       }
     },
-    [validate, concepto, descripcion, fecha, importeNum, mode, selectedExtService, externalServices, originLabel]
+    [validate, concepto, descripcion, fecha, importeNum, mode, selectedExtService, selectedProvider, externalServices, originLabel, isServiciosVarios]
   );
 
   const handleClearForm = useCallback(() => {
@@ -176,6 +241,9 @@ const NewExpense: React.FC = () => {
     setImporteStr("");
     setDescripcion("");
     setSelectedExtService("");
+    setSelectedProvider(null);
+    setProviderSearch("");
+    setShowProviderDropdown(false);
     setErrors({});
     setTouched({});
     setApiError(null);
@@ -234,6 +302,11 @@ const NewExpense: React.FC = () => {
                   value={concepto}
                   onChange={(e) => {
                     setConcepto(e.target.value);
+                    if (e.target.value?.toLowerCase() !== "servicios varios") {
+                      setSelectedProvider(null);
+                      setProviderSearch("");
+                      setShowProviderDropdown(false);
+                    }
                     if (e.target.value) setErrors((prev) => { const next = { ...prev }; delete next.concepto; return next; });
                   }}
                   onBlur={() => { if (!concepto) setTouched((prev) => ({ ...prev, concepto: true })); }}
@@ -262,6 +335,43 @@ const NewExpense: React.FC = () => {
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {isServiciosVarios && (
+                <div className="form-group full-width">
+                  <label>
+                    Persona que brinda el servicio <span className="required">*</span>
+                  </label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ flex: 2, minWidth: 0 }}>
+                      <PersonSearch
+                        type="persona"
+                        searchValue={providerSearch}
+                        onSearchChange={(v) => { setProviderSearch(v); setShowProviderDropdown(true); if (selectedProvider && v !== selectedProvider.nombre) setSelectedProvider(null); }}
+                        results={providerResults}
+                        selected={selectedProvider}
+                        onSelect={(p) => { setSelectedProvider(p as Person); setProviderSearch((p as Person).nombre); setShowProviderDropdown(false); setErrors((prev) => { const next = { ...prev }; delete next.persona; return next; }); }}
+                        onClear={() => { setSelectedProvider(null); setProviderSearch(""); setTouched((prev) => ({ ...prev, persona: true })); setErrors((prev) => ({ ...prev, persona: "Seleccioná una persona que brinde servicios" })); }}
+                        showDropdown={showProviderDropdown}
+                        onShowDropdown={setShowProviderDropdown}
+                        loading={!providersFetched}
+                        error={errors.persona}
+                        touched={touched.persona}
+                        onBlur={() => { if (!selectedProvider) setTouched((prev) => ({ ...prev, persona: true })); }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="add-service-btn"
+                      style={{ flex: 1, minWidth: 0, width: "auto", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap", padding: "0 10px", height: 38, fontSize: 13, fontWeight: 600, lineHeight: 1, overflow: "hidden" }}
+                      title="Agregar o modificar persona"
+                      onClick={() => setShowProviderModal(true)}
+                    >
+                      <Plus size={15} style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>Persona</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -357,6 +467,11 @@ const NewExpense: React.FC = () => {
                       {externalServices.find((s) => s.id === selectedExtService)?.name}
                     </span>
                   )}
+                  {isServiciosVarios && selectedProvider && (
+                    <span style={{ display: "block", fontSize: 12, color: "var(--muted)" }}>
+                      {selectedProvider.nombre}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="summary-item">
@@ -384,6 +499,14 @@ const NewExpense: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showProviderModal && (
+        <ProviderPersonModal
+          isOpen={showProviderModal}
+          onClose={() => setShowProviderModal(false)}
+          onPersonSaved={handleProviderSaved}
+        />
+      )}
 
       {showComprobante && comprobanteData && (
         <Comprobante data={comprobanteData} onClose={() => setShowComprobante(false)} />

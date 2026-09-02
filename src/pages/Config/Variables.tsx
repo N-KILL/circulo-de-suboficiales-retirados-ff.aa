@@ -131,18 +131,18 @@ const Variables: React.FC = () => {
                     />
                 </CollapsibleCard>
                 <CollapsibleCard
-                    title="Servicios"
+                    title="Ingresos"
                     className="config-card"
                     defaultOpen={false}
-                    headerExtra={<span className="config-card-hint">Servicios disponibles para cobrar</span>}
+                    headerExtra={<span className="config-card-hint">Configurar servicios que generan ingresos</span>}
                 >
                     <ServicesConfig initialServices={services} />
                 </CollapsibleCard>
                 <CollapsibleCard
-                    title="Servicios Externos / Impuestos"
+                    title="Egresos"
                     className="config-card"
                     defaultOpen={false}
-                    headerExtra={<span className="config-card-hint">Luz, agua, gas, etc.</span>}
+                    headerExtra={<span className="config-card-hint">Configurar servicios que generan egresos</span>}
                 >
                     <ExternalServicesConfig initialServices={externalServices} />
                 </CollapsibleCard>

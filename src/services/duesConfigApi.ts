@@ -18,13 +18,17 @@ export type DuesConfig = {
     updated_at: string;
 };
 
+import { getOrFetch, invalidate, CACHE_KEY } from "./apiCache";
+
 export async function fetchDuesConfig(): Promise<DuesConfig | null> {
-    const response = await fetch("/api/dues-config");
-    if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Error al cargar configuración de montos");
-    }
-    return response.json() as Promise<DuesConfig | null>;
+    return getOrFetch(CACHE_KEY.duesConfig, async () => {
+        const response = await fetch("/api/dues-config");
+        if (!response.ok) {
+            const body = (await response.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(body?.error ?? "Error al cargar configuración de montos");
+        }
+        return response.json() as Promise<DuesConfig | null>;
+    });
 }
 
 export async function saveDuesConfig(
@@ -60,7 +64,9 @@ export async function saveDuesConfig(
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al guardar configuración de montos");
     }
-    return response.json() as Promise<DuesConfig>;
+    const data = (await response.json()) as DuesConfig;
+    invalidate(CACHE_KEY.duesConfig);
+    return data;
 }
 
 export async function fetchDuesConfigHistory(): Promise<DuesConfig[]> {

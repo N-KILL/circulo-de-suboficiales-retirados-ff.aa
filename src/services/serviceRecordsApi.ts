@@ -62,7 +62,7 @@ export async function fetchServiceRecordsByMovement(movementId: string): Promise
 }
 
 export async function saveServiceRecord(data: {
-    service_id: string;
+    service_id?: string | null;
     member_id?: string | null;
     person_id?: string | null;
     movement_id?: string | null;

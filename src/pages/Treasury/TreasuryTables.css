@@ -734,6 +734,11 @@
   color: #ca8a04;
 }
 
+.badge-servicio {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
 /* Amounts */
 .amount-ingreso {
   color: var(--verde-exito);

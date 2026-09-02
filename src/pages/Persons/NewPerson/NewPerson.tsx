@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, Loader, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Loader, Trash2, Eye } from "lucide-react";
 import "../../Members/NewMember/NewMember.css";
+import "../../Treasury/TreasuryTables.css";
+import "../../Members/Detalle/Detalle.css";
 import { usePersonFormStore } from "../../../store/personFormStore";
 import { fetchPersonById, deletePerson, fetchPersonMembers } from "../../../services/personsApi";
+import { fetchServiceRecordsByPerson, type ServiceRecordItem } from "../../../services/serviceRecordsApi";
 import type { PersonMember } from "../../../services/personsApi";
 import type { Person } from "../../../models/members";
 
@@ -18,6 +21,8 @@ const NewPerson: React.FC = () => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [linkedMembers, setLinkedMembers] = useState<PersonMember[]>([]);
+  const [serviceRecords, setServiceRecords] = useState<ServiceRecordItem[]>([]);
+  const [serviceRecordsFetched, setServiceRecordsFetched] = useState(false);
 
   const form = usePersonFormStore((s) => s.form);
   const setField = usePersonFormStore((s) => s.setField);
@@ -40,6 +45,16 @@ const NewPerson: React.FC = () => {
       reset();
     }
   }, [id, setForm, reset]);
+
+  useEffect(() => {
+    if (!id || !form.brindaServicios || serviceRecordsFetched) return;
+    let mounted = true;
+    fetchServiceRecordsByPerson(id)
+      .then((records) => { if (mounted) setServiceRecords(records); })
+      .catch(() => { if (mounted) setServiceRecords([]); })
+      .finally(() => { if (mounted) setServiceRecordsFetched(true); });
+    return () => { mounted = false; };
+  }, [id, form.brindaServicios, serviceRecordsFetched]);
 
   const handleChange = (key: keyof Person, value: Person[keyof Person]) => setField(key, value);
 
@@ -198,6 +213,23 @@ const NewPerson: React.FC = () => {
                 </div>
               </div>
 
+              <div className="form-grid">
+                <div className="form-group">
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={form.brindaServicios}
+                      onChange={(e) => handleChange("brindaServicios", e.target.checked)}
+                      style={{ width: 16, height: 16, cursor: "pointer" }}
+                    />
+                    Brinda servicios
+                  </label>
+                  <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, display: "block" }}>
+                    Marcar si esta persona provee servicios al círculo
+                  </span>
+                </div>
+              </div>
+
               {saveError && (
                 <div className="form-error">{saveError}</div>
               )}
@@ -233,6 +265,48 @@ const NewPerson: React.FC = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {!fetchError && isEditing && form.brindaServicios && (
+        <div className="detalle-card" style={{ marginTop: 12 }}>
+          <h3 className="detalle-section-title">Historial de Servicios Brindados</h3>
+          {!serviceRecordsFetched ? (
+            <p className="detalle-empty">Cargando historial...</p>
+          ) : serviceRecords.length === 0 ? (
+            <p className="detalle-empty">No tiene servicios brindados registrados.</p>
+          ) : (
+            <div className="table-wrapper">
+              <table className="treasury-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Importe</th>
+                    <th>Detalle</th>
+                    <th>Movimiento</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serviceRecords.map((sr) => (
+                    <tr key={sr.id}>
+                      <td>{sr.date}</td>
+                      <td className="amount-ingreso">$ {new Intl.NumberFormat("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(sr.amount)}</td>
+                      <td>{sr.detail || sr.service_name || "—"}</td>
+                      <td>{sr.movement_id ? sr.movement_id.slice(0, 8) + "…" : "—"}</td>
+                      <td>
+                        {sr.movement_id && (
+                          <button className="btn-view-detail" type="button" onClick={() => navigate(`/tesoreria/movimientos/detalle/${sr.movement_id}`)}>
+                            <Eye size={14} /> Ver detalles
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

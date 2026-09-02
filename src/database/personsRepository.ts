@@ -33,7 +33,8 @@ export async function upsertPerson(person: Person): Promise<string | null> {
                 tipo_doc = ${person.tipoDoc || null},
                 documento = ${person.documento?.trim() || null},
                 domicilio = ${person.domicilio || null},
-                telefono = ${person.telefono || null}
+                telefono = ${person.telefono || null},
+                brinda_servicios = ${person.brindaServicios ?? false}
             WHERE id = ${existingId}
         `;
         return existingId;
@@ -41,18 +42,19 @@ export async function upsertPerson(person: Person): Promise<string | null> {
 
     const id = person.id || randomUUID();
     await sql`
-        INSERT INTO persons (id, nombre, tipo_doc, documento, domicilio, telefono)
+        INSERT INTO persons (id, nombre, tipo_doc, documento, domicilio, telefono, brinda_servicios)
         VALUES (
             ${id}, ${nombre}, ${person.tipoDoc || null},
             ${person.documento?.trim() || null}, ${person.domicilio || null},
-            ${person.telefono || null}
+            ${person.telefono || null}, ${person.brindaServicios ?? false}
         )
         ON CONFLICT (id) DO UPDATE SET
             nombre = EXCLUDED.nombre,
             tipo_doc = EXCLUDED.tipo_doc,
             documento = EXCLUDED.documento,
             domicilio = EXCLUDED.domicilio,
-            telefono = EXCLUDED.telefono
+            telefono = EXCLUDED.telefono,
+            brinda_servicios = EXCLUDED.brinda_servicios
     `;
     return id;
 }
@@ -69,6 +71,7 @@ export async function getAllPersons(): Promise<Person[]> {
         documento: row.documento ?? "",
         domicilio: row.domicilio ?? "",
         telefono: row.telefono ?? "",
+        brindaServicios: row.brinda_servicios ?? false,
     }));
 }
 
@@ -86,12 +89,34 @@ export async function getPersonById(id: string): Promise<Person | null> {
         documento: row.documento ?? "",
         domicilio: row.domicilio ?? "",
         telefono: row.telefono ?? "",
+        brindaServicios: row.brinda_servicios ?? false,
     };
 }
 
 export async function deletePersonById(id: string): Promise<void> {
     const sql = getSql();
     await sql`DELETE FROM persons WHERE id = ${id}`;
+}
+
+export async function migratePersonsSchema(): Promise<void> {
+    const sql = getSql();
+    await sql`ALTER TABLE persons ADD COLUMN IF NOT EXISTS brinda_servicios BOOLEAN NOT NULL DEFAULT FALSE`;
+}
+
+export async function getServiceProviders(): Promise<Person[]> {
+    const sql = getSql();
+    const rows = await sql`
+        SELECT * FROM persons WHERE brinda_servicios = true ORDER BY nombre
+    `;
+    return (rows as PersonRow[]).map((row) => ({
+        id: row.id,
+        nombre: row.nombre,
+        tipoDoc: row.tipo_doc ?? "",
+        documento: row.documento ?? "",
+        domicilio: row.domicilio ?? "",
+        telefono: row.telefono ?? "",
+        brindaServicios: true,
+    }));
 }
 
 export type PersonMember = {

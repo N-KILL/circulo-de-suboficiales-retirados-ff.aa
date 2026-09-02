@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS persons (
     documento       VARCHAR(20),
     domicilio       VARCHAR(255),
     telefono        VARCHAR(100),
+    brinda_servicios BOOLEAN         NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 

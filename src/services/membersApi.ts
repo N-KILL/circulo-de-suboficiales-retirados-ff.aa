@@ -1,16 +1,19 @@
 import type { Member, Person } from "../models/members";
+import { getOrFetch, invalidate, CACHE_KEY } from "./apiCache";
 
 export async function fetchMembers(): Promise<Member[]> {
-    const response = await fetch("/api/members");
+    return getOrFetch(CACHE_KEY.members, async () => {
+        const response = await fetch("/api/members");
 
-    if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-            error?: string;
-        } | null;
-        throw new Error(body?.error ?? "No se pudieron cargar los socios");
-    }
+        if (!response.ok) {
+            const body = (await response.json().catch(() => null)) as {
+                error?: string;
+            } | null;
+            throw new Error(body?.error ?? "No se pudieron cargar los socios");
+        }
 
-    return response.json() as Promise<Member[]>;
+        return response.json() as Promise<Member[]>;
+    });
 }
 
 export async function fetchMemberById(id: string): Promise<Member> {
@@ -39,6 +42,8 @@ export async function saveMember(member: Member): Promise<void> {
         } | null;
         throw new Error(body?.error ?? "Error al guardar el socio");
     }
+
+    invalidate(CACHE_KEY.members);
 }
 
 export async function fetchPersons(query: string): Promise<Person[]> {
@@ -72,4 +77,6 @@ export async function deleteMember(id: string): Promise<void> {
         } | null;
         throw new Error(body?.error ?? "Error al eliminar el socio");
     }
+
+    invalidate(CACHE_KEY.members);
 }

@@ -20,6 +20,8 @@ export type ExternalServicePaymentItem = {
     created_at: string;
 };
 
+import { getOrFetch, invalidate, CACHE_KEY } from "./apiCache";
+
 async function handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -29,8 +31,10 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchExternalServices(): Promise<ExternalServiceItem[]> {
-    const response = await fetch("/api/external-services");
-    return handleResponse<ExternalServiceItem[]>(response);
+    return getOrFetch(CACHE_KEY.externalServices, async () => {
+        const response = await fetch("/api/external-services");
+        return handleResponse<ExternalServiceItem[]>(response);
+    });
 }
 
 export async function saveExternalService(name: string, phone: string | null, description: string | null, frequency: string, startMonth: number | null): Promise<ExternalServiceItem> {
@@ -39,7 +43,9 @@ export async function saveExternalService(name: string, phone: string | null, de
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, description, frequency, start_month: startMonth }),
     });
-    return handleResponse<ExternalServiceItem>(response);
+    const data = await handleResponse<ExternalServiceItem>(response);
+    invalidate(CACHE_KEY.externalServices);
+    return data;
 }
 
 export async function updateExternalService(id: string, name: string, phone: string | null, description: string | null, frequency: string, startMonth: number | null, active: boolean): Promise<ExternalServiceItem> {
@@ -48,7 +54,9 @@ export async function updateExternalService(id: string, name: string, phone: str
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, name, phone, description, frequency, start_month: startMonth, active }),
     });
-    return handleResponse<ExternalServiceItem>(response);
+    const data = await handleResponse<ExternalServiceItem>(response);
+    invalidate(CACHE_KEY.externalServices);
+    return data;
 }
 
 export async function deleteExternalService(id: string): Promise<void> {
@@ -59,6 +67,7 @@ export async function deleteExternalService(id: string): Promise<void> {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? "Error al eliminar");
     }
+    invalidate(CACHE_KEY.externalServices);
 }
 
 export async function fetchExternalServicePayments(year: number): Promise<ExternalServicePaymentItem[]> {

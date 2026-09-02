@@ -76,6 +76,7 @@ const Persons: React.FC = () => {
               <col style={{ width: 140 }} />
               <col className="column-domicilio" />
               <col style={{ width: 140 }} />
+              <col style={{ width: 100 }} />
             </colgroup>
             <thead>
               <tr>
@@ -84,24 +85,25 @@ const Persons: React.FC = () => {
                 <th>Documento</th>
                 <th>Domicilio</th>
                 <th>Teléfono</th>
+                <th>Servicios</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                     Cargando personas...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                     {error}
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
                     No se encontraron personas.
                   </td>
                 </tr>
@@ -117,6 +119,7 @@ const Persons: React.FC = () => {
                     <td>{p.documento}</td>
                     <td>{p.domicilio}</td>
                     <td>{p.telefono}</td>
+                    <td>{p.brindaServicios ? <span className="badge badge-servicio">Proveedor</span> : "—"}</td>
                   </tr>
                 ))
               )}

@@ -17,6 +17,7 @@ const emptyForm = (): Person => ({
     documento: "",
     domicilio: "",
     telefono: "",
+    brindaServicios: false,
 });
 
 export const usePersonFormStore = create<PersonFormState>((set, get) => ({
