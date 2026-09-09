@@ -54,13 +54,13 @@ const DashboardPage: React.FC = () => {
             title="Ingresos del Mes"
             amount={stats.ingresos}
             variant="azul"
-            Icon={ArrowDown}
+            Icon={ArrowUp}
           />
           <StatCard
             title="Egresos del Mes"
             amount={stats.egresos}
             variant="naranja"
-            Icon={ArrowUp}
+            Icon={ArrowDown}
           />
           <StatCard
             title="Resultado del Mes"

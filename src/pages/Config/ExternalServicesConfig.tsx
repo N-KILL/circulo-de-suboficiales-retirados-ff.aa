@@ -126,11 +126,11 @@ const ExternalServicesConfig: React.FC<ExternalServicesConfigProps> = ({ initial
       <form onSubmit={handleSubmit} className="config-form">
         <div className="config-field">
           <label>{editId ? "Nombre del servicio" : "Nuevo servicio externo"}</label>
-          <input type="text" className="config-input" value={svcName} onChange={(e) => setSvcName(e.target.value)} placeholder="Ej: Luz, Agua, Gas..." />
+          <input autoComplete="off" type="text" className="config-input" value={svcName} onChange={(e) => setSvcName(e.target.value)} placeholder="Ej: Luz, Agua, Gas..." />
         </div>
         <div className="config-field">
           <label>Tipo de pago</label>
-          <select className="config-input" value={svcFrequency} onChange={(e) => setSvcFrequency(e.target.value)}>
+          <select autoComplete="off" className="config-input" value={svcFrequency} onChange={(e) => setSvcFrequency(e.target.value)}>
             {FRECUENCIAS.map((f) => (
               <option key={f.value} value={f.value}>{f.label}</option>
             ))}
@@ -139,7 +139,7 @@ const ExternalServicesConfig: React.FC<ExternalServicesConfigProps> = ({ initial
         {!["mensual", "unico", "semanal", "quincenal"].includes(svcFrequency) && (
           <div className="config-field">
             <label>Mes de inicio de pagos</label>
-            <select
+            <select autoComplete="off"
               className="config-input"
               value={svcStartMonth ?? ""}
               onChange={(e) => setSvcStartMonth(e.target.value ? Number(e.target.value) : null)}
@@ -153,16 +153,16 @@ const ExternalServicesConfig: React.FC<ExternalServicesConfigProps> = ({ initial
         )}
         <div className="config-field">
           <label>Teléfono (opcional)</label>
-          <input type="text" className="config-input" value={svcPhone} onChange={(e) => setSvcPhone(e.target.value)} placeholder="Número de contacto..." />
+          <input autoComplete="off" type="text" className="config-input" value={svcPhone} onChange={(e) => setSvcPhone(e.target.value)} placeholder="Número de contacto..." />
         </div>
         <div className="config-field">
           <label>Descripción (opcional)</label>
-          <input type="text" className="config-input" value={svcDescription} onChange={(e) => setSvcDescription(e.target.value)} placeholder="Detalle del servicio..." />
+          <input autoComplete="off" type="text" className="config-input" value={svcDescription} onChange={(e) => setSvcDescription(e.target.value)} placeholder="Detalle del servicio..." />
         </div>
         {editId && (
           <div className="config-field">
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
+              <input autoComplete="off" type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
               Activo
             </label>
           </div>
@@ -185,7 +185,7 @@ const ExternalServicesConfig: React.FC<ExternalServicesConfigProps> = ({ initial
           <div className="svc-list-toolbar">
             <div className="svc-list-search">
               <Search size={14} />
-              <input
+              <input autoComplete="off"
                 type="text"
                 placeholder="Buscar..."
                 value={searchText}
@@ -194,7 +194,7 @@ const ExternalServicesConfig: React.FC<ExternalServicesConfigProps> = ({ initial
             </div>
             <div className="svc-list-sort">
               <ArrowUpDown size={14} />
-              <select value={`${sortField}-${sortDir}`} onChange={(e) => {
+              <select autoComplete="off" value={`${sortField}-${sortDir}`} onChange={(e) => {
                 const [field, dir] = e.target.value.split("-");
                 setSortField(field as "name" | "frequency");
                 setSortDir(dir as "asc" | "desc");

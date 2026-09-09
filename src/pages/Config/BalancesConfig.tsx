@@ -61,19 +61,19 @@ const BalancesConfig: React.FC<BalancesConfigProps> = ({ initialCajaChica, initi
     <form onSubmit={handleSave} className="config-form">
       <div className="config-field">
         <label>Caja Chica (efectivo)</label>
-        <input type="text" className="config-input" value={cajaChica} onChange={(e) => setCajaChica(formatMoneyInput(e.target.value))} placeholder="0,00" />
+        <input autoComplete="off" type="text" className="config-input" value={cajaChica} onChange={(e) => setCajaChica(formatMoneyInput(e.target.value))} placeholder="0,00" />
       </div>
       <div className="config-field">
         <label>Banco (transferencias)</label>
-        <input type="text" className="config-input" value={banco} onChange={(e) => setBanco(formatMoneyInput(e.target.value))} placeholder="0,00" />
+        <input autoComplete="off" type="text" className="config-input" value={banco} onChange={(e) => setBanco(formatMoneyInput(e.target.value))} placeholder="0,00" />
       </div>
       <div className="config-field">
         <label>Nro. Comprobante Ingreso (próximo)</label>
-        <input type="number" className="config-input" min={1} value={comprobanteIngreso} onChange={(e) => setComprobanteIngreso(e.target.value)} placeholder="1" />
+        <input autoComplete="off" type="number" className="config-input" min={1} value={comprobanteIngreso} onChange={(e) => setComprobanteIngreso(e.target.value)} placeholder="1" />
       </div>
       <div className="config-field">
         <label>Nro. Comprobante Egreso (próximo)</label>
-        <input type="number" className="config-input" min={1} value={comprobanteEgreso} onChange={(e) => setComprobanteEgreso(e.target.value)} placeholder="1" />
+        <input autoComplete="off" type="number" className="config-input" min={1} value={comprobanteEgreso} onChange={(e) => setComprobanteEgreso(e.target.value)} placeholder="1" />
       </div>
       {error && <div className="config-error">{error}</div>}
       {success && <div className="config-success">Valores guardados correctamente</div>}

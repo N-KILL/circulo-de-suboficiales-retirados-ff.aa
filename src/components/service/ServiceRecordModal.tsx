@@ -8,8 +8,10 @@ interface ServiceRecordLink {
   service_name?: string | null;
   service_date?: string | null;
   service_amount?: number | null;
+  member_id?: string | null;
   member_nombre?: string | null;
   member_numero_de_socio?: string | null;
+  person_id?: string | null;
   person_nombre?: string | null;
   amount: number;
   date: string;
@@ -21,6 +23,7 @@ interface ServiceRecordModalProps {
   record: ServiceRecordLink | null;
   onClose: () => void;
   onNavigateToMovement?: (movementId: string) => void;
+  onNavigateToTitular?: (memberId: string | null, personId: string | null) => void;
 }
 
 function getTitular(r: ServiceRecordLink): string {
@@ -34,6 +37,7 @@ const ServiceRecordModal: React.FC<ServiceRecordModalProps> = ({
   record,
   onClose,
   onNavigateToMovement,
+  onNavigateToTitular,
 }) => {
   if (!record) return null;
 
@@ -60,7 +64,21 @@ const ServiceRecordModal: React.FC<ServiceRecordModalProps> = ({
             <span className="service-modal-icon"><User size={14} /></span>
             <div>
               <span className="service-modal-label">Titular</span>
-              <span className="service-modal-value">{getTitular(record)}</span>
+              <span className="service-modal-value" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                {getTitular(record)}
+                {(record.member_id || record.person_id) && onNavigateToTitular && (
+                  <button
+                    className="service-modal-link-btn"
+                    style={{ padding: "4px 10px", fontSize: 12 }}
+                    onClick={() => {
+                      onClose();
+                      onNavigateToTitular(record.member_id ?? null, record.person_id ?? null);
+                    }}
+                  >
+                    Ver perfil <ExternalLink size={12} />
+                  </button>
+                )}
+              </span>
             </div>
           </div>
           <div className="service-modal-field">

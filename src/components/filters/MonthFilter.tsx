@@ -33,7 +33,7 @@ const MonthFilter: React.FC<MonthFilterProps> = ({ selectedMonths, onToggleMonth
           <div className="multi-select-dropdown">
             {MONTHS_SHORT.map((label, m) => (
               <label key={m} className={`multi-select-option ${selectedMonths.includes(m) ? "active" : ""}`}>
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   checked={selectedMonths.includes(m)}
                   onChange={() => onToggleMonth(m)}

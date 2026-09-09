@@ -9,6 +9,7 @@ import "./Layout.css";
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [hovering, setHovering] = useState(false);
   const location = useLocation();
 
   const getHeaderContent = (path: string) => {
@@ -20,10 +21,10 @@ const Layout: React.FC = () => {
     if (path === "/socios/nuevo") return { title: "Nuevo Socio", subtitle: "Registrar un nuevo socio en el circulo.", breadcrumbs: ["Socios", "Nuevo Socio"] };
     if (path.startsWith("/socios/detalle/")) return { title: "Detalle del Socio", subtitle: "Información y cuotas del socio.", breadcrumbs: ["Socios", "Detalle"] };
     if (path.startsWith("/socios/editar/")) return { title: "Editar Socio", subtitle: "Modificar los datos del socio.", breadcrumbs: ["Socios", "Editar"] };
-    if (path === "/personas") return { title: "Personas", subtitle: "Gestioná la información de las personas." };
-    if (path === "/personas/nuevo") return { title: "Nueva Persona", subtitle: "Registrar una nueva persona.", breadcrumbs: ["Personas", "Nueva Persona"] };
-    if (path.startsWith("/personas/detalle/")) return { title: "Detalle de Persona", subtitle: "Información y cuotas de cementerio.", breadcrumbs: ["Personas", "Detalle"] };
-    if (path.startsWith("/personas/editar/")) return { title: "Editar Persona", subtitle: "Modificar los datos de la persona.", breadcrumbs: ["Personas", "Editar"] };
+    if (path === "/terceros") return { title: "Terceros", subtitle: "Gestioná la información de los terceros." };
+    if (path === "/terceros/nuevo") return { title: "Nuevo Tercero", subtitle: "Registrar un nuevo tercero.", breadcrumbs: ["Terceros", "Nuevo Tercero"] };
+    if (path.startsWith("/terceros/detalle/")) return { title: "Detalle de Tercero", subtitle: "Información y cuotas de cementerio.", breadcrumbs: ["Terceros", "Detalle"] };
+    if (path.startsWith("/terceros/editar/")) return { title: "Editar Tercero", subtitle: "Modificar los datos del tercero.", breadcrumbs: ["Terceros", "Editar"] };
     if (path === "/") return { title: " ", subtitle: " " };
     if (path === "/configuracion") return { title: "Configuración", subtitle: "Administrá las variables y ajustes del sistema.", breadcrumbs: ["Configuración"] };
     if (path === "/configuracion/variables") return { title: "Variables del Sistema", subtitle: "Configurar tarifas, saldos iniciales y servicios.", breadcrumbs: ["Configuración", "Variables"] };
@@ -38,7 +39,11 @@ const isHome = location.pathname === "/";
 
   return (
     <div className="app-root">
-      <Sidebar collapsed={!sidebarOpen} />
+      <Sidebar
+        collapsed={!sidebarOpen}
+        isHovering={hovering}
+        onHoverChange={(hovering) => setHovering(hovering)}
+      />
       <div className="main-wrapper">
         <img
           src={argFlag}

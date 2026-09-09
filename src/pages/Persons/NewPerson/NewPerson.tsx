@@ -35,7 +35,7 @@ const NewPerson: React.FC = () => {
       let mounted = true;
       fetchPersonById(id)
         .then((person) => { if (mounted) { setFetchError(null); setForm(person); } })
-        .catch((err) => { if (mounted) setFetchError(err instanceof Error ? err.message : "Error al cargar persona") })
+        .catch((err) => { if (mounted) setFetchError(err instanceof Error ? err.message : "Error al cargar tercero") })
         .finally(() => { if (mounted) setLoading(false); });
       fetchPersonMembers(id)
         .then((members) => { if (mounted) setLinkedMembers(members); })
@@ -64,7 +64,7 @@ const NewPerson: React.FC = () => {
     setSaveError(null);
     try {
       await save();
-      navigate("/personas");
+      navigate("/terceros");
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
@@ -79,7 +79,7 @@ const NewPerson: React.FC = () => {
     try {
       await deletePerson(id);
       setShowConfirmDelete(false);
-      navigate("/personas");
+      navigate("/terceros");
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Error al eliminar");
       setShowConfirmDelete(false);
@@ -92,11 +92,11 @@ const NewPerson: React.FC = () => {
     return (
       <div className="new-member-container">
         <div className="treasury-header-row">
-          <h2>Editar persona</h2>
+          <h2>Editar tercero</h2>
         </div>
         <div className="table-card" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 32 }}>
           <Loader size={20} className="spin" />
-          <span style={{ color: "var(--muted)" }}>Cargando datos de la persona...</span>
+          <span style={{ color: "var(--muted)" }}>Cargando datos del tercero...</span>
         </div>
       </div>
     );
@@ -106,7 +106,7 @@ const NewPerson: React.FC = () => {
     <div className="new-member-container">
       <div className="treasury-header-row">
         <button
-          onClick={() => navigate("/personas")}
+          onClick={() => navigate("/terceros")}
           style={{
             display: "flex", alignItems: "center", gap: 8,
             background: "none", border: "none",
@@ -115,7 +115,7 @@ const NewPerson: React.FC = () => {
             whiteSpace: "nowrap",
           }}
         >
-          <ArrowLeft size={18} /> Volver a Personas
+          <ArrowLeft size={18} /> Volver a Terceros
         </button>
       </div>
       {fetchError && (
@@ -162,7 +162,7 @@ const NewPerson: React.FC = () => {
               <div className="form-grid">
                 <div className="form-group full-width">
                   <label>Nombre y Apellido</label>
-                  <input
+                  <input autoComplete="off"
                     className="form-control"
                     value={form.nombre}
                     onChange={(e) => handleChange("nombre", e.target.value)}
@@ -173,7 +173,7 @@ const NewPerson: React.FC = () => {
               <div className="form-grid">
                 <div className="form-group">
                   <label>Tipo de Documento</label>
-                  <select
+                  <select autoComplete="off"
                     className="form-control"
                     value={form.tipoDoc}
                     onChange={(e) => handleChange("tipoDoc", e.target.value)}
@@ -187,7 +187,7 @@ const NewPerson: React.FC = () => {
 
                 <div className="form-group">
                   <label>Documento</label>
-                  <input
+                  <input autoComplete="off"
                     className="form-control"
                     value={form.documento}
                     onChange={(e) => handleChange("documento", e.target.value)}
@@ -196,7 +196,7 @@ const NewPerson: React.FC = () => {
 
                 <div className="form-group full-width">
                   <label>Domicilio</label>
-                  <input
+                  <input autoComplete="off"
                     className="form-control"
                     value={form.domicilio}
                     onChange={(e) => handleChange("domicilio", e.target.value)}
@@ -205,7 +205,7 @@ const NewPerson: React.FC = () => {
 
                 <div className="form-group">
                   <label>Teléfono</label>
-                  <input
+                  <input autoComplete="off"
                     className="form-control"
                     value={form.telefono}
                     onChange={(e) => handleChange("telefono", e.target.value)}
@@ -216,7 +216,7 @@ const NewPerson: React.FC = () => {
               <div className="form-grid">
                 <div className="form-group">
                   <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <input
+                    <input autoComplete="off"
                       type="checkbox"
                       checked={form.brindaServicios}
                       onChange={(e) => handleChange("brindaServicios", e.target.checked)}
@@ -225,7 +225,7 @@ const NewPerson: React.FC = () => {
                     Brinda servicios
                   </label>
                   <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, display: "block" }}>
-                    Marcar si esta persona provee servicios al círculo
+                    Marcar si este tercero provee servicios al círculo
                   </span>
                 </div>
               </div>
@@ -250,7 +250,7 @@ const NewPerson: React.FC = () => {
                   disabled={saving}
                   onClick={() => {
                     reset();
-                    navigate("/personas");
+                    navigate("/terceros");
                   }}
                 >
                   Cancelar
@@ -313,7 +313,7 @@ const NewPerson: React.FC = () => {
       {showConfirmDelete && (
         <div className="confirm-overlay">
           <div className="confirm-dialog">
-            <h3>Eliminar persona</h3>
+            <h3>Eliminar tercero</h3>
             <p>
               ¿Estás seguro de que querés eliminar a <strong>{form.nombre}</strong>?
             </p>

@@ -85,7 +85,7 @@ const Field: React.FC<FieldProps> = ({ label, value, onChange, isSelect, options
     };
 
     const inputEl = isSelect ? (
-        <select
+        <select autoComplete="off"
             className="field-input"
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -98,7 +98,7 @@ const Field: React.FC<FieldProps> = ({ label, value, onChange, isSelect, options
             })}
         </select>
     ) : (
-        <input
+        <input autoComplete="off"
             type="text"
             className="field-input"
             value={value}
@@ -340,7 +340,7 @@ const CementerioDetalle: React.FC = () => {
                         whiteSpace: "nowrap",
                         flexShrink: 0,
                     }}>
-                        <input
+                        <input autoComplete="off"
                             type="checkbox"
                             checked={soloMostrarVacios}
                             onChange={() => setSoloMostrarVacios(prev => !prev)}
@@ -372,7 +372,7 @@ const CementerioDetalle: React.FC = () => {
                                         flexShrink: 0,
                                     }}
                                 >
-                                    <input
+                                    <input autoComplete="off"
                                         type="checkbox"
                                         checked={checked}
                                         onChange={() => {
@@ -517,7 +517,7 @@ const CementerioDetalle: React.FC = () => {
                                         <div style={{ display: "flex", flexDirection: "column", gap: 4, position: "relative" }}>
                                             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>Nombre</label>
                                             <div className="member-search-wrapper">
-                                                <input
+                                                <input autoComplete="off"
                                                     type="text"
                                                     className="field-input"
                                                     style={{ width: "100%" }}
@@ -588,9 +588,9 @@ const CementerioDetalle: React.FC = () => {
                                             <button
                                                 className="header-btn"
                                                 style={{ background: "transparent", color: "var(--azul-institucional)", border: "1px solid var(--azul-institucional)" }}
-                                                onClick={() => navigate(`/personas/editar/${rec.personaId}`)}
+                                                onClick={() => navigate(`/terceros/editar/${rec.personaId}`)}
                                             >
-                                                <ExternalLink size={16} /> Ver Persona
+                                                <ExternalLink size={16} /> Ver Tercero
                                             </button>
                                         ) : null}
                                         <button

@@ -48,7 +48,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
       <div className="footer-controls">
         <div className="rows-selector">
           <span>Registros por página:</span>
-          <select
+          <select autoComplete="off"
             className="rows-select"
             value={rowsPerPage}
             onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
@@ -84,7 +84,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
           </button>
 
           {/* Input de página actual */}
-          <input
+          <input autoComplete="off"
             type="number"
             min={1}
             max={totalPages}

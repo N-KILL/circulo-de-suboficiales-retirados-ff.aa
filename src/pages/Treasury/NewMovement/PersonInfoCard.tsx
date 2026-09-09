@@ -103,7 +103,7 @@ const PersonInfoCard: React.FC<PersonInfoCardProps> = ({
   if (personType === "persona" && selectedPerson) {
     return (
       <div className="card-custom socio-info-card">
-        <h3 className="card-title">Información de la Persona</h3>
+        <h3 className="card-title">Información del Tercero</h3>
         <div className="socio-profile">
           <div className="socio-avatar">
             <User size={32} />

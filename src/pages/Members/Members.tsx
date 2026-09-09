@@ -18,10 +18,31 @@ function monthsOwed(lastPeriod: string | null): number {
   return (now.getFullYear() - end.getFullYear()) * 12 + (now.getMonth() - end.getMonth());
 }
 
+function calcAge(fechaNac: string): number | null {
+  const b = parseDateYMD(fechaNac);
+  if (!b) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age;
+}
+
+function toInt(value: string): number | null {
+  if (value.trim() === "") return null;
+  const n = parseInt(value, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
 const ESTADO_OPTIONS = [
   { key: "activos", label: "Activos" },
   { key: "fallecidos", label: "Fallecidos" },
   { key: "baja", label: "Dados de baja" },
+] as const;
+
+const SEXO_OPTIONS = [
+  { key: "M", label: "Masculino" },
+  { key: "F", label: "Femenino" },
 ] as const;
 
 const FUERZA_LABELS: Record<string, string> = {
@@ -131,6 +152,7 @@ const Members: React.FC = () => {
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tipoSocioDropdownRef = useRef<HTMLDivElement>(null);
+  const sexoDropdownRef = useRef<HTMLDivElement>(null);
 
   const searchText = useMembersListStore((s) => s.searchText);
   const showActivos = useMembersListStore((s) => s.showActivos);
@@ -161,6 +183,14 @@ const Members: React.FC = () => {
   const [debtSortDir, setDebtSortDir] = useState<"asc" | "desc" | null>(null);
   const [estadoDropdownOpen, setEstadoDropdownOpen] = useState(false);
   const [tipoSocioDropdownOpen, setTipoSocioDropdownOpen] = useState(false);
+  const [sexoDropdownOpen, setSexoDropdownOpen] = useState(false);
+  const [sexoFilter, setSexoFilter] = useState<string[]>([]);
+  const [edadMin, setEdadMin] = useState("");
+  const [edadMax, setEdadMax] = useState("");
+  const [bajaDesde, setBajaDesde] = useState("");
+  const [bajaHasta, setBajaHasta] = useState("");
+  const [fallecidoDesde, setFallecidoDesde] = useState("");
+  const [fallecidoHasta, setFallecidoHasta] = useState("");
   const [updatingVitalicios, setUpdatingVitalicios] = useState(false);
   const [asistencialFilter, setAsistencialFilter] = useState<"todos" | "si" | "no">("todos");
   const [fuerzaFilter, setFuerzaFilter] = useState("");
@@ -182,6 +212,9 @@ const Members: React.FC = () => {
       if (tipoSocioDropdownRef.current && !tipoSocioDropdownRef.current.contains(e.target as Node)) {
         setTipoSocioDropdownOpen(false);
       }
+      if (sexoDropdownRef.current && !sexoDropdownRef.current.contains(e.target as Node)) {
+        setSexoDropdownOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -201,6 +234,18 @@ const Members: React.FC = () => {
     );
   };
 
+  const toggleSexo = (key: string) => {
+    setSexoFilter((prev) =>
+      prev.includes(key)
+        ? prev.filter((s) => s !== key)
+        : [...prev, key]
+    );
+  };
+
+  const sexoLabel = sexoFilter.length === 2 || sexoFilter.length === 0
+    ? "Todos"
+    : SEXO_OPTIONS.find((o) => o.key === sexoFilter[0])?.label ?? "Todos";
+
   const clearMembersFilters = () => {
     setSearchText("");
     setShowActivos(true);
@@ -212,6 +257,13 @@ const Members: React.FC = () => {
     setFuerzaFilter("");
     setShowDebtorsOnly(false);
     setHideOldDebt(false);
+    setSexoFilter([]);
+    setEdadMin("");
+    setEdadMax("");
+    setBajaDesde("");
+    setBajaHasta("");
+    setFallecidoDesde("");
+    setFallecidoHasta("");
   };
 
   const tipoSocioOptions = useMemo(() => {
@@ -308,7 +360,32 @@ const Members: React.FC = () => {
       const matchFuerza = !fuerzaFilter || m.fuerza === fuerzaFilter;
       const matchDebtor = !showDebtorsOnly || item.monthsOwed > 0 || item.noData;
       const matchOldDebt = !hideOldDebt || maxMonths <= 0 || item.monthsOwed <= maxMonths;
-      return matchSearch && matchEstado && matchPagaPor && matchTipoSocio && matchAsistencial && matchFuerza && matchDebtor && matchOldDebt;
+
+      const sex = (m.sexo || "").toUpperCase();
+      const matchSexo = sexoFilter.length === 0 || (sex === "M" && sexoFilter.includes("M")) || (sex === "F" && sexoFilter.includes("F"));
+
+      const age = calcAge(m.fechaNac);
+      const edadMinNum = toInt(edadMin);
+      const edadMaxNum = toInt(edadMax);
+      const matchEdad =
+        (edadMinNum === null && edadMaxNum === null) ||
+        (age !== null && (edadMinNum === null || age >= edadMinNum) && (edadMaxNum === null || age <= edadMaxNum));
+
+      const yBaja = m.fechaBaja ? (parseDateYMD(m.fechaBaja)?.getFullYear() ?? null) : null;
+      const bajaDesdeNum = toInt(bajaDesde);
+      const bajaHastaNum = toInt(bajaHasta);
+      const matchBajaAnio =
+        (bajaDesdeNum === null && bajaHastaNum === null) ||
+        (yBaja !== null && (bajaDesdeNum === null || yBaja >= bajaDesdeNum) && (bajaHastaNum === null || yBaja <= bajaHastaNum));
+
+      const deathTs = m.fallecido && m.fechaBaja ? (parseDateYMD(m.fechaBaja)?.getTime() ?? null) : null;
+      const fDesdeTs = fallecidoDesde ? (parseDateYMD(fallecidoDesde)?.getTime() ?? null) : null;
+      const fHastaTs = fallecidoHasta ? (parseDateYMD(fallecidoHasta)?.getTime() ?? null) : null;
+      const matchFallecido =
+        (fDesdeTs === null && fHastaTs === null) ||
+        (deathTs !== null && (fDesdeTs === null || deathTs >= fDesdeTs) && (fHastaTs === null || deathTs <= fHastaTs));
+
+      return matchSearch && matchEstado && matchPagaPor && matchTipoSocio && matchAsistencial && matchFuerza && matchDebtor && matchOldDebt && matchSexo && matchEdad && matchBajaAnio && matchFallecido;
     }).sort((a, b) => {
       if (bajaSortDir) {
         const da = a.member.fechaBaja ? parseDateYMD(a.member.fechaBaja)?.getTime() ?? null : null;
@@ -328,7 +405,7 @@ const Members: React.FC = () => {
       const nb = parseInt(b.member.numeroDeSocio.replace(/\D/g, ""), 10) || 0;
       return na - nb;
     });
-  }, [membersWithDebt, searchText, showActivos, showFallecidos, showBaja, pagaPorFilter, showDebtorsOnly, hideOldDebt, considerationYears, debtSortDir, tipoSocioFilter, asistencialFilter, fuerzaFilter, bajaSortDir]);
+  }, [membersWithDebt, searchText, showActivos, showFallecidos, showBaja, pagaPorFilter, showDebtorsOnly, hideOldDebt, considerationYears, debtSortDir, tipoSocioFilter, asistencialFilter, fuerzaFilter, bajaSortDir, sexoFilter, edadMin, edadMax, bajaDesde, bajaHasta, fallecidoDesde, fallecidoHasta]);
 
   const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
@@ -421,7 +498,8 @@ const Members: React.FC = () => {
         </div>
 
         {showMembersFilters && (
-          <div className="filters-bottom-row" style={{ marginTop: 8, flexWrap: "wrap" }}>
+          <>
+            <div className="filters-bottom-row" style={{ marginTop: 8, flexWrap: "wrap" }}>
             <div className="filter-group" ref={dropdownRef} style={{ position: "relative" }}>
               <span className="filter-group-label">Estado</span>
               <button
@@ -464,7 +542,7 @@ const Members: React.FC = () => {
                         }}
                         onMouseDown={(e) => e.preventDefault()}
                       >
-                        <input
+                        <input autoComplete="off"
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleEstado(opt.key)}
@@ -522,7 +600,7 @@ const Members: React.FC = () => {
                       }}
                       onMouseDown={(e) => e.preventDefault()}
                     >
-                      <input
+                      <input autoComplete="off"
                         type="checkbox"
                         checked={tipoSocioFilter.includes(opt)}
                         onChange={() => toggleTipoSocio(opt)}
@@ -535,9 +613,87 @@ const Members: React.FC = () => {
               )}
             </div>
 
+            <div className="filter-group" ref={sexoDropdownRef} style={{ position: "relative" }}>
+              <span className="filter-group-label">Sexo</span>
+              <button
+                className="filter-btn"
+                style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 130 }}
+                onClick={() => setSexoDropdownOpen((prev) => !prev)}
+              >
+                {sexoLabel}
+                <ChevronDown size={14} />
+              </button>
+              {sexoDropdownOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    marginTop: 4,
+                    background: "#fff",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    zIndex: 100,
+                    minWidth: 160,
+                    padding: "6px 0",
+                  }}
+                >
+                  {SEXO_OPTIONS.map((opt) => (
+                    <label
+                      key={opt.key}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 12px",
+                        cursor: "pointer",
+                        fontSize: 14,
+                        userSelect: "none",
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <input autoComplete="off"
+                        type="checkbox"
+                        checked={sexoFilter.includes(opt.key)}
+                        onChange={() => toggleSexo(opt.key)}
+                        style={{ accentColor: "var(--azul-institucional)" }}
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="filter-group">
+              <span className="filter-group-label">Edad</span>
+              <div className="filter-item-date" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input autoComplete="off"
+                  type="number"
+                  className="date-input"
+                  placeholder="Mín."
+                  min="0"
+                  value={edadMin}
+                  onChange={(e) => setEdadMin(e.target.value)}
+                  style={{ width: 90 }}
+                />
+                <span className="date-separator">–</span>
+                <input autoComplete="off"
+                  type="number"
+                  className="date-input"
+                  placeholder="Máx."
+                  min="0"
+                  value={edadMax}
+                  onChange={(e) => setEdadMax(e.target.value)}
+                  style={{ width: 90 }}
+                />
+              </div>
+            </div>
+
             <div className="filter-group">
               <span className="filter-group-label">Paga por</span>
-              <select
+              <select autoComplete="off"
                 className="filter-select"
                 value={pagaPorFilter}
                 onChange={(e) => setPagaPorFilter(e.target.value)}
@@ -551,7 +707,7 @@ const Members: React.FC = () => {
 
             <div className="filter-group">
               <span className="filter-group-label">Asistencial</span>
-              <select
+              <select autoComplete="off"
                 className="filter-select"
                 value={asistencialFilter}
                 onChange={(e) => setAsistencialFilter(e.target.value as "todos" | "si" | "no")}
@@ -564,7 +720,7 @@ const Members: React.FC = () => {
 
             <div className="filter-group">
               <span className="filter-group-label">Fuerza</span>
-              <select
+              <select autoComplete="off"
                 className="filter-select"
                 value={fuerzaFilter}
                 onChange={(e) => setFuerzaFilter(e.target.value)}
@@ -581,7 +737,7 @@ const Members: React.FC = () => {
               <label
                 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", userSelect: "none", minHeight: 34 }}
               >
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   checked={showDebtorsOnly}
                   onChange={(e) => setShowDebtorsOnly(e.target.checked)}
@@ -596,7 +752,7 @@ const Members: React.FC = () => {
               <label
                 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", userSelect: "none", minHeight: 34 }}
               >
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   checked={hideOldDebt}
                   onChange={(e) => setHideOldDebt(e.target.checked)}
@@ -606,6 +762,60 @@ const Members: React.FC = () => {
               </label>
             </div>
           </div>
+
+          {(showBaja || showFallecidos) && (
+            <div className="filters-bottom-row" style={{ marginTop: 8, flexWrap: "wrap" }}>
+              {showBaja && (
+                <div className="filter-group">
+                  <span className="filter-group-label">Año de baja</span>
+                  <div className="filter-item-date" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input autoComplete="off"
+                      type="number"
+                      className="date-input"
+                      placeholder="Desde"
+                      min="1900"
+                      max="2100"
+                      value={bajaDesde}
+                      onChange={(e) => setBajaDesde(e.target.value)}
+                      style={{ width: 90 }}
+                    />
+                    <span className="date-separator">–</span>
+                    <input autoComplete="off"
+                      type="number"
+                      className="date-input"
+                      placeholder="Hasta"
+                      min="1900"
+                      max="2100"
+                      value={bajaHasta}
+                      onChange={(e) => setBajaHasta(e.target.value)}
+                      style={{ width: 90 }}
+                    />
+                  </div>
+                </div>
+              )}
+              {showFallecidos && (
+                <div className="filter-group">
+                  <span className="filter-group-label">Fecha de fallecimiento</span>
+                  <div className="filter-item-date" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input autoComplete="off"
+                      type="date"
+                      className="date-input"
+                      value={fallecidoDesde}
+                      onChange={(e) => setFallecidoDesde(e.target.value)}
+                    />
+                    <span className="date-separator">–</span>
+                    <input autoComplete="off"
+                      type="date"
+                      className="date-input"
+                      value={fallecidoHasta}
+                      onChange={(e) => setFallecidoHasta(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          </>
         )}
       </div>
 
@@ -660,7 +870,7 @@ const Members: React.FC = () => {
               <tr>
                 {listaMode && (
                   <th style={{ width: 36 }}>
-                    <input
+                    <input autoComplete="off"
                       type="checkbox"
                       checked={paginated.length > 0 && paginated.every((i) => selectedListaIds.has(i.member.id))}
                       onChange={(e) => {
@@ -769,7 +979,7 @@ const Members: React.FC = () => {
                   >
                     {listaMode && (
                       <td style={{ textAlign: "center" }}>
-                        <input
+                        <input autoComplete="off"
                           type="checkbox"
                           checked={selectedListaIds.has(m.id)}
                           onChange={(e) => {
@@ -873,7 +1083,7 @@ const Members: React.FC = () => {
               <label style={{ display: "block", fontSize: 14, marginBottom: 6, fontWeight: 600 }}>
                 Nombre de la lista
               </label>
-              <input
+              <input autoComplete="off"
                 type="text"
                 value={listaName}
                 onChange={(e) => setListaName(e.target.value)}

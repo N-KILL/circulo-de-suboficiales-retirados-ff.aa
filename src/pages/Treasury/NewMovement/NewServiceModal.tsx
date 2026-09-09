@@ -35,7 +35,7 @@ const NewServiceModal: React.FC<NewServiceModalProps> = ({
         )}
         <div className="form-group">
           <label>Nombre <span className="required">*</span></label>
-          <input
+          <input autoComplete="off"
             type="text"
             className="form-control"
             placeholder="Nombre del servicio"
@@ -46,7 +46,7 @@ const NewServiceModal: React.FC<NewServiceModalProps> = ({
         <div className="form-group">
           <label>Costo <span className="required">*</span></label>
           <div className="input-with-icon">
-            <input
+            <input autoComplete="off"
               type="text"
               className="form-control"
               placeholder="0,00"

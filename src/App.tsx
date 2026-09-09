@@ -110,18 +110,18 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="socios/detalle/:id" element={<DetalleSocio />} />
-          <Route path="personas" element={<Persons />} />
-          <Route path="personas/nuevo" element={
+          <Route path="terceros" element={<Persons />} />
+          <Route path="terceros/nuevo" element={
             <ProtectedRoute allowedRoles={MEMBERS_EDITOR}>
               <NewPerson />
             </ProtectedRoute>
           } />
-          <Route path="personas/editar/:id" element={
+          <Route path="terceros/editar/:id" element={
             <ProtectedRoute allowedRoles={MEMBERS_EDITOR}>
               <NewPerson />
             </ProtectedRoute>
           } />
-          <Route path="personas/detalle/:id" element={<DetallePersona />} />
+          <Route path="terceros/detalle/:id" element={<DetallePersona />} />
           <Route path="configuracion" element={
             <ProtectedRoute allowedRoles={OWNER_OR_ADMIN}>
               <Config />

@@ -116,7 +116,7 @@ const DuesConfig: React.FC<DuesConfigProps> = (props) => {
             <div key={row.key} className="config-cemetery-row">
               <div className="config-cemetery-cell config-cemetery-row-label">{row.label}</div>
               <div className="config-cemetery-cell">
-                <input
+                <input autoComplete="off"
                   type="text"
                   className="config-input"
                   value={feeValues[row.key]}
@@ -139,13 +139,13 @@ const DuesConfig: React.FC<DuesConfigProps> = (props) => {
           <div className="config-cemetery-row">
             <div className="config-cemetery-cell config-cemetery-row-label">Asistencial</div>
             <div className="config-cemetery-cell">
-              <input type="text" className="config-input" value={asistencialFee} onChange={(e) => setAsistencialFee(e.target.value)} placeholder="0.00" />
+              <input autoComplete="off" type="text" className="config-input" value={asistencialFee} onChange={(e) => setAsistencialFee(e.target.value)} placeholder="0.00" />
             </div>
           </div>
           <div className="config-cemetery-row">
             <div className="config-cemetery-cell config-cemetery-row-label">Plan Salud</div>
             <div className="config-cemetery-cell">
-              <input type="text" className="config-input" value={planSaludFee} onChange={(e) => setPlanSaludFee(e.target.value)} placeholder="0.00" />
+              <input autoComplete="off" type="text" className="config-input" value={planSaludFee} onChange={(e) => setPlanSaludFee(e.target.value)} placeholder="0.00" />
             </div>
           </div>
         </div>
@@ -167,10 +167,10 @@ const DuesConfig: React.FC<DuesConfigProps> = (props) => {
             <div key={row.label} className="config-cemetery-row">
               <div className="config-cemetery-cell config-cemetery-row-label">{row.label}</div>
               <div className="config-cemetery-cell">
-                <input type="text" className="config-input" value={row.memberVal} onChange={(e) => row.memberSet(e.target.value)} placeholder="0.00" />
+                <input autoComplete="off" type="text" className="config-input" value={row.memberVal} onChange={(e) => row.memberSet(e.target.value)} placeholder="0.00" />
               </div>
               <div className="config-cemetery-cell">
-                <input type="text" className="config-input" value={row.nonMemberVal} onChange={(e) => row.nonMemberSet(e.target.value)} placeholder="0.00" />
+                <input autoComplete="off" type="text" className="config-input" value={row.nonMemberVal} onChange={(e) => row.nonMemberSet(e.target.value)} placeholder="0.00" />
               </div>
             </div>
           ))}
@@ -179,7 +179,7 @@ const DuesConfig: React.FC<DuesConfigProps> = (props) => {
 
       <div className="config-field">
         <label>Años de consideración</label>
-        <input type="number" className="config-input" value={considerationYears} onChange={(e) => setConsiderationYears(e.target.value)} min={0} max={9} step={1} placeholder="0" />
+        <input autoComplete="off" type="number" className="config-input" value={considerationYears} onChange={(e) => setConsiderationYears(e.target.value)} min={0} max={9} step={1} placeholder="0" />
       </div>
 
       {error && <div className="config-error">{error}</div>}

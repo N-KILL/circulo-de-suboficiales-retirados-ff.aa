@@ -13,7 +13,7 @@ export async function fetchAllPersons(): Promise<Person[]> {
 
         if (!response.ok) {
             const body = (await response.json().catch(() => null)) as { error?: string } | null;
-            throw new Error(body?.error ?? "No se pudieron cargar las personas");
+            throw new Error(body?.error ?? "No se pudieron cargar los terceros");
         }
 
         return response.json() as Promise<Person[]>;

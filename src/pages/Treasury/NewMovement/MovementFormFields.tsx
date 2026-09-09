@@ -84,7 +84,7 @@ const MovementFormFields: React.FC<MovementFormFieldsProps> = ({
           <label>
             Origen del Movimiento <span className="required">*</span>
           </label>
-          <select
+          <select autoComplete="off"
             className="form-control"
             value={cajaOrigen}
             onChange={(e) => onCajaOrigenChange(e.target.value as "caja_chica" | "banco")}
@@ -99,7 +99,7 @@ const MovementFormFields: React.FC<MovementFormFieldsProps> = ({
             Forma de Pago <span className="required">*</span>
           </label>
           <div className="input-with-icon">
-            <input type="text" className="form-control" value={formaPagoLabel} readOnly />
+            <input autoComplete="off" type="text" className="form-control" value={formaPagoLabel} readOnly />
             <CreditCard size={18} className="input-icon" />
           </div>
         </div>
@@ -108,13 +108,13 @@ const MovementFormFields: React.FC<MovementFormFieldsProps> = ({
           <label>
             Quien realiza el pago <span className="required">*</span>
           </label>
-          <select
+          <select autoComplete="off"
             className="form-control"
             value={personType}
             onChange={(e) => onPersonTypeChange(e.target.value as "socio" | "persona")}
           >
             <option value="socio">Socio</option>
-            <option value="persona">Persona</option>
+            <option value="persona">Tercero</option>
           </select>
         </div>
 
@@ -122,7 +122,7 @@ const MovementFormFields: React.FC<MovementFormFieldsProps> = ({
           <label>
             Concepto <span className="required">*</span>
           </label>
-          <select
+          <select autoComplete="off"
             className="form-control"
             value={concept}
             onChange={(e) => onConceptChange(e.target.value)}
@@ -139,7 +139,7 @@ const MovementFormFields: React.FC<MovementFormFieldsProps> = ({
               Servicio <span className="required">*</span>
             </label>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select
+              <select autoComplete="off"
                 className="form-control"
                 value={servicio}
                 onChange={(e) => onServicioChange(e.target.value)}
@@ -167,7 +167,7 @@ const MovementFormFields: React.FC<MovementFormFieldsProps> = ({
 
         <div className="form-group full-width">
           <label>
-            {personType === "socio" ? "Socio" : "Persona"} <span className="required">*</span>
+            {personType === "socio" ? "Socio" : "Tercero"} <span className="required">*</span>
           </label>
 
           {personType === "socio" ? (

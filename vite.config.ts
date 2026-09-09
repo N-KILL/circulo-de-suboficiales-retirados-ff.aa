@@ -23,6 +23,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isMembersFamily = pathname === "/api/members/family";
         const isMembersDebt = pathname === "/api/members/debt-status";
         const isPersons = pathname === "/api/persons";
+        const isServiceProviders = pathname === "/api/service-providers";
         const isMovements = pathname === "/api/movements";
         const isMovement = pathname === "/api/movement";
         const isMember = pathname === "/api/member";
@@ -49,7 +50,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
         const isReceiptCopiesConfig = pathname === "/api/receipt-copies-config";
         const isFrontendErrors = pathname === "/api/frontend-errors";
 
-        if (!isMembers && !isMembersSearch && !isMembersFamily && !isMembersDebt && !isPersons && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isDuesConfigHistory && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments && !isReceiptNext && !isComprobante && !isReceiptCopiesConfig && !isFrontendErrors) {
+        if (!isMembers && !isMembersSearch && !isMembersFamily && !isMembersDebt && !isPersons && !isServiceProviders && !isMovements && !isMovement && !isMember && !isPerson && !isPersonMembers && !isInitialBalances && !isPayment && !isCementerios && !isDues && !isDuesConfig && !isDuesConfigHistory && !isServices && !isServiceRecords && !isCementerioMovimientos && !isUsers && !isVitalicios && !isDebts && !isDebtsBalance && !isExternalServices && !isExternalServicePayments && !isReceiptNext && !isComprobante && !isReceiptCopiesConfig && !isFrontendErrors) {
           next();
           return;
         }
@@ -125,6 +126,14 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
               res.statusCode = 200;
               res.end(JSON.stringify(persons));
             }
+            return;
+          }
+
+          if (isServiceProviders && req.method === "GET") {
+            const { getServiceProviders } = await import("./src/database/personsRepository");
+            const providers = await getServiceProviders();
+            res.statusCode = 200;
+            res.end(JSON.stringify(providers));
             return;
           }
 
@@ -797,11 +806,6 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             if (req.method === "POST") {
               const body = JSON.parse(await collectBody(req));
               const { service_id, member_id, person_id, movement_id, amount, date, service_date, detail } = body;
-              if (!service_id) {
-                res.statusCode = 400;
-                res.end(JSON.stringify({ error: "Falta el parámetro service_id" }));
-                return;
-              }
               if (!date) {
                 res.statusCode = 400;
                 res.end(JSON.stringify({ error: "Falta el parámetro date" }));

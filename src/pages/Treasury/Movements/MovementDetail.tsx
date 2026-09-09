@@ -125,7 +125,7 @@ const MovementDetail: React.FC = () => {
                             <div className="detail-field" style={{ gridColumn: "1 / -1" }}><span className="detail-label due-label">Cuota vinculada</span><span className={`badge ${movement.linked_due!.type === "socio" ? "badge-ingreso" : "badge-egreso"}`}>{movement.linked_due!.type === "socio" ? "Cuota Socio" : "Cuota Cementerio"}</span></div>
                             {movement.linked_due!.period && movement.linked_due!.period.length > 0 && movement.linked_due!.type === "socio" && <div className="detail-field"><span className="detail-label">Periodo</span><span className="detail-value">{formatPeriodsDisplay(movement.linked_due!.period)}</span></div>}
                             {movement.linked_due!.member_nombre && <div className="detail-field"><span className="detail-label">Socio</span><span className="detail-value">{movement.linked_due!.member_nombre} <button className="btn-view-detail" type="button" onClick={() => navigate(`/socios/detalle/${movement.linked_due!.member_id}`)}><Eye size={14} /> Ver detalles</button></span></div>}
-                            {movement.linked_due!.person_nombre && <div className="detail-field"><span className="detail-label">Persona</span><span className="detail-value">{movement.linked_due!.person_nombre} <button className="btn-view-detail" type="button" onClick={() => navigate(`/personas/detalle/${movement.linked_due!.person_id}`)}><Eye size={14} /> Ver detalles</button></span></div>}
+                            {movement.linked_due!.person_nombre && <div className="detail-field"><span className="detail-label">Tercero</span><span className="detail-value">{movement.linked_due!.person_nombre} <button className="btn-view-detail" type="button" onClick={() => navigate(`/terceros/detalle/${movement.linked_due!.person_id}`)}><Eye size={14} /> Ver detalles</button></span></div>}
                             {movement.linked_due!.family_group && <div className="detail-field"><span className="detail-label">Grupo familiar</span><span className="detail-value">Nº {movement.linked_due!.family_group}</span></div>}
                             {paidMemberNames.length > 1 && (
                                 <div className="detail-field full-width">
@@ -142,11 +142,11 @@ const MovementDetail: React.FC = () => {
                             <div className="detail-field" style={{ gridColumn: "1 / -1" }}><span className="detail-label due-label">Servicios vinculados</span></div>
                             <div style={{ gridColumn: "1 / -1" }}>
                                 <table className="treasury-table" style={{ minWidth: 0 }}>
-                                    <thead><tr><th>Servicio</th><th>Titular</th><th>Importe</th><th>Fecha</th></tr></thead>
+                                    <thead><tr>{movement.type !== "egreso" && <th>Servicio</th>}<th>Titular</th><th>Importe</th><th>Fecha</th></tr></thead>
                                     <tbody>
                                         {movement.linked_service_records!.map((sr: ServiceRecordLink) => (
                                             <tr key={sr.id} className="clickable-row" onClick={() => setSelectedServiceRecord(sr)}>
-                                                <td>{sr.service_name ?? "\u2014"}</td>
+                                                {movement.type !== "egreso" && <td>{sr.service_name ?? "\u2014"}</td>}
                                                 <td>{sr.member_nombre ? `${sr.member_nombre}${sr.member_numero_de_socio ? ` (N\u00BA ${sr.member_numero_de_socio})` : ""}` : sr.person_nombre ?? "\u2014"}</td>
                                                 <td className="amount-ingreso">{toCurrency(sr.amount)}</td>
                                                 <td>{formatRecordDate(sr.date)}</td>
@@ -184,7 +184,14 @@ const MovementDetail: React.FC = () => {
                 </div>
             </div>
 
-            <ServiceRecordModal record={selectedServiceRecord} onClose={() => setSelectedServiceRecord(null)} />
+            <ServiceRecordModal
+                record={selectedServiceRecord}
+                onClose={() => setSelectedServiceRecord(null)}
+                onNavigateToTitular={(memberId, personId) => {
+                    if (memberId) navigate(`/socios/detalle/${memberId}`);
+                    else if (personId) navigate(`/terceros/detalle/${personId}`);
+                }}
+            />
 
             {showComprobante && movement.comprobante != null && (
                 <Comprobante
@@ -193,6 +200,7 @@ const MovementDetail: React.FC = () => {
                         type: movement.type as "ingreso" | "egreso",
                         date: movement.date,
                         detail: movement.comprobante.detail || movement.detail || "",
+                        conceptDetail: movement.type === "egreso" && movement.concept?.toLowerCase() === "servicios varios" ? "Pago por servicio brindado" : undefined,
                         amount: movement.amount,
                         origin: movement.mode === "efectivo" ? "Caja Chica" : "Banco",
                         payerName: movement.comprobante.payer_name ?? movement.linked_due?.member_nombre ?? movement.linked_due?.person_nombre ?? undefined,

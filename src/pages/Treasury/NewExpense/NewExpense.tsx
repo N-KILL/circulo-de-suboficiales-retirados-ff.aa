@@ -142,7 +142,7 @@ const NewExpense: React.FC = () => {
     const errs: FieldErrors = {};
     if (!concepto) errs.concepto = "Seleccioná un concepto";
     if (concepto === "Pago de servicio externo" && !selectedExtService) errs.concepto = "Seleccioná un servicio externo";
-    if (isServiciosVarios && !selectedProvider) errs.persona = "Seleccioná una persona que brinde servicios";
+    if (isServiciosVarios && !selectedProvider) errs.persona = "Seleccioná un tercero que brinde servicios";
     if (!fecha) errs.fecha = "Ingresá una fecha";
     if (!importeNum || importeNum <= 0) errs.importe = "Ingresá un importe válido mayor a cero";
     return errs;
@@ -213,6 +213,9 @@ const NewExpense: React.FC = () => {
           amount: importeNum,
           origin: originLabel,
           payerName: isServiciosVarios && selectedProvider ? selectedProvider.nombre : undefined,
+          conceptDetail: isServiciosVarios && selectedProvider
+            ? (descripcion ? `Pago por servicio brindado: ${descripcion}` : "Pago por servicio brindado")
+            : undefined,
           copies_to_print: receiptCopiesDefaults[concepto] ?? 1,
           paymentMethod: formaPagoLabel,
         });
@@ -273,7 +276,7 @@ const NewExpense: React.FC = () => {
                 <label>
                   Origen del Movimiento <span className="required">*</span>
                 </label>
-                <select
+                <select autoComplete="off"
                   className="form-control"
                   value={cajaOrigen}
                   onChange={(e) => setCajaOrigen(e.target.value as "caja_chica" | "banco")}
@@ -288,7 +291,7 @@ const NewExpense: React.FC = () => {
                   Forma de Pago <span className="required">*</span>
                 </label>
                 <div className="input-with-icon">
-                  <input type="text" className="form-control" value={formaPagoLabel} readOnly />
+                  <input autoComplete="off" type="text" className="form-control" value={formaPagoLabel} readOnly />
                   <CreditCard size={18} className="input-icon" />
                 </div>
               </div>
@@ -297,7 +300,7 @@ const NewExpense: React.FC = () => {
                 <label>
                   Concepto <span className="required">*</span>
                 </label>
-                <select
+                <select autoComplete="off"
                   className={`form-control${touched.concepto && errors.concepto ? " input-error" : ""}`}
                   value={concepto}
                   onChange={(e) => {
@@ -325,7 +328,7 @@ const NewExpense: React.FC = () => {
                   <label>
                     Servicio externo <span className="required">*</span>
                   </label>
-                  <select
+                  <select autoComplete="off"
                     className="form-control"
                     value={selectedExtService}
                     onChange={(e) => setSelectedExtService(e.target.value)}
@@ -341,7 +344,7 @@ const NewExpense: React.FC = () => {
               {isServiciosVarios && (
                 <div className="form-group full-width">
                   <label>
-                    Persona que brinda el servicio <span className="required">*</span>
+                    Tercero que brinda el servicio <span className="required">*</span>
                   </label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <div style={{ flex: 2, minWidth: 0 }}>
@@ -352,7 +355,7 @@ const NewExpense: React.FC = () => {
                         results={providerResults}
                         selected={selectedProvider}
                         onSelect={(p) => { setSelectedProvider(p as Person); setProviderSearch((p as Person).nombre); setShowProviderDropdown(false); setErrors((prev) => { const next = { ...prev }; delete next.persona; return next; }); }}
-                        onClear={() => { setSelectedProvider(null); setProviderSearch(""); setTouched((prev) => ({ ...prev, persona: true })); setErrors((prev) => ({ ...prev, persona: "Seleccioná una persona que brinde servicios" })); }}
+                        onClear={() => { setSelectedProvider(null); setProviderSearch(""); setTouched((prev) => ({ ...prev, persona: true })); setErrors((prev) => ({ ...prev, persona: "Seleccioná un tercero que brinde servicios" })); }}
                         showDropdown={showProviderDropdown}
                         onShowDropdown={setShowProviderDropdown}
                         loading={!providersFetched}
@@ -365,11 +368,11 @@ const NewExpense: React.FC = () => {
                       type="button"
                       className="add-service-btn"
                       style={{ flex: 1, minWidth: 0, width: "auto", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap", padding: "0 10px", height: 38, fontSize: 13, fontWeight: 600, lineHeight: 1, overflow: "hidden" }}
-                      title="Agregar o modificar persona"
+                      title="Agregar o modificar tercero"
                       onClick={() => setShowProviderModal(true)}
                     >
                       <Plus size={15} style={{ flexShrink: 0 }} />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>Persona</span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>Tercero</span>
                     </button>
                   </div>
                 </div>
@@ -393,7 +396,7 @@ const NewExpense: React.FC = () => {
                   Importe <span className="required">*</span>
                 </label>
                 <div className="input-with-icon">
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     className={`form-control${touched.importe && errors.importe ? " input-error" : ""}`}
                     placeholder="0,00"
@@ -416,7 +419,7 @@ const NewExpense: React.FC = () => {
 
               <div className="form-group full-width">
                 <label>Descripción / Observaciones</label>
-                <textarea
+                <textarea autoComplete="off"
                   className="form-control text-area"
                   placeholder="Detalle del egreso..."
                   rows={3}

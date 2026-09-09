@@ -86,7 +86,7 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
       setShowDropdown(false);
       setMode("edit");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al cargar la persona");
+      setError(err instanceof Error ? err.message : "Error al cargar el tercero");
     } finally {
       setLoading(false);
     }
@@ -106,14 +106,14 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
       onPersonSaved(personToSave);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al guardar la persona");
+      setError(err instanceof Error ? err.message : "Error al guardar el tercero");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal isOpen onClose={onClose} title={mode === "add" ? "Agregar persona" : "Modificar persona"} maxWidth={520}>
+    <Modal isOpen onClose={onClose} title={mode === "add" ? "Agregar tercero" : "Modificar tercero"} maxWidth={520}>
       <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 16, padding: 20 }}>
         <div style={{ display: "flex", gap: 8 }}>
           <button
@@ -142,10 +142,10 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
 
         {mode === "edit" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <label>Buscar persona para modificar</label>
+            <label>Buscar tercero para modificar</label>
             <div style={{ position: "relative" }}>
               <div className="input-with-icon">
-                <input
+                <input autoComplete="off"
                   type="text"
                   className="form-control"
                   placeholder="Buscar por nombre o documento..."
@@ -186,7 +186,7 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
         <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="form-group">
             <label>Nombre y Apellido <span className="required">*</span></label>
-            <input
+            <input autoComplete="off"
               type="text"
               className="form-control"
               value={form.nombre}
@@ -196,7 +196,7 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div className="form-group">
               <label>Tipo de Documento</label>
-              <select
+              <select autoComplete="off"
                 className="form-control"
                 value={form.tipoDoc}
                 onChange={(e) => handleField("tipoDoc", e.target.value)}
@@ -209,7 +209,7 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
             </div>
             <div className="form-group">
               <label>Documento</label>
-              <input
+              <input autoComplete="off"
                 type="text"
                 className="form-control"
                 value={form.documento}
@@ -219,7 +219,7 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
           </div>
           <div className="form-group">
             <label>Domicilio</label>
-            <input
+            <input autoComplete="off"
               type="text"
               className="form-control"
               value={form.domicilio}
@@ -228,7 +228,7 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
           </div>
           <div className="form-group">
             <label>Teléfono</label>
-            <input
+            <input autoComplete="off"
               type="text"
               className="form-control"
               value={form.telefono}
@@ -240,7 +240,7 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
             className="form-group"
             style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--azul-institucional-soft, #eef4fb)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px" }}
           >
-            <input
+            <input autoComplete="off"
               type="checkbox"
               checked={Boolean(form.brindaServicios)}
               onChange={(e) => handleField("brindaServicios", e.target.checked)}
@@ -253,7 +253,7 @@ const ProviderPersonModalContent: React.FC<ContentProps> = ({ onClose, onPersonS
 
           {mode === "edit" && (
             <div style={{ fontSize: 13, color: "var(--muted, #6b7280)", background: "#fff8e1", border: "1px solid #f0d98c", borderRadius: 8, padding: "10px 12px" }}>
-              Al guardar, esta persona quedará marcada como que <strong>brinda servicios</strong>.
+              Al guardar, este tercero quedará marcado como que <strong>brinda servicios</strong>.
             </div>
           )}
 

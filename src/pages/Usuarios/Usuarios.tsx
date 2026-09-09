@@ -119,7 +119,7 @@ const Usuarios: React.FC = () => {
                                 <td>{u.email}</td>
                                 <td>
                                     {editingId === u.auth_user_id ? (
-                                        <select
+                                        <select autoComplete="off"
                                             className="usuarios-role-select"
                                             value={editRole}
                                             onChange={(e) => setEditRole(e.target.value as AppRole)}

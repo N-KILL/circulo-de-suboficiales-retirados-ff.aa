@@ -109,7 +109,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
       <div className="config-cemetery-header">
         <div className="config-cemetery-cell config-cemetery-label">{title}</div>
         {showTarget && <div className="config-cemetery-cell config-cemetery-col-header">Socios</div>}
-        {showTarget && <div className="config-cemetery-cell config-cemetery-col-header">Personas</div>}
+        {showTarget && <div className="config-cemetery-cell config-cemetery-col-header">Terceros</div>}
         <div className="config-cemetery-cell config-cemetery-col-header">Copias</div>
         <div className="config-cemetery-cell config-cemetery-col-header">Activo</div>
         <div className="config-cemetery-cell config-cemetery-col-header"></div>
@@ -121,7 +121,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
         return (
           <div key={c.id} className="config-cemetery-row" style={{ opacity: c.active ? 1 : 0.5, alignItems: "center" }}>
             <div className="config-cemetery-cell config-cemetery-row-label">
-              <input
+              <input autoComplete="off"
                 type="text"
                 className="config-input"
                 value={c.name}
@@ -134,7 +134,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
             </div>
             {showTarget && (
               <div className="config-cemetery-cell" style={{ justifyContent: "center" }}>
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   checked={isSocios}
                   onChange={(e) => updateTarget(c.id, "socios", e.target.checked)}
@@ -146,7 +146,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
             )}
             {showTarget && (
               <div className="config-cemetery-cell" style={{ justifyContent: "center" }}>
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   checked={isPersonas}
                   onChange={(e) => updateTarget(c.id, "personas", e.target.checked)}
@@ -157,7 +157,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
               </div>
             )}
             <div className="config-cemetery-cell">
-              <select
+              <select autoComplete="off"
                 className="config-input"
                 value={c.copies_to_print}
                 onChange={(e) => updateConcept(c.id, "copies_to_print", parseInt(e.target.value, 10))}
@@ -168,7 +168,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
               </select>
             </div>
             <div className="config-cemetery-cell" style={{ justifyContent: "center" }}>
-              <input
+              <input autoComplete="off"
                 type="checkbox"
                 checked={c.active}
                 onChange={(e) => updateConcept(c.id, "active", e.target.checked)}
@@ -223,7 +223,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
         </div>
         <div className="config-cemetery-row" style={{ alignItems: "center" }}>
           <div className="config-cemetery-cell">
-            <select
+            <select autoComplete="off"
               className="config-input"
               value={newType}
               onChange={(e) => setNewType(e.target.value as "ingreso" | "egreso")}
@@ -233,7 +233,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
             </select>
           </div>
           <div className="config-cemetery-cell">
-            <input
+            <input autoComplete="off"
               type="text"
               className="config-input"
               value={newName}
@@ -245,7 +245,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
             <>
               <div className="config-cemetery-cell" style={{ justifyContent: "center" }}>
                 <label style={{ fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                  <input
+                  <input autoComplete="off"
                     type="checkbox"
                     checked={newTargetSocios}
                     onChange={(e) => setNewTargetSocios(e.target.checked)}
@@ -257,20 +257,20 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
               </div>
               <div className="config-cemetery-cell" style={{ justifyContent: "center" }}>
                 <label style={{ fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                  <input
+                  <input autoComplete="off"
                     type="checkbox"
                     checked={newTargetPersonas}
                     onChange={(e) => setNewTargetPersonas(e.target.checked)}
                     disabled={newTargetPersonasDisabled}
                     style={{ cursor: "pointer" }}
                   />
-                  Personas
+Terceros
                 </label>
               </div>
             </>
           )}
           <div className="config-cemetery-cell">
-            <select
+            <select autoComplete="off"
               className="config-input"
               value={newCopies}
               onChange={(e) => setNewCopies(parseInt(e.target.value, 10))}

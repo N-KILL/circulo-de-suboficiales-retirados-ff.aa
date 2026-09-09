@@ -27,7 +27,7 @@ const FamilyPaymentSection: React.FC<FamilyPaymentSectionProps> = ({
   return (
     <div className="family-payment-section">
       <label className="checkbox-label">
-        <input
+        <input autoComplete="off"
           type="checkbox"
           checked={familyPayment}
           onChange={(e) => onFamilyPaymentChange(e.target.checked)}
@@ -46,7 +46,7 @@ const FamilyPaymentSection: React.FC<FamilyPaymentSectionProps> = ({
             const isDisabled = (paysByHaberes && !isPayer) || exempt;
             return (
               <label key={fm.id} className={`family-member-item${isPayer ? " family-member-payer" : ""}${isDisabled ? " family-member-disabled" : ""}`}>
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   checked={isSelected}
                   disabled={isDisabled}

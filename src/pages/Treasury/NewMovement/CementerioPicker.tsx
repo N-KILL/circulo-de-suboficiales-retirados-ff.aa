@@ -54,7 +54,7 @@ const CementerioPicker: React.FC<CementerioPickerProps> = ({
                 className={`cementerio-selectable-card${isSelected ? " cementerio-card-selected" : ""}`}
               >
                 <label className="cementerio-card-header">
-                  <input
+                  <input autoComplete="off"
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => onToggleSelection(c)}

@@ -37,7 +37,7 @@ export const usePersonsListStore = create<PersonsListState>((set, get) => ({
                 error:
                     error instanceof Error
                         ? error.message
-                        : "Error al cargar personas",
+                        : "Error al cargar terceros",
             });
         }
     },

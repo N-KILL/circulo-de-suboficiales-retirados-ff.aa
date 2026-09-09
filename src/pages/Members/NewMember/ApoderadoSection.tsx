@@ -83,7 +83,7 @@ const ApoderadoSection: React.FC<ApoderadoSectionProps> = ({
       ) : (
         <div className="search-wrapper">
           <div className="input-with-icon">
-            <input
+            <input autoComplete="off"
               className="search-input"
               placeholder="Buscar por nombre o DNI..."
               value={searchValue}

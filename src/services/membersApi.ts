@@ -51,7 +51,7 @@ export async function fetchPersons(query: string): Promise<Person[]> {
 
     if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Error al buscar personas");
+        throw new Error(body?.error ?? "Error al buscar terceros");
     }
 
     return response.json() as Promise<Person[]>;

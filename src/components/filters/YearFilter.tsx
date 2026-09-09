@@ -39,7 +39,7 @@ const YearFilter: React.FC<YearFilterProps> = ({
           <div className="multi-select-dropdown">
             {availableYears.map((y) => (
               <label key={y} className={`multi-select-option ${selectedYears.includes(y) ? "active" : ""}`}>
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   checked={selectedYears.includes(y)}
                   onChange={() => onToggleYear(y)}

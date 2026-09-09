@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Search, UserPlus } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TablePagination from "../../components/TablePagination/TablePagination";
@@ -20,6 +20,8 @@ const Persons: React.FC = () => {
   const setCurrentPage = usePersonsListStore((s) => s.setCurrentPage);
   const setRowsPerPage = usePersonsListStore((s) => s.setRowsPerPage);
 
+  const [sortBy, setSortBy] = useState<"nombre" | "brindaServicios" | "noBrindaServicios">("nombre");
+
   useEffect(() => {
     void loadPersons();
   }, [loadPersons, location.key]);
@@ -35,11 +37,33 @@ const Persons: React.FC = () => {
     );
   }, [allPersons, searchText]);
 
-  const totalItems = filtered.length;
+  const sorted = useMemo(() => {
+    const list = [...filtered];
+    if (sortBy === "brindaServicios") {
+      list.sort((a, b) => {
+        const av = a.brindaServicios ? 1 : 0;
+        const bv = b.brindaServicios ? 1 : 0;
+        if (av !== bv) return bv - av;
+        return a.nombre.localeCompare(b.nombre);
+      });
+    } else if (sortBy === "noBrindaServicios") {
+      list.sort((a, b) => {
+        const av = a.brindaServicios ? 1 : 0;
+        const bv = b.brindaServicios ? 1 : 0;
+        if (av !== bv) return av - bv;
+        return a.nombre.localeCompare(b.nombre);
+      });
+    } else {
+      list.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }
+    return list;
+  }, [filtered, sortBy]);
+
+  const totalItems = sorted.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * rowsPerPage;
-  const paginated = filtered.slice(startIndex, startIndex + rowsPerPage);
+  const paginated = sorted.slice(startIndex, startIndex + rowsPerPage);
 
   return (
     <div className="treasury-container">
@@ -47,23 +71,37 @@ const Persons: React.FC = () => {
         <h2></h2>
         <button
           className="header-btn"
-          onClick={() => navigate("/personas/nuevo")}
+          onClick={() => navigate("/terceros/nuevo")}
         >
           <UserPlus size={16} />
-          Agregar persona
+          Agregar tercero
         </button>
       </div>
 
       <div className="filters-bar">
         <div className="search-wrapper">
           <Search size={16} className="search-icon" />
-          <input
+          <input autoComplete="off"
             type="text"
             className="search-input"
             placeholder="Buscar por nombre, documento o teléfono..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
+        </div>
+        <div className="filter-item" style={{ marginLeft: "auto", width: 240 }}>
+          <select
+            className="filter-select"
+            value={sortBy}
+            onChange={(e) => {
+              setSortBy(e.target.value as typeof sortBy);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="nombre">Ordenar por nombre</option>
+            <option value="brindaServicios">Brinda servicios (primero)</option>
+            <option value="noBrindaServicios">Brinda servicios (último)</option>
+          </select>
         </div>
       </div>
 
@@ -92,7 +130,7 @@ const Persons: React.FC = () => {
               {isLoading ? (
                 <tr>
                   <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
-                    Cargando personas...
+                    Cargando terceros...
                   </td>
                 </tr>
               ) : error ? (
@@ -104,14 +142,14 @@ const Persons: React.FC = () => {
               ) : paginated.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>
-                    No se encontraron personas.
+                    No se encontraron terceros.
                   </td>
                 </tr>
               ) : (
                 paginated.map((p) => (
                   <tr
                     key={p.id}
-                    onClick={() => navigate(`/personas/editar/${p.id}`)}
+                    onClick={() => navigate(`/terceros/editar/${p.id}`)}
                     style={{ cursor: "pointer" }}
                   >
                     <td>{p.nombre}</td>
@@ -131,7 +169,7 @@ const Persons: React.FC = () => {
           currentPage={safePage}
           totalItems={totalItems}
           rowsPerPage={rowsPerPage}
-          itemLabel="personas"
+          itemLabel="terceros"
           onPageChange={(p) => setCurrentPage(Math.min(Math.max(1, p), totalPages))}
           onRowsPerPageChange={setRowsPerPage}
         />

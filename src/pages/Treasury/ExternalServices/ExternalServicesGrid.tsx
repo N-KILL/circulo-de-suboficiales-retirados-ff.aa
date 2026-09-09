@@ -307,7 +307,7 @@ const ExternalServicesGrid: React.FC = () => {
         <div className="ext-svc-filters">
           <div className="ext-svc-search">
             <Search size={14} />
-            <input
+            <input autoComplete="off"
               type="text"
               placeholder="Buscar servicio..."
               value={searchText}
@@ -315,7 +315,7 @@ const ExternalServicesGrid: React.FC = () => {
             />
           </div>
           <label className="ext-svc-inactive-toggle">
-            <input
+            <input autoComplete="off"
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
@@ -387,7 +387,7 @@ const ExternalServicesGrid: React.FC = () => {
                           <td key={month} className={`ext-svc-td-cell ${cellClass}`}>
                             {isEditing ? (
                               <div className="ext-svc-editing">
-                                <input
+                                <input autoComplete="off"
                                   type="text"
                                   className="ext-svc-amount-input"
                                   placeholder="Monto"
@@ -494,7 +494,7 @@ const ExternalServicesGrid: React.FC = () => {
             </p>
             <div className="ext-svc-modal-date">
               <label>Fecha del movimiento:</label>
-              <input
+              <input autoComplete="off"
                 type="date"
                 value={currentPending.date}
                 onChange={(e) => handleMovementDateChange(e.target.value)}

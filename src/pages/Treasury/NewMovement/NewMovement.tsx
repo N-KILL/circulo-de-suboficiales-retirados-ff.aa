@@ -227,7 +227,7 @@ const NewMovement: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     fetchMembers()
-      .then((data) => { if (mounted) { setMembers(data); setMembersLoading(false); } })
+      .then((data) => { if (mounted) { setMembers(Array.isArray(data) ? data : []); setMembersLoading(false); } })
       .catch(() => { if (mounted) setMembersLoading(false); });
     return () => { mounted = false; };
   }, []);
@@ -235,7 +235,7 @@ const NewMovement: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     fetchAllPersons()
-      .then((data) => { if (mounted) { setPersons(data); setPersonsLoading(false); } })
+      .then((data) => { if (mounted) { setPersons(Array.isArray(data) ? data : []); setPersonsLoading(false); } })
       .catch(() => { if (mounted) setPersonsLoading(false); });
     return () => { mounted = false; };
   }, []);
@@ -727,7 +727,7 @@ const NewMovement: React.FC = () => {
   const mode = cajaOrigen === "caja_chica" ? "efectivo" : "transferencia";
 
   const memberResults = useMemo(() => {
-    let list = members.filter((m) => !m.fechaBaja);
+    let list = (members ?? []).filter((m) => !m.fechaBaja);
     if (concept === "Cuota Socio") {
       list = list.filter((m) => !m.fallecido && (m.pagaPor || "").toUpperCase() === "TES");
     } else if (concept === "Cementerio" && cementerioOwnerIds) {
@@ -742,10 +742,10 @@ const NewMovement: React.FC = () => {
   }, [members, memberSearch, concept, cementerioOwnerIds]);
 
   const personResults = useMemo(() => {
-    let list = persons;
+    let list = persons ?? [];
     if (concept === "Cementerio" && cementerioOwnerIds) {
       const ids = new Set(cementerioOwnerIds.personIds);
-      list = persons.filter((p) => ids.has(p.id));
+      list = (persons ?? []).filter((p) => ids.has(p.id));
     }
     if (personSearch.trim()) {
       const q = personSearch.toLowerCase();
@@ -761,7 +761,7 @@ const NewMovement: React.FC = () => {
   const validate = useCallback((): FieldErrors => {
     const errs: FieldErrors = {};
     if (personType === "socio" && !selectedMember) errs.socio = "Seleccioná un socio";
-    if (personType === "persona" && !selectedPerson) errs.persona = "Seleccioná una persona";
+    if (personType === "persona" && !selectedPerson) errs.persona = "Seleccioná un tercero";
     if (!fecha) errs.fecha = "Ingresá una fecha";
     if (shouldCreateDue && concept === "Cuota Socio" && periods.length === 0) errs.period = "Seleccioná al menos un mes";
     if (concept === "Cementerio" && selectedCementerios.length === 0) errs.period = "Seleccioná al menos un nicho/urna/bolsa";
@@ -810,7 +810,7 @@ const NewMovement: React.FC = () => {
     setSelectedPerson(null);
     setPersonSearch("");
     setTouched((prev) => ({ ...prev, persona: true }));
-    setErrors((prev) => ({ ...prev, persona: "Seleccioná una persona" }));
+    setErrors((prev) => ({ ...prev, persona: "Seleccioná un tercero" }));
   }, []);
 
   const handleToggleFamilyMember = useCallback((fmId: string) => {
@@ -867,7 +867,7 @@ const NewMovement: React.FC = () => {
   const payerName = personType === "socio" ? selectedMember?.nombre ?? "" : selectedPerson?.nombre ?? "";
   const originLabel = cajaOrigen === "caja_chica" ? "Caja Chica" : "Banco";
   const formaPagoLabel = mode === "efectivo" ? "Efectivo" : "Transferencia";
-  const personTypeLabel = personType === "socio" ? "Socio" : "Persona";
+  const personTypeLabel = personType === "socio" ? "Socio" : "Tercero";
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -1180,7 +1180,7 @@ const NewMovement: React.FC = () => {
                     Importe <span className="required">*</span>
                   </label>
                   <div className="input-with-icon">
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       className={`form-control${touched.importe && errors.importe ? " input-error" : ""}`}
                       placeholder="0,00"
@@ -1204,7 +1204,7 @@ const NewMovement: React.FC = () => {
                 {hasAmountDifference && (
                   <div className="form-group account-check-group">
                     <label className="account-check-label">
-                      <input
+                      <input autoComplete="off"
                         type="checkbox"
                         checked={anotarEnCuenta}
                         onChange={(e) => setAnotarEnCuenta(e.target.checked)}
@@ -1221,7 +1221,7 @@ const NewMovement: React.FC = () => {
 
                 <div className="form-group">
                   <label>Descripción / Observaciones</label>
-                  <textarea
+                  <textarea autoComplete="off"
                     className="form-control text-area"
                     placeholder="Detalle del movimiento..."
                     rows={3}

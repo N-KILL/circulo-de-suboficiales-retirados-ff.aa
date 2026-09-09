@@ -40,7 +40,7 @@ const DateInput: React.FC<DateInputProps> = ({
         </label>
       )}
       <div className="input-with-icon date-input-wrap">
-        <input
+        <input autoComplete="off"
           ref={inputRef}
           type="date"
           className={`form-control${touched && error ? " input-error" : ""}`}

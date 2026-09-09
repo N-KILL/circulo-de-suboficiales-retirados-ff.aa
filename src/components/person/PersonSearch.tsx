@@ -39,14 +39,14 @@ const PersonSearch: React.FC<PersonSearchProps> = ({
 
   const placeholder = type === "socio"
     ? (loading ? "Cargando socios..." : "Buscar socio por nombre o DNI...")
-    : (loading ? "Cargando personas..." : "Buscar persona por nombre o DNI...");
+    : (loading ? "Cargando terceros..." : "Buscar tercero por nombre o DNI...");
 
   const isError = touched && !!error;
 
   return (
     <div className="member-search-wrapper" ref={wrapperRef}>
       <div className="input-with-icon">
-        <input
+        <input autoComplete="off"
           type="text"
           className={`form-control${isError ? " input-error" : ""}`}
           placeholder={placeholder}

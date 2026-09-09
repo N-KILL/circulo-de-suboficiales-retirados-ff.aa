@@ -93,7 +93,7 @@ const ServiceHistory: React.FC = () => {
                         <span className="filter-group-label">Buscar</span>
                         <div className="search-wrapper" style={{ width: "100%", minWidth: 0, marginRight: 0 }}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="search-icon"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                            <input type="text" className="search-input" placeholder="Buscar por servicio, titular o detalle..." value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+                            <input autoComplete="off" type="text" className="search-input" placeholder="Buscar por servicio, titular o detalle..." value={searchText} onChange={(e) => setSearchText(e.target.value)} />
                         </div>
                     </div>
                 }
@@ -141,6 +141,10 @@ const ServiceHistory: React.FC = () => {
                 record={selectedRecord}
                 onClose={() => setSelectedRecord(null)}
                 onNavigateToMovement={(movementId) => navigate(`/tesoreria/movimientos/detalle/${movementId}`)}
+                onNavigateToTitular={(memberId, personId) => {
+                    if (memberId) navigate(`/socios/detalle/${memberId}`);
+                    else if (personId) navigate(`/terceros/detalle/${personId}`);
+                }}
             />
         </div>
     );

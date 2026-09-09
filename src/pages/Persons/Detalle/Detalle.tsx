@@ -100,23 +100,23 @@ const DetallePersona: React.FC = () => {
   if (loading) {
     return (
       <div className="dashboard-loading">
-        <Loader size={24} className="spin" /> Cargando persona...
+        <Loader size={24} className="spin" /> Cargando tercero...
       </div>
     );
   }
 
   if (error || !person) {
-    return <div className="dashboard-loading" style={{ color: "var(--rojo-alerta)" }}>{error || "Persona no encontrada"}</div>;
+    return <div className="dashboard-loading" style={{ color: "var(--rojo-alerta)" }}>{error || "Tercero no encontrado"}</div>;
   }
 
   return (
     <div className="detalle-container">
       <div className="detalle-actions-row">
-        <button className="btn-back" onClick={() => navigate("/personas")}>
-          <ArrowLeft size={18} /> Volver a Personas
+        <button className="btn-back" onClick={() => navigate("/terceros")}>
+          <ArrowLeft size={18} /> Volver a Terceros
         </button>
-        <button className="btn-register-period" onClick={() => navigate(`/personas/editar/${id}`)}>
-          <Pencil size={16} /> Editar persona
+        <button className="btn-register-period" onClick={() => navigate(`/terceros/editar/${id}`)}>
+          <Pencil size={16} /> Editar tercero
         </button>
       </div>
 

@@ -75,11 +75,11 @@ const ServicesConfig: React.FC<ServicesConfigProps> = ({ initialServices }) => {
       <form onSubmit={handleSubmit} className="config-form">
         <div className="config-field">
           <label>{editServiceId ? "Nombre del servicio" : "Nuevo servicio"}</label>
-          <input type="text" className="config-input" value={svcName} onChange={(e) => setSvcName(e.target.value)} placeholder="Nombre del servicio" />
+          <input autoComplete="off" type="text" className="config-input" value={svcName} onChange={(e) => setSvcName(e.target.value)} placeholder="Nombre del servicio" />
         </div>
         <div className="config-field">
           <label>Costo</label>
-          <input type="text" className="config-input" value={svcAmount} onChange={(e) => setSvcAmount(e.target.value)} placeholder="0.00" />
+          <input autoComplete="off" type="text" className="config-input" value={svcAmount} onChange={(e) => setSvcAmount(e.target.value)} placeholder="0.00" />
         </div>
         {error && <div className="config-error">{error}</div>}
         <div className="config-form-actions">
@@ -99,7 +99,7 @@ const ServicesConfig: React.FC<ServicesConfigProps> = ({ initialServices }) => {
           <div className="svc-list-toolbar">
             <div className="svc-list-search">
               <Search size={14} />
-              <input
+              <input autoComplete="off"
                 type="text"
                 placeholder="Buscar..."
                 value={searchText}
@@ -108,7 +108,7 @@ const ServicesConfig: React.FC<ServicesConfigProps> = ({ initialServices }) => {
             </div>
             <div className="svc-list-sort">
               <ArrowUpDown size={14} />
-              <select value={`${sortField}-${sortDir}`} onChange={(e) => {
+              <select autoComplete="off" value={`${sortField}-${sortDir}`} onChange={(e) => {
                 const [field, dir] = e.target.value.split("-");
                 setSortField(field as "name" | "amount");
                 setSortDir(dir as "asc" | "desc");

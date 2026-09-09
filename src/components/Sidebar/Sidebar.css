@@ -53,12 +53,93 @@
   display: none;
 }
 
+.sidebar.collapsed .sidebar-submenu-collapsed {
+  display: none;
+}
+
+.sidebar.collapsed.expanded {
+  width: 260px;
+  min-width: 260px;
+  padding: 20px;
+}
+
+.sidebar.collapsed.expanded .sidebar-brand {
+  padding-bottom: 16px;
+}
+
+.sidebar.collapsed.expanded .sidebar-brand-text {
+  display: block;
+}
+
+.sidebar.collapsed.expanded .sidebar-logo-img {
+  width: 70px;
+  height: 70px;
+}
+
+.sidebar.collapsed.expanded .sidebar-link {
+  justify-content: flex-start;
+  padding: 10px 14px;
+}
+
+.sidebar.collapsed.expanded .sidebar-label {
+  display: block;
+}
+
+.sidebar.collapsed.expanded .sidebar-link-inner {
+  gap: 10px;
+}
+
+.sidebar.collapsed.expanded .sidebar-chevron {
+  display: flex;
+}
+
+.sidebar.collapsed.expanded .sidebar-submenu {
+  display: flex;
+}
+
+.sidebar.collapsed.expanded .sidebar-user-info {
+  display: block;
+}
+
+.sidebar.collapsed.expanded .sidebar-footer {
+  justify-content: space-between;
+}
+
 .sidebar.collapsed .sidebar-footer {
   justify-content: center;
 }
 
 .sidebar.collapsed .sidebar-user-info {
   display: none;
+}
+
+/* Collapsed submenu with icons */
+.sidebar-submenu-collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0 10px;
+}
+
+.sidebar-submenu-icon-link {
+  color: rgba(255, 255, 255, 0.6);
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.sidebar-submenu-icon-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.sidebar-submenu-icon-link.active-submenu {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* Brand */
@@ -240,6 +321,32 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sidebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-logout-btn {

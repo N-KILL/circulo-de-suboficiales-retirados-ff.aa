@@ -33,9 +33,9 @@ const Transactions: React.FC<{ selectedCaja: string }> = ({ selectedCaja }) => {
               <div className="txn-left">
                 <div className="txn-icon">
                   {isIngreso ? (
-                    <ArrowDown size={18} />
-                  ) : isEgreso ? (
                     <ArrowUp size={18} />
+                  ) : isEgreso ? (
+                    <ArrowDown size={18} />
                   ) : (
                     <ArrowLeftRight size={18} />
                   )}

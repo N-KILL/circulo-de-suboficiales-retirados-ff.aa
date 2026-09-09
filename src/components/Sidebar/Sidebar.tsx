@@ -10,6 +10,12 @@ import {
   ChevronDown,
   User,
   LogOut,
+  ArrowRightLeft,
+  ArrowUp,
+  ArrowDown,
+  History,
+  Building2,
+  Cross,
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import logo from "../../assets/logo_ffaa-bg.png";
@@ -17,6 +23,8 @@ import "./Sidebar.css";
 
 interface SidebarProps {
   collapsed?: boolean;
+  isHovering?: boolean;
+  onHoverChange?: (hovering: boolean) => void;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -25,7 +33,11 @@ const ROLE_LABELS: Record<string, string> = {
   secretario: "Secretario/a",
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  collapsed = false,
+  isHovering = false,
+  onHoverChange,
+}) => {
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -43,13 +55,27 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
     navigate("/login", { replace: true });
   };
 
+  const handleMouseEnter = () => {
+    onHoverChange?.(true);
+    if (collapsed) {
+      setOpenSubmenus((prev) => ({
+        ...prev,
+        "/tesoreria/dashboard": true,
+      }));
+    }
+  };
+
+  const handleMouseLeave = () => {
+    onHoverChange?.(false);
+  };
+
   const links = [
     { to: "/", label: "Inicio", icon: Home },
     ...(!isSecretario ? [
       { to: "/tesoreria/dashboard", label: "Tesorería", icon: Landmark, hasSubmenu: true },
     ] : []),
     { to: "/socios", label: "Socios", icon: Users },
-    { to: "/personas", label: "Personas", icon: User },
+    { to: "/terceros", label: "Terceros", icon: User },
     ...(!isSecretario ? [
       { to: "/reportes", label: "Reportes", icon: BarChart2 },
     ] : []),
@@ -60,18 +86,24 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
   ];
 
   const submenuLinks = [
-    { to: "/tesoreria/movimientos", label: "Movimientos" },
-    { to: "/tesoreria/nuevo-movimiento", label: "Nuevo ingreso" },
-    { to: "/tesoreria/egresos/nuevo-egreso", label: "Nuevo egreso" },
-    { to: "/tesoreria/historial-servicios", label: "Historial de servicios" },
-    { to: "/tesoreria/servicios-externos", label: "Serv. Externos / Impuestos" },
-    { to: "/tesoreria/cementerio", label: "Cementerio" },
+    { to: "/tesoreria/movimientos", label: "Movimientos", icon: ArrowRightLeft },
+    { to: "/tesoreria/nuevo-movimiento", label: "Nuevo ingreso", icon: ArrowUp },
+    { to: "/tesoreria/egresos/nuevo-egreso", label: "Nuevo egreso", icon: ArrowDown },
+    { to: "/tesoreria/historial-servicios", label: "Historial de servicios", icon: History },
+    { to: "/tesoreria/servicios-externos", label: "Serv. Externos / Impuestos", icon: Building2 },
+    { to: "/tesoreria/cementerio", label: "Cementerio", icon: Cross },
   ];
 
   const displayName = user?.name || user?.email || "Administrador";
 
+  const isExpanded = isHovering && collapsed;
+
   return (
-    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside
+      className={`sidebar ${collapsed ? "collapsed" : ""} ${isExpanded ? "expanded" : ""}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <div className="sidebar-brand">
         <img src={logo} alt="Logo FF.AA" className="sidebar-logo-img" />
         <div className="sidebar-brand-text">
@@ -106,7 +138,22 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
               )}
             </div>
 
-            {l.hasSubmenu && (
+            {l.hasSubmenu && collapsed && !isExpanded ? (
+              <div className="sidebar-submenu-collapsed">
+                {submenuLinks.map((sub) => (
+                  <NavLink
+                    key={sub.to}
+                    to={sub.to}
+                    title={sub.label}
+                    className={({ isActive }) =>
+                      `sidebar-submenu-icon-link ${isActive ? "active-submenu" : ""}`
+                    }
+                  >
+                    <sub.icon size={18} />
+                  </NavLink>
+                ))}
+              </div>
+            ) : l.hasSubmenu && (
               <div
                 className={`sidebar-submenu ${openSubmenus[l.to] ? "open" : ""}`}
               >
@@ -137,13 +184,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
             <div className="sidebar-role">Rol: {ROLE_LABELS[role] ?? role}</div>
           </div>
         </div>
-        <button
-          className="sidebar-logout-btn"
-          onClick={handleLogout}
-          title="Cerrar sesion"
-        >
-          <LogOut size={18} />
-        </button>
+        <div className="sidebar-actions">
+          <button
+            className="sidebar-logout-btn"
+            onClick={handleLogout}
+            title="Cerrar sesion"
+          >
+            <LogOut size={18} />
+          </button>
+        </div>
       </div>
     </aside>
   );

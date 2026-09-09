@@ -292,7 +292,7 @@ const DetalleSocio: React.FC = () => {
                     const exempt = sorted.findIndex((m) => m.id === fm.id) >= 3;
                     return (
                       <label key={fm.id} className="family-member-item">
-                        <input type="checkbox" checked={selectedFamily.has(fm.id)} onChange={() => setSelectedFamily((prev) => { const next = new Set(prev); if (next.has(fm.id)) next.delete(fm.id); else next.add(fm.id); return next; })} />
+                        <input autoComplete="off" type="checkbox" checked={selectedFamily.has(fm.id)} onChange={() => setSelectedFamily((prev) => { const next = new Set(prev); if (next.has(fm.id)) next.delete(fm.id); else next.add(fm.id); return next; })} />
                         <span>{fm.nombre}</span>
                         <span className="family-member-socio">Nº {fm.numeroDeSocio}</span>
                         {exempt && <span className="family-tag tag-exento">EXENTO</span>}

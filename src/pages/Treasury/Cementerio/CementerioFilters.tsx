@@ -92,7 +92,7 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
         <div className="filters-bottom-row" style={{ marginTop: 8 }}>
           <div className="filter-group">
             <span className="filter-group-label">Paga por</span>
-            <select
+            <select autoComplete="off"
               className="filter-select"
               value={filtroPagaPor}
               onChange={(e) => onFiltroPagaPorChange(e.target.value)}
@@ -106,7 +106,7 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
           </div>
           <div className="filter-group">
             <span className="filter-group-label">Nichos vacíos</span>
-            <select
+            <select autoComplete="off"
               className="filter-select"
               value={filtroVacios}
               onChange={(e) => onFiltroVaciosChange(e.target.value)}
@@ -135,7 +135,7 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
                 <button className="stepper-btn" onClick={onDebtStepperUp}>+</button>
               </div>
               <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   checked={debtFilterActive}
                   onChange={(e) => onDebtFilterActiveChange(e.target.checked)}
@@ -146,7 +146,7 @@ const CementerioFilters: React.FC<CementerioFiltersProps> = ({
           </div>
           <div className="filter-group">
             <span className="filter-group-label">Reducible</span>
-            <select
+            <select autoComplete="off"
               className="filter-select"
               value={filtroReducible}
               onChange={(e) => onFiltroReducibleChange(e.target.value as "ocultar" | "todo" | "solo")}
