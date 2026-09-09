@@ -224,6 +224,10 @@ const Members: React.FC = () => {
     if (key === "activos") setShowActivos(!showActivos);
     else if (key === "fallecidos") setShowFallecidos(!showFallecidos);
     else if (key === "baja") setShowBaja(!showBaja);
+    setBajaDesde("");
+    setBajaHasta("");
+    setFallecidoDesde("");
+    setFallecidoHasta("");
   };
 
   const toggleTipoSocio = (opt: string) => {
@@ -361,8 +365,8 @@ const Members: React.FC = () => {
       const matchDebtor = !showDebtorsOnly || item.monthsOwed > 0 || item.noData;
       const matchOldDebt = !hideOldDebt || maxMonths <= 0 || item.monthsOwed <= maxMonths;
 
-      const sex = (m.sexo || "").toUpperCase();
-      const matchSexo = sexoFilter.length === 0 || (sex === "M" && sexoFilter.includes("M")) || (sex === "F" && sexoFilter.includes("F"));
+      const sex = (m.sexo || "");
+      const matchSexo = sexoFilter.length === 0 || (sex.startsWith("M") && sexoFilter.includes("M")) || (sex.startsWith("F") && sexoFilter.includes("F"));
 
       const age = calcAge(m.fechaNac);
       const edadMinNum = toInt(edadMin);
