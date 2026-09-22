@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Save, Loader, Plus, Trash2 } from "lucide-react";
 import { saveReceiptConcepts, type ReceiptConcept } from "../../services/receiptCopiesConfigApi";
+import Modal from "../../components/ui/Modal";
 
 interface ReceiptCopiesConfigProps {
   initialConcepts: ReceiptConcept[];
@@ -13,11 +14,64 @@ const COPIES_OPTIONS = [
 ];
 
 const BASE_INGRESO = ["Cuota Socio", "Servicios", "Cementerio"].map((n) => n.toLowerCase());
-const BASE_EGRESO = ["Servicios Varios", "Pago de servicio externo", "Otros"].map((n) => n.toLowerCase());
+const BASE_EGRESO = ["Servicios Varios", "Pago de servicio externo", "Otros", "Adelanto de haberes", "Pago de haberes"].map((n) => n.toLowerCase());
 
 function isBaseConcept(name: string, type: "ingreso" | "egreso"): boolean {
   const key = name.toLowerCase();
   return type === "ingreso" ? BASE_INGRESO.includes(key) : BASE_EGRESO.includes(key);
+}
+
+type ConceptChange = {
+  id: string;
+  name: string;
+  type: "ingreso" | "egreso";
+  details: string[];
+  base: boolean;
+};
+
+type ChangesSummary = {
+  added: ConceptChange[];
+  removed: ConceptChange[];
+  modified: ConceptChange[];
+};
+
+function typeLabel(type: "ingreso" | "egreso"): string {
+  return type === "ingreso" ? "Ingreso" : "Egreso";
+}
+
+function targetLabel(target: "socios" | "personas" | "ambos"): string {
+  if (target === "socios") return "Solo socios";
+  if (target === "personas") return "Solo terceros";
+  return "Socios y terceros";
+}
+
+function computeChanges(initialConcepts: ReceiptConcept[], concepts: ReceiptConcept[]): ChangesSummary {
+  const initialMap = new Map(initialConcepts.map((c) => [c.id, c]));
+  const currentMap = new Map(concepts.map((c) => [c.id, c]));
+
+  const added: ConceptChange[] = concepts
+    .filter((c) => !initialMap.has(c.id))
+    .map((c) => ({ id: c.id, name: c.name, type: c.type, details: [], base: isBaseConcept(c.name, c.type) }));
+
+  const removed: ConceptChange[] = initialConcepts
+    .filter((c) => !currentMap.has(c.id))
+    .map((c) => ({ id: c.id, name: c.name, type: c.type, details: [], base: isBaseConcept(c.name, c.type) }));
+
+  const modified: ConceptChange[] = [];
+  for (const init of initialConcepts) {
+    const cur = currentMap.get(init.id);
+    if (!cur) continue;
+    const details: string[] = [];
+    if (cur.name !== init.name) details.push(`Nombre: "${init.name}" → "${cur.name}"`);
+    if (cur.copies_to_print !== init.copies_to_print) details.push(`Copias: ${init.copies_to_print} → ${cur.copies_to_print}`);
+    if (cur.active !== init.active) details.push(`Activo: ${init.active ? "Sí" : "No"} → ${cur.active ? "Sí" : "No"}`);
+    if (cur.target !== init.target) details.push(`Destino: ${targetLabel(init.target)} → ${targetLabel(cur.target)}`);
+    if (details.length > 0) {
+      modified.push({ id: cur.id, name: cur.name, type: cur.type, details, base: isBaseConcept(init.name, init.type) });
+    }
+  }
+
+  return { added, removed, modified };
 }
 
 const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcepts }) => {
@@ -27,6 +81,9 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("Valores guardados correctamente");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<ChangesSummary>({ added: [], removed: [], modified: [] });
 
   const [newType, setNewType] = useState<"ingreso" | "egreso">("ingreso");
   const [newName, setNewName] = useState("");
@@ -88,13 +145,30 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
     setNewTargetPersonas(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setSuccess(false);
+    const changes = computeChanges(initialConcepts, concepts);
+    if (changes.added.length === 0 && changes.removed.length === 0 && changes.modified.length === 0) {
+      setSuccessMsg("No hay cambios para guardar");
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+      return;
+    }
+    setPendingChanges(changes);
+    setConfirmOpen(true);
+  };
+
+  const runSave = async () => {
+    setConfirmOpen(false);
     setSaving(true);
     setError(null);
     setSuccess(false);
     try {
-      await saveReceiptConcepts(concepts);
+      const saved = await saveReceiptConcepts(concepts);
+      setConcepts(saved);
+      setSuccessMsg("Valores guardados correctamente");
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -211,7 +285,7 @@ const ReceiptCopiesConfig: React.FC<ReceiptCopiesConfigProps> = ({ initialConcep
         Definí los conceptos de comprobantes, la cantidad de copias por defecto y a quién aplica cada concepto de ingreso.
       </p>
       <p className="config-cemetery-subtitle" style={{ color: "var(--muted)", fontSize: 12 }}>
-        Los conceptos base (Cuota Socio, Servicios, Cementerio, Servicios Varios, Pago de servicio externo y Otros) no se pueden modificar ni eliminar; solo se puede cambiar la cantidad de copias.
+        Los conceptos base (Cuota Socio, Servicios, Cementerio, Servicios Varios, Pago de servicio externo, Otros, Adelanto de haberes y Pago de haberes) no se pueden modificar ni eliminar; solo se puede cambiar la cantidad de copias.
       </p>
 
       {renderTable("Conceptos de Ingreso", ingresoConcepts, true)}
@@ -295,10 +369,91 @@ Terceros
       </div>
 
       {error && <div className="config-error">{error}</div>}
-      {success && <div className="config-success">Valores guardados correctamente</div>}
+      {success && <div className="config-success">{successMsg}</div>}
       <button type="submit" className="config-save-btn" disabled={saving}>
         {saving ? <><Loader size={16} className="spin" /> Guardando...</> : <><Save size={16} /> Guardar</>}
       </button>
+
+      <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirmar cambios">
+        <div className="config-confirm-body">
+          <p className="config-confirm-intro">
+            ¿Está seguro que quiere guardar los siguientes cambios?
+          </p>
+
+          {pendingChanges.removed.length > 0 && (
+            <div className="config-confirm-section">
+              <div className="config-confirm-title config-confirm-title-removed">
+                Eliminar conceptos ({pendingChanges.removed.length})
+              </div>
+              <ul className="config-confirm-list">
+                {pendingChanges.removed.map((c) => (
+                  <li key={c.id} className="config-confirm-item">
+                    <span className="config-confirm-badge config-confirm-badge-removed">Eliminar</span>
+                    <span className="config-confirm-name">{c.name}</span>
+                    <span className="config-confirm-type">{typeLabel(c.type)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {pendingChanges.added.length > 0 && (
+            <div className="config-confirm-section">
+              <div className="config-confirm-title config-confirm-title-added">
+                Agregar conceptos ({pendingChanges.added.length})
+              </div>
+              <ul className="config-confirm-list">
+                {pendingChanges.added.map((c) => (
+                  <li key={c.id} className="config-confirm-item">
+                    <span className="config-confirm-badge config-confirm-badge-added">Agregar</span>
+                    <span className="config-confirm-name">{c.name}</span>
+                    <span className="config-confirm-type">{typeLabel(c.type)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {pendingChanges.modified.length > 0 && (
+            <div className="config-confirm-section">
+              <div className="config-confirm-title config-confirm-title-modified">
+                Modificar conceptos ({pendingChanges.modified.length})
+              </div>
+              <ul className="config-confirm-list">
+                {pendingChanges.modified.map((c) => (
+                  <li key={c.id} className="config-confirm-item config-confirm-item-col">
+                    <div className="config-confirm-item-top">
+                      <span className="config-confirm-badge config-confirm-badge-modified">Modificar</span>
+                      <span className="config-confirm-name">{c.name}</span>
+                      <span className="config-confirm-type">{typeLabel(c.type)}</span>
+                      {c.base && <span className="config-confirm-base">base</span>}
+                    </div>
+                    <ul className="config-confirm-details">
+                      {c.details.map((d, i) => (
+                        <li key={i}>{d}</li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="config-confirm-actions">
+          <button type="button" className="config-cancel-btn" onClick={() => setConfirmOpen(false)} disabled={saving}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className={pendingChanges.removed.length > 0 ? "config-save-btn config-save-danger" : "config-save-btn"}
+            onClick={runSave}
+            disabled={saving}
+          >
+            {saving ? <><Loader size={16} className="spin" /> Guardando...</> : <><Save size={16} /> {pendingChanges.removed.length > 0 ? "Eliminar y guardar" : "Guardar cambios"}</>}
+          </button>
+        </div>
+      </Modal>
     </form>
   );
 };

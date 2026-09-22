@@ -33,6 +33,15 @@ export async function fetchDebtsByPerson(personId: string): Promise<DebtWithDeta
   return response.json() as Promise<DebtWithDetails[]>;
 }
 
+export async function fetchDebtByMovement(movementId: string): Promise<DebtWithDetails[]> {
+  const response = await fetch(`/api/debts?movementId=${encodeURIComponent(movementId)}`);
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? "Error al cargar la deuda del movimiento");
+  }
+  return response.json() as Promise<DebtWithDetails[]>;
+}
+
 export async function fetchBalanceByMember(memberId: string): Promise<number> {
   if (!memberId) return 0;
   const response = await fetch(`/api/debts/balance?memberId=${encodeURIComponent(memberId)}`);

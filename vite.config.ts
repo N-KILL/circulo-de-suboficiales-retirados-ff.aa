@@ -1040,13 +1040,21 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
             const {
               getDebtsByMember,
               getDebtsByPerson,
+              getDebtsByMovementId,
               insertDebt,
             } = await import("./src/database/debtsRepository");
 
             if (req.method === "GET") {
               const memberId = url.searchParams.get("memberId");
               const personId = url.searchParams.get("personId");
+              const movementId = url.searchParams.get("movementId");
 
+              if (movementId) {
+                const debts = await getDebtsByMovementId(movementId);
+                res.statusCode = 200;
+                res.end(JSON.stringify(debts));
+                return;
+              }
               if (memberId) {
                 const debts = await getDebtsByMember(memberId);
                 res.statusCode = 200;
@@ -1060,7 +1068,7 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
                 return;
               }
               res.statusCode = 400;
-              res.end(JSON.stringify({ error: "Falta el parámetro memberId o personId" }));
+              res.end(JSON.stringify({ error: "Falta el parámetro memberId, personId o movementId" }));
               return;
             }
 

@@ -823,13 +823,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse, p
       const {
         getDebtsByMember,
         getDebtsByPerson,
+        getDebtsByMovementId,
         insertDebt,
       } = await import("../src/database/debtsRepository.js");
 
       if (method === "GET") {
         const memberId = req.query.memberId as string | undefined;
         const personId = req.query.personId as string | undefined;
+        const movementId = req.query.movementId as string | undefined;
 
+        if (movementId) {
+          const debts = await getDebtsByMovementId(movementId);
+          res.status(200).json(debts);
+          return;
+        }
         if (memberId) {
           const debts = await getDebtsByMember(memberId);
           res.status(200).json(debts);
@@ -840,7 +847,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse, p
           res.status(200).json(debts);
           return;
         }
-        res.status(400).json({ error: "Falta el parámetro memberId o personId" });
+        res.status(400).json({ error: "Falta el parámetro memberId, personId o movementId" });
         return;
       }
 

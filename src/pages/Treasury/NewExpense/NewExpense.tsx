@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { DollarSign, Save, Loader, Landmark, CreditCard, Info, Calendar, Trash2, Plus } from "lucide-react";
+import { DollarSign, Save, Loader, Landmark, CreditCard, Info, Calendar, Trash2, Plus, Wallet } from "lucide-react";
 import { savePayment } from "../../../services/paymentsApi";
 import { fetchNextReceipt } from "../../../services/initialBalancesApi";
 import { fetchExternalServices, saveExternalServicePayment, type ExternalServiceItem } from "../../../services/externalServicesApi";
 import { fetchServiceProviders } from "../../../services/personsApi";
+import { fetchMembers } from "../../../services/membersApi";
+import { saveDebt, fetchBalanceByMember, fetchDebtsByMember } from "../../../services/debtsApi";
 import { saveServiceRecord } from "../../../services/serviceRecordsApi";
 import Banner from "../../../components/ui/Banner";
 import Comprobante, { type ComprobanteData } from "../../../components/comprobante/Comprobante";
@@ -11,23 +13,19 @@ import { saveComprobante } from "../../../services/comprobantesApi";
 import { fetchReceiptCopiesConfig, fetchReceiptConcepts, type ReceiptCopiesDefaults } from "../../../services/receiptCopiesConfigApi";
 import PersonSearch from "../../../components/person/PersonSearch";
 import ProviderPersonModal from "./ProviderPersonModal";
-import type { Person } from "../../../models/members";
+import type { Person, Member } from "../../../models/members";
 import DateInput from "../../../components/ui/DateInput";
-import { toCurrency, todayLocal } from "../../../utils/format";
+import { toCurrency, todayLocal, formatCurrency, toDisplayDate } from "../../../utils/format";
 import "../NewMovement/NewMovement.css";
 import "./NewExpense.css";
 
+const HABERES_CONCEPTS = ["Adelanto de haberes", "Pago de haberes"];
+
 const FALLBACK_EXPENSE_CONCEPTS = [
-  "Sueldos",
-  "Servicios varios",
-  "Impuestos",
-  "Mantenimiento",
-  "Proveedores",
-  "Viáticos",
-  "Alquileres",
-  "Seguros",
-  "Honorarios",
+  "Servicios Varios",
   "Pago de servicio externo",
+  "Adelanto de haberes",
+  "Pago de haberes",
   "Otros",
 ];
 
@@ -61,6 +59,14 @@ const NewExpense: React.FC = () => {
   const [providersFetched, setProvidersFetched] = useState(false);
   const [showProviderModal, setShowProviderModal] = useState(false);
 
+  const [members, setMembers] = useState<Member[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+
+  const [accountState, setAccountState] = useState<{ memberId: string; balance: number | null; lastChange: string | null } | null>(null);
+
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -71,6 +77,12 @@ const NewExpense: React.FC = () => {
   const originLabel = cajaOrigen === "caja_chica" ? "Caja Chica" : "Banco";
   const formaPagoLabel = mode === "efectivo" ? "Efectivo" : "Transferencia";
   const isServiciosVarios = concepto?.toLowerCase() === "servicios varios";
+  const isHaberesConcept = concepto === "Adelanto de haberes" || concepto === "Pago de haberes";
+
+  const accountForCurrent = isHaberesConcept && selectedMember && accountState && accountState.memberId === selectedMember.id ? accountState : null;
+  const accountBalance = accountForCurrent?.balance ?? null;
+  const accountLastChange = accountForCurrent?.lastChange ?? null;
+  const accountLoading = isHaberesConcept && !!selectedMember && !accountForCurrent;
 
   useEffect(() => {
     if (egresoConcepts.length > 0 && !egresoConcepts.includes(concepto)) {
@@ -93,6 +105,34 @@ const NewExpense: React.FC = () => {
         .catch(() => { setServiceProviders([]); setProvidersFetched(true); });
     }
   }, [concepto, providersFetched, isServiciosVarios]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchMembers()
+      .then((data) => { if (mounted) { setMembers(Array.isArray(data) ? data : []); setMembersLoading(false); } })
+      .catch(() => { if (mounted) setMembersLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    const memberId = selectedMember?.id;
+    if (!isHaberesConcept || !memberId) return;
+    let mounted = true;
+    Promise.all([fetchBalanceByMember(memberId), fetchDebtsByMember(memberId)])
+      .then(([bal, debts]) => {
+        if (mounted) {
+          setAccountState({
+            memberId,
+            balance: bal ?? null,
+            lastChange: debts.length > 0 ? debts[0].date : null,
+          });
+        }
+      })
+      .catch(() => {
+        if (mounted) setAccountState({ memberId, balance: null, lastChange: null });
+      });
+    return () => { mounted = false; };
+  }, [isHaberesConcept, selectedMember?.id]);
 
   useEffect(() => {
     Promise.all([
@@ -124,6 +164,21 @@ const NewExpense: React.FC = () => {
     );
   }, [providerSearch, serviceProviders, selectedProvider]);
 
+  const memberResults = useMemo(() => {
+    const source = isHaberesConcept
+      ? members.filter((m) => m.cobraIAF === "HAB IAF")
+      : members;
+    if (memberSearch.trim() === "") {
+      return selectedMember ? [] : source;
+    }
+    const s = memberSearch.toLowerCase().trim();
+    return source.filter((m) =>
+      m.nombre.toLowerCase().includes(s) ||
+      m.documento.includes(s) ||
+      m.numeroDeSocio.includes(s)
+    );
+  }, [memberSearch, members, selectedMember, isHaberesConcept]);
+
   const handleProviderSaved = useCallback((person: Person) => {
     const saved = { ...person, brindaServicios: true };
     setServiceProviders((prev) => {
@@ -143,10 +198,11 @@ const NewExpense: React.FC = () => {
     if (!concepto) errs.concepto = "Seleccioná un concepto";
     if (concepto === "Pago de servicio externo" && !selectedExtService) errs.concepto = "Seleccioná un servicio externo";
     if (isServiciosVarios && !selectedProvider) errs.persona = "Seleccioná un tercero que brinde servicios";
+    if (isHaberesConcept && !selectedMember) errs.persona = "Seleccioná un socio";
     if (!fecha) errs.fecha = "Ingresá una fecha";
     if (!importeNum || importeNum <= 0) errs.importe = "Ingresá un importe válido mayor a cero";
     return errs;
-  }, [concepto, fecha, importeNum, selectedExtService, selectedProvider, isServiciosVarios]);
+  }, [concepto, fecha, importeNum, selectedExtService, selectedProvider, selectedMember, isServiciosVarios, isHaberesConcept]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -167,6 +223,8 @@ const NewExpense: React.FC = () => {
           ? `Pago servicio externo: ${svcName}${descripcion ? ` - ${descripcion}` : ""}`
           : isServiciosVarios && selectedProvider
           ? `Pago a ${selectedProvider.nombre}${descripcion ? `: ${descripcion}` : ""}`
+          : isHaberesConcept && selectedMember
+          ? `${concepto} a ${selectedMember.nombre}${descripcion ? `: ${descripcion}` : ""}`
           : `${concepto}${descripcion ? `: ${descripcion}` : ""}`;
 
         const payment = await savePayment({
@@ -196,13 +254,25 @@ const NewExpense: React.FC = () => {
           });
         }
 
+        if (isHaberesConcept && selectedMember) {
+          await saveDebt({
+            member_id: selectedMember.id,
+            person_id: null,
+            type: concepto === "Adelanto de haberes" ? "adelanto_haberes" : "pago_haberes",
+            description: detail,
+            amount: -importeNum,
+            movement_id: payment.id,
+            date: fecha,
+          });
+        }
+
         await saveComprobante({
           movement_id: payment.id,
           receipt_number: receiptNumber,
           copies_to_print: receiptCopiesDefaults[concepto] ?? 1,
           detail: detail,
           concept: concepto,
-          payer_name: isServiciosVarios && selectedProvider ? selectedProvider.nombre : null,
+          payer_name: isServiciosVarios && selectedProvider ? selectedProvider.nombre : isHaberesConcept && selectedMember ? selectedMember.nombre : null,
         });
 
         setComprobanteData({
@@ -212,7 +282,7 @@ const NewExpense: React.FC = () => {
           detail,
           amount: importeNum,
           origin: originLabel,
-          payerName: isServiciosVarios && selectedProvider ? selectedProvider.nombre : undefined,
+          payerName: isServiciosVarios && selectedProvider ? selectedProvider.nombre : isHaberesConcept && selectedMember ? selectedMember.nombre : undefined,
           conceptDetail: isServiciosVarios && selectedProvider
             ? (descripcion ? `Pago por servicio brindado: ${descripcion}` : "Pago por servicio brindado")
             : undefined,
@@ -225,6 +295,9 @@ const NewExpense: React.FC = () => {
         setSelectedProvider(null);
         setProviderSearch("");
         setShowProviderDropdown(false);
+        setSelectedMember(null);
+        setMemberSearch("");
+        setShowMemberDropdown(false);
         setErrors({});
         setTouched({});
         setApiError(null);
@@ -234,7 +307,7 @@ const NewExpense: React.FC = () => {
         setSaving(false);
       }
     },
-    [validate, concepto, descripcion, fecha, importeNum, mode, selectedExtService, selectedProvider, externalServices, originLabel, isServiciosVarios]
+    [validate, concepto, descripcion, fecha, importeNum, mode, selectedExtService, selectedProvider, selectedMember, externalServices, originLabel, isServiciosVarios, isHaberesConcept]
   );
 
   const handleClearForm = useCallback(() => {
@@ -247,6 +320,9 @@ const NewExpense: React.FC = () => {
     setSelectedProvider(null);
     setProviderSearch("");
     setShowProviderDropdown(false);
+    setSelectedMember(null);
+    setMemberSearch("");
+    setShowMemberDropdown(false);
     setErrors({});
     setTouched({});
     setApiError(null);
@@ -309,6 +385,11 @@ const NewExpense: React.FC = () => {
                       setSelectedProvider(null);
                       setProviderSearch("");
                       setShowProviderDropdown(false);
+                    }
+                    if (!HABERES_CONCEPTS.includes(e.target.value)) {
+                      setSelectedMember(null);
+                      setMemberSearch("");
+                      setShowMemberDropdown(false);
                     }
                     if (e.target.value) setErrors((prev) => { const next = { ...prev }; delete next.concepto; return next; });
                   }}
@@ -375,6 +456,29 @@ const NewExpense: React.FC = () => {
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>Tercero</span>
                     </button>
                   </div>
+                </div>
+              )}
+
+              {isHaberesConcept && (
+                <div className="form-group full-width">
+                  <label>
+                    Socio <span className="required">*</span>
+                  </label>
+                  <PersonSearch
+                    type="socio"
+                    searchValue={memberSearch}
+                    onSearchChange={(v) => { setMemberSearch(v); setShowMemberDropdown(true); if (selectedMember && v !== selectedMember.nombre) setSelectedMember(null); }}
+                    results={memberResults}
+                    selected={selectedMember}
+                    onSelect={(p) => { setSelectedMember(p as Member); setMemberSearch((p as Member).nombre); setShowMemberDropdown(false); setErrors((prev) => { const next = { ...prev }; delete next.persona; return next; }); }}
+                    onClear={() => { setSelectedMember(null); setMemberSearch(""); setTouched((prev) => ({ ...prev, persona: true })); setErrors((prev) => ({ ...prev, persona: "Seleccioná un socio" })); }}
+                    showDropdown={showMemberDropdown}
+                    onShowDropdown={setShowMemberDropdown}
+                    loading={membersLoading}
+                    error={errors.persona}
+                    touched={touched.persona}
+                    onBlur={() => { if (!selectedMember) setTouched((prev) => ({ ...prev, persona: true })); }}
+                  />
                 </div>
               )}
 
@@ -475,6 +579,11 @@ const NewExpense: React.FC = () => {
                       {selectedProvider.nombre}
                     </span>
                   )}
+                  {isHaberesConcept && selectedMember && (
+                    <span style={{ display: "block", fontSize: 12, color: "var(--muted)" }}>
+                      {selectedMember.nombre}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="summary-item">
@@ -500,6 +609,41 @@ const NewExpense: React.FC = () => {
               </span>
             </div>
           </div>
+
+          {isHaberesConcept && selectedMember && (
+            <div className="card-custom summary-card">
+              <h3 className="card-title">Información de cuenta corriente</h3>
+              <div className="summary-list">
+                <div className="summary-item">
+                  <div className="summary-label">
+                    <Info size={16} /> <span>N° de socio</span>
+                  </div>
+                  <div className="summary-value">{selectedMember.numeroDeSocio || "\u2014"}</div>
+                </div>
+                <div className="summary-item">
+                  <div className="summary-label">
+                    <Wallet size={16} /> <span>Cuenta corriente</span>
+                  </div>
+                  <div className="summary-value">
+                    {accountLoading ? <Loader size={14} className="spin" /> : accountBalance !== null ? formatCurrency(accountBalance) : "\u2014"}
+                  </div>
+                </div>
+                <div className="summary-item">
+                  <div className="summary-label">
+                    <Calendar size={16} /> <span>Último cambio</span>
+                  </div>
+                  <div className="summary-value">
+                    {accountLoading ? <Loader size={14} className="spin" /> : accountLastChange ? toDisplayDate(accountLastChange) : "\u2014"}
+                  </div>
+                </div>
+              </div>
+              {accountBalance !== null && importeNum > 0 && (
+                <div className="account-check-hint" style={{ marginTop: 8 }}>
+                  Tras registrar este egreso, la cuenta quedará en {formatCurrency(accountBalance - importeNum)}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

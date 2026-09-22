@@ -17,6 +17,8 @@ const TYPE_LABELS: Record<string, string> = {
   servicio: "Servicio",
   ajuste: "Ajuste",
   otro: "Otro",
+  adelanto_haberes: "Adelanto de haberes",
+  pago_haberes: "Pago de haberes",
 };
 
 const AccountSection: React.FC<AccountSectionProps> = ({ memberId, personId }) => {

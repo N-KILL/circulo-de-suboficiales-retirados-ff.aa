@@ -535,3 +535,171 @@
 .pricing-history-btn:hover {
     background: var(--border);
 }
+
+/* ─── Confirmación de guardado de conceptos ─────────────────────────── */
+
+.config-confirm-body {
+    padding: 16px 20px;
+}
+
+.config-confirm-intro {
+    font-size: 14px;
+    color: var(--text);
+    margin: 0 0 4px 0;
+}
+
+.config-confirm-section {
+    margin-top: 14px;
+}
+
+.config-confirm-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.config-confirm-title-removed {
+    color: #dc3545;
+}
+
+.config-confirm-title-added {
+    color: #15803d;
+}
+
+.config-confirm-title-modified {
+    color: #b45309;
+}
+
+.config-confirm-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.config-confirm-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px dashed var(--border);
+}
+
+.config-confirm-item:last-child {
+    border-bottom: none;
+}
+
+.config-confirm-item-col {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.config-confirm-item-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.config-confirm-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.config-confirm-badge-removed {
+    background: #fee2e2;
+    color: #dc3545;
+}
+
+.config-confirm-badge-added {
+    background: #d1fae5;
+    color: #15803d;
+}
+
+.config-confirm-badge-modified {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.config-confirm-name {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.config-confirm-type {
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.config-confirm-base {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--azul-armada);
+    background: var(--gris-claro);
+    padding: 1px 6px;
+    border-radius: 8px;
+}
+
+.config-confirm-details {
+    list-style: none;
+    margin: 2px 0 0 0;
+    padding: 0;
+}
+
+.config-confirm-details li {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 1px 0 1px 8px;
+    position: relative;
+}
+
+.config-confirm-details li::before {
+    content: "·";
+    position: absolute;
+    left: 0;
+    color: var(--border);
+}
+
+.config-confirm-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+}
+
+.config-cancel-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    background: var(--gris-claro);
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.config-cancel-btn:hover {
+    background: var(--border);
+}
+
+.config-cancel-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.config-save-danger {
+    background: #dc3545;
+}
+
+.config-save-danger:hover {
+    background: #b91c1c;
+}

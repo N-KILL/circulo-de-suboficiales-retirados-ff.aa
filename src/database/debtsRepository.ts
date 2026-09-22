@@ -97,6 +97,24 @@ export async function getDebtsByPerson(personId: string): Promise<DebtWithDetail
     return rows as DebtWithDetails[];
 }
 
+export async function getDebtsByMovementId(movementId: string): Promise<DebtWithDetails[]> {
+    const sql = getSql();
+    const rows = await sql`
+        SELECT
+            d.id, d.member_id, d.person_id, d.type, d.description,
+            d.amount::float, d.movement_id, d.date::text, d.created_at::text,
+            m.nombre AS member_nombre,
+            m.numero_de_socio AS member_numero_de_socio,
+            p.nombre AS person_nombre
+        FROM debts d
+        LEFT JOIN members m ON d.member_id = m.id
+        LEFT JOIN persons p ON d.person_id = p.id
+        WHERE d.movement_id = ${movementId}
+        ORDER BY d.date DESC, d.created_at DESC
+    `;
+    return rows as DebtWithDetails[];
+}
+
 export async function getBalanceByMember(memberId: string): Promise<number> {
     const sql = getSql();
     const result = await sql`

@@ -16,17 +16,11 @@ const SEED_CONCEPTS: { type: "ingreso" | "egreso"; name: string; target: "socios
     { type: "ingreso", name: "Cuota Socio", target: "socios", sort_order: 1, copies: 3 },
     { type: "ingreso", name: "Servicios", target: "ambos", sort_order: 2, copies: 2 },
     { type: "ingreso", name: "Cementerio", target: "ambos", sort_order: 3, copies: 3 },
-    { type: "egreso", name: "Sueldos", target: "ambos", sort_order: 10, copies: 1 },
-    { type: "egreso", name: "Servicios", target: "ambos", sort_order: 11, copies: 2 },
-    { type: "egreso", name: "Impuestos", target: "ambos", sort_order: 12, copies: 1 },
-    { type: "egreso", name: "Mantenimiento", target: "ambos", sort_order: 13, copies: 1 },
-    { type: "egreso", name: "Proveedores", target: "ambos", sort_order: 14, copies: 1 },
-    { type: "egreso", name: "Viáticos", target: "ambos", sort_order: 15, copies: 1 },
-    { type: "egreso", name: "Alquileres", target: "ambos", sort_order: 16, copies: 1 },
-    { type: "egreso", name: "Seguros", target: "ambos", sort_order: 17, copies: 1 },
-    { type: "egreso", name: "Honorarios", target: "ambos", sort_order: 18, copies: 1 },
-    { type: "egreso", name: "Pago de servicio externo", target: "ambos", sort_order: 19, copies: 1 },
-    { type: "egreso", name: "Otros", target: "ambos", sort_order: 20, copies: 1 },
+    { type: "egreso", name: "Servicios Varios", target: "ambos", sort_order: 10, copies: 1 },
+    { type: "egreso", name: "Pago de servicio externo", target: "ambos", sort_order: 11, copies: 1 },
+    { type: "egreso", name: "Adelanto de haberes", target: "ambos", sort_order: 12, copies: 1 },
+    { type: "egreso", name: "Pago de haberes", target: "ambos", sort_order: 13, copies: 1 },
+    { type: "egreso", name: "Otros", target: "ambos", sort_order: 14, copies: 1 },
 ];
 
 export async function ensureReceiptConceptsTables(): Promise<void> {
@@ -55,12 +49,20 @@ export async function ensureReceiptConceptsTables(): Promise<void> {
     await sql`ALTER TABLE receipt_concepts ADD COLUMN IF NOT EXISTS target VARCHAR(20) NOT NULL DEFAULT 'ambos'`;
 }
 
-async function seedIfEmpty(): Promise<void> {
+async function seedBaseConcepts(): Promise<void> {
     const sql = getSql();
-    const [{ count }] = (await sql`SELECT COUNT(*)::int as count FROM receipt_concepts`) as { count: number }[];
-    if (count > 0) return;
+    const existing = (await sql`SELECT type, name FROM receipt_concepts`) as { type: string; name: string }[];
+    const existingKeys = new Set(existing.map((r) => `${r.type}|${r.name.toLowerCase()}`));
 
     for (const c of SEED_CONCEPTS) {
+        if (existingKeys.has(`${c.type}|${c.name.toLowerCase()}`)) {
+            await sql`
+                UPDATE receipt_concepts
+                SET sort_order = ${c.sort_order}
+                WHERE type = ${c.type} AND name ILIKE ${c.name}
+            `;
+            continue;
+        }
         const rows = (await sql`
             INSERT INTO receipt_concepts (type, name, target, sort_order)
             VALUES (${c.type}, ${c.name}, ${c.target}, ${c.sort_order})
@@ -69,13 +71,14 @@ async function seedIfEmpty(): Promise<void> {
         await sql`
             INSERT INTO receipt_copies_config (concept_id, copies_to_print)
             VALUES (${rows[0].id}, ${c.copies})
+            ON CONFLICT (concept_id) DO NOTHING
         `;
     }
 }
 
 export async function getAllReceiptConcepts(): Promise<ReceiptConceptRow[]> {
     await ensureReceiptConceptsTables();
-    await seedIfEmpty();
+    await seedBaseConcepts();
     const sql = getSql();
     const rows = (await sql`
         SELECT rc.id, rc.type, rc.name, rc.target, rc.sort_order, rc.active,
@@ -103,7 +106,7 @@ export async function saveAllReceiptConcepts(
     const sql = getSql();
 
     const BASE_INGRESO = ["Cuota Socio", "Servicios", "Cementerio"].map((n) => n.toLowerCase());
-    const BASE_EGRESO = ["Servicios Varios", "Pago de servicio externo", "Otros"].map((n) => n.toLowerCase());
+    const BASE_EGRESO = ["Servicios Varios", "Pago de servicio externo", "Otros", "Adelanto de haberes", "Pago de haberes"].map((n) => n.toLowerCase());
     const isBase = (name: string, type: string) => {
         const key = name.toLowerCase();
         return type === "ingreso" ? BASE_INGRESO.includes(key) : BASE_EGRESO.includes(key);

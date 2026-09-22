@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader, Edit3, Trash2, X, Eye, FileText, Ban } from "lucide-react";
 import { fetchMovementById, setMovementAnulado, type Movement, type ServiceRecordLink, type CementerioMovimientoLink } from "../../../services/movementsApi";
 import { fetchMemberById } from "../../../services/membersApi";
+import { fetchDebtByMovement, fetchBalanceByMember, type DebtWithDetails } from "../../../services/debtsApi";
+import type { Member } from "../../../models/members";
 import ServiceRecordModal from "../../../components/service/ServiceRecordModal";
 import Comprobante from "../../../components/comprobante/Comprobante";
 import { toCurrency, formatPeriodsDisplay, formatRecordDate } from "../../../utils/format";
@@ -21,6 +23,10 @@ const MovementDetail: React.FC = () => {
     const [paidMemberNames, setPaidMemberNames] = useState<{ id: string; nombre: string }[]>([]);
     const [selectedServiceRecord, setSelectedServiceRecord] = useState<ServiceRecordLink | null>(null);
     const [showComprobante, setShowComprobante] = useState(false);
+    const [linkedDebt, setLinkedDebt] = useState<DebtWithDetails | null>(null);
+    const [haberesMember, setHaberesMember] = useState<Member | null>(null);
+    const [haberesBalance, setHaberesBalance] = useState<number | null>(null);
+    const [haberesLoading, setHaberesLoading] = useState(false);
 
     useEffect(() => {
         if (!id) return;
@@ -30,6 +36,10 @@ const MovementDetail: React.FC = () => {
                 if (mounted) {
                     setMovement(m);
                     setLoading(false);
+                    setLinkedDebt(null);
+                    setHaberesMember(null);
+                    setHaberesBalance(null);
+                    setHaberesLoading(false);
                     if (m.linked_due?.paid_members?.length) {
                         Promise.all(m.linked_due.paid_members.map((pid: string) => fetchMemberById(pid).catch(() => null)))
                             .then((members) => {
@@ -38,6 +48,35 @@ const MovementDetail: React.FC = () => {
                                     setPaidMemberNames(valid.map((mem) => ({ id: mem.id, nombre: mem.nombre })));
                                 }
                             }).catch(() => {});
+                    }
+                    const conceptKey = (m.concept ?? "").toLowerCase();
+                    if (conceptKey === "adelanto de haberes" || conceptKey === "pago de haberes") {
+                        setHaberesLoading(true);
+                        fetchDebtByMovement(m.id)
+                            .then(async (debts) => {
+                                const debt = debts[0] ?? null;
+                                if (!mounted) return;
+                                setLinkedDebt(debt);
+                                if (debt?.member_id) {
+                                    const [member, balance] = await Promise.all([
+                                        fetchMemberById(debt.member_id).catch(() => null),
+                                        fetchBalanceByMember(debt.member_id).catch(() => 0),
+                                    ]);
+                                    if (mounted) {
+                                        setHaberesMember(member);
+                                        setHaberesBalance(balance);
+                                        setHaberesLoading(false);
+                                    }
+                                } else {
+                                    if (mounted) setHaberesLoading(false);
+                                }
+                            })
+                            .catch(() => {
+                                if (mounted) {
+                                    setLinkedDebt(null);
+                                    setHaberesLoading(false);
+                                }
+                            });
                     }
                 }
             })
@@ -63,6 +102,7 @@ const MovementDetail: React.FC = () => {
     const hasServiceRecords = (movement.linked_service_records?.length ?? 0) > 0;
     const hasCementerioMovimientos = (movement.linked_cementerio_movimientos?.length ?? 0) > 0;
     const hasAnyLinked = hasLinkedDue || hasServiceRecords || hasCementerioMovimientos;
+    const isHaberesConcept = (movement.concept ?? "").toLowerCase() === "adelanto de haberes" || (movement.concept ?? "").toLowerCase() === "pago de haberes";
 
     return (
         <div className="movement-detail-container">
@@ -178,6 +218,58 @@ const MovementDetail: React.FC = () => {
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+                        </>
+                    )}
+
+                    {isHaberesConcept && linkedDebt && (
+                        <>
+                            <div className="detail-field separator-row" style={{ gridColumn: "1 / -1" }}><hr /></div>
+                            <div className="detail-field" style={{ gridColumn: "1 / -1" }}>
+                                <span className="detail-label due-label">Cuenta corriente vinculada</span>
+                                <span className={`badge ${movement.type === "ingreso" ? "badge-ingreso" : "badge-egreso"}`}>{movement.concept}</span>
+                            </div>
+                            {haberesMember ? (
+                                <>
+                                    {haberesMember.numeroDeSocio && <div className="detail-field"><span className="detail-label">N° de socio</span><span className="detail-value">{haberesMember.numeroDeSocio}</span></div>}
+                                    <div className="detail-field">
+                                        <span className="detail-label">Socio</span>
+                                        <span className="detail-value">
+                                            {haberesMember.nombre} <button className="btn-view-detail" type="button" onClick={() => navigate(`/socios/detalle/${haberesMember.id}`)}><Eye size={14} /> Ver detalles</button>
+                                        </span>
+                                    </div>
+                                </>
+                            ) : linkedDebt.member_nombre ? (
+                                <div className="detail-field">
+                                    <span className="detail-label">Socio</span>
+                                    <span className="detail-value">
+                                        {linkedDebt.member_nombre}
+                                        {linkedDebt.member_id && (
+                                            <button className="btn-view-detail" type="button" onClick={() => navigate(`/socios/detalle/${linkedDebt.member_id}`)}><Eye size={14} /> Ver detalles</button>
+                                        )}
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className="detail-field">
+                                    <span className="detail-label">Titular</span>
+                                    <span className="detail-value">
+                                        {linkedDebt.person_nombre ?? "\u2014"}
+                                        {linkedDebt.person_id && (
+                                            <button className="btn-view-detail" type="button" onClick={() => navigate(`/terceros/detalle/${linkedDebt.person_id}`)}><Eye size={14} /> Ver detalles</button>
+                                        )}
+                                    </span>
+                                </div>
+                            )}
+                            {linkedDebt.description && <div className="detail-field full-width"><span className="detail-label">Descripción</span><span className="detail-value">{linkedDebt.description}</span></div>}
+                            <div className="detail-field">
+                                <span className="detail-label">Importe</span>
+                                <span className={`detail-value ${linkedDebt.amount >= 0 ? "amount-ingreso" : "amount-egreso"}`}>{toCurrency(linkedDebt.amount)}</span>
+                            </div>
+                            <div className="detail-field">
+                                <span className="detail-label">Cuenta corriente</span>
+                                <span className={`detail-value ${haberesBalance == null ? "" : haberesBalance > 0 ? "amount-ingreso" : haberesBalance < 0 ? "amount-egreso" : ""}`}>
+                                    {haberesBalance == null ? (haberesLoading ? "Cargando..." : "\u2014") : toCurrency(haberesBalance)}
+                                </span>
                             </div>
                         </>
                     )}
